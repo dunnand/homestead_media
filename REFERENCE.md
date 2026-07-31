@@ -307,6 +307,8 @@ Note: there's also an old, unrestricted "API key 1" (created Mar 21 2023) in the
 4. Every event on that calendar not already in `hm_broadcasts` (matched by ID or by `type|date`) gets added — no sport-type or home/away filtering, since the teacher already curated the calendar to only contain broadcast-worthy games
 5. Works every year automatically — no code changes needed, just keep adding games to that calendar and clicking sync
 
+**Volleyball JV/varsity time offset:** The calendar lists the JV start time, but Homestead Live broadcasts varsity, which goes on ~1hr after JV ends. `loadCalendarBroadcastEvents()` (script.js) shifts the stored time +60min for any event where `inferYbType()` returns `'volleyball'`, using `computeTimeOffset(timeStr, -60)` (negative offset = add time). This happens once at fetch time, so the corrected time flows through everywhere downstream — `gameTime` written to Firestore, `computeArrival()`/`computeDoor33()` call/door times, and `scripts/send-reminders.js` email reminders — with no per-display fixes needed. Added Jul 31 2026.
+
 ---
 
 ## 11. Yearbook Sign-Up

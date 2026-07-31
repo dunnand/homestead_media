@@ -241,7 +241,7 @@ function computeTimeOffset(gameTime, offsetMins) {
   if (isPM && h !== 12) h += 12;
   if (!isPM && h === 12) h = 0;
   let total = h * 60 + min - offsetMins;
-  if (total < 0) total += 1440;
+  total = ((total % 1440) + 1440) % 1440;
   const ch = Math.floor(total / 60);
   const cm = total % 60;
   const period = ch >= 12 ? 'PM' : 'AM';
@@ -2440,9 +2440,12 @@ async function loadCalendarBroadcastEvents() {
         const title   = ev.summary || '';
         const type    = inferYbType(title);
         const dateStr = (ev.start.dateTime || ev.start.date || '').slice(0, 10);
-        const timeStr = ev.start.dateTime
+        let timeStr = ev.start.dateTime
           ? new Date(ev.start.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
           : '';
+        // Calendar lists the JV start time, but Homestead Live broadcasts varsity,
+        // which goes on ~1hr after JV — shift the stored time forward to match.
+        if (type === 'volleyball' && timeStr) timeStr = computeTimeOffset(timeStr, -60);
         return {
           id:       'bc-' + ev.id.replace(/[^a-z0-9]/gi, '').slice(0, 20),
           title, date: dateStr, time: timeStr, type,

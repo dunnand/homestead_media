@@ -29,7 +29,7 @@ function computeTimeOffset(gameTime, offsetMins) {
   if (isPM && h !== 12) h += 12;
   if (!isPM && h === 12) h = 0;
   let total = h * 60 + min - offsetMins;
-  if (total < 0) total += 1440;
+  total = ((total % 1440) + 1440) % 1440;
   const ch = Math.floor(total / 60);
   const cm = total % 60;
   const period = ch >= 12 ? 'PM' : 'AM';
