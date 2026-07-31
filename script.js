@@ -1667,11 +1667,12 @@ function rundownValToStr(val) {
 function rundownEditorName() {
   if (S.teacherMode) return 'Teacher';
   let n = localStorage.getItem('hm_student_name') || '';
-  if (!n) {
+  while (!n) {
     n = (prompt('Your name? It shows next to your edits so your teacher knows who changed what.') || '').trim();
-    if (n) localStorage.setItem('hm_student_name', n);
+    if (!n) alert('Please enter your name to continue editing the rundown.');
   }
-  return n || 'Anonymous';
+  localStorage.setItem('hm_student_name', n);
+  return n;
 }
 
 async function saveRundownCell(weekKey, roleKey, value) {
