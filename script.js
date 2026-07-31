@@ -215,6 +215,7 @@ const S = {
   yearbookCoverage: [],
   customYbEvents: [],
   calendarYbEvents: [],
+  calendarBroadcastEvents: [],
   ybShowAway: false,
   ybDashView: 'event',
   beatId: null,
@@ -2403,6 +2404,61 @@ async function loadCalendarYbEvents() {
   } catch(e) {}
 }
 
+// "Homestead Live Event Calendar" (thepoint91fm@gmail.com) — teacher-curated, only broadcast-worthy
+// events go on it, so unlike loadCalendarYbEvents() this takes everything with no type/home filtering.
+async function loadCalendarBroadcastEvents() {
+  const db = getDB();
+  const TTL = 6 * 60 * 60 * 1000; // 6 hours
+
+  if (db) {
+    try {
+      const doc = await db.collection('hm_config').doc('bcast_cal_cache').get();
+      trackUsage('reads', 1);
+      if (doc.exists) {
+        const { ts, events } = doc.data();
+        if (Date.now() - ts < TTL && events && events.length) {
+          S.calendarBroadcastEvents = events; return;
+        }
+      }
+    } catch(e) {}
+  }
+
+  if (!GOOGLE_CAL_API_KEY) return;
+  try {
+    const now     = new Date();
+    const syStart = now.getMonth() >= 6 ? now.getFullYear() : now.getFullYear() - 1;
+    const end     = new Date(syStart + 1, 7, 1);
+    const calId   = encodeURIComponent(HOMESTEAD_LIVE_CAL_ID);
+    const url     = `https://www.googleapis.com/calendar/v3/calendars/${calId}/events`
+      + `?key=${GOOGLE_CAL_API_KEY}&timeMin=${now.toISOString()}&timeMax=${end.toISOString()}`
+      + `&singleEvents=true&orderBy=startTime&maxResults=500`;
+
+    const resp = await fetch(url);
+    const data = await resp.json();
+    if (data.items) {
+      const events = data.items.map(ev => {
+        const title   = ev.summary || '';
+        const type    = inferYbType(title);
+        const dateStr = (ev.start.dateTime || ev.start.date || '').slice(0, 10);
+        const timeStr = ev.start.dateTime
+          ? new Date(ev.start.dateTime).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true })
+          : '';
+        return {
+          id:       'bc-' + ev.id.replace(/[^a-z0-9]/gi, '').slice(0, 20),
+          title, date: dateStr, time: timeStr, type,
+          location: ev.location || '',
+          icon:     YB_ICONS[type] || '📅'
+        };
+      }).filter(e => e.date);
+      S.calendarBroadcastEvents = events;
+      if (db) {
+        trackUsage('writes');
+        db.collection('hm_config').doc('bcast_cal_cache').set({ ts: Date.now(), events }).catch(() => {});
+      }
+    }
+  } catch(e) {}
+}
+
 async function loadCustomYbEvents() {
   const db = getDB();
   if (!db) return;
@@ -3445,10 +3501,10 @@ function attachListeners() {
     bcastSyncBtn.textContent = 'Syncing…';
     const db = getDB();
     if (db) {
-      try { await db.collection('hm_config').doc('cal_cache').delete(); } catch(e) {}
+      try { await db.collection('hm_config').doc('bcast_cal_cache').delete(); } catch(e) {}
     }
-    S.calendarYbEvents = [];
-    await loadCalendarYbEvents();
+    S.calendarBroadcastEvents = [];
+    await loadCalendarBroadcastEvents();
     const added = await syncBroadcastsFromCalendar();
     showToast(added ? `Added ${added} new broadcast${added !== 1 ? 's' : ''}.` : 'No new broadcasts found — everything is already synced.');
     render();
@@ -4319,18 +4375,14 @@ async function loadFromFirebase() {
   } catch(e) {}
 }
 
-// Sport types eligible for auto-sync from the HHS Media Events calendar into Homestead Live broadcasts.
-// Non-game types (dance, nhs, showchoir, graduation, arts, etc.) are excluded — those aren't broadcast crew assignments.
-const BROADCAST_SPORT_TYPES = new Set(['football', 'basketball_boys', 'basketball_girls', 'volleyball', 'soccer_boys', 'soccer_girls', 'golf_boys', 'golf_girls', 'baseball', 'softball', 'cross_country', 'swimming', 'tennis_boys', 'tennis_girls', 'track', 'wrestling', 'gymnastics', 'lacrosse_boys', 'lacrosse_girls', 'bowling_boys', 'bowling_girls']);
-
+// Every event on the Homestead Live Event Calendar is teacher-curated and broadcast-worthy by definition,
+// so unlike the Yearbook sync this takes everything — no sport-type or home/away filtering.
 async function syncBroadcastsFromCalendar() {
   const db = getDB();
   if (!db) return 0;
   const existingIds  = new Set((S.broadcasts || []).map(b => b.id));
   const existingKeys = new Set((S.broadcasts || []).map(b => b.type + '|' + b.date));
-  const candidates = (S.calendarYbEvents || []).filter(e =>
-    e.home !== false &&
-    BROADCAST_SPORT_TYPES.has(e.type) &&
+  const candidates = (S.calendarBroadcastEvents || []).filter(e =>
     !existingIds.has(e.id) &&
     !existingKeys.has(e.type + '|' + e.date)
   );
@@ -5355,8 +5407,7 @@ function renderDashboard() {
       ${dbSec('bcast_sync',
         `<h2>🎥 Homestead Live — Broadcast Calendar Sync</h2>`,
         `<button class="btn-secondary" id="bcast-sync-btn" style="font-size:0.8rem">↻ Sync New Broadcasts from Calendar</button>`,
-        `<p style="font-size:0.875rem;color:var(--dim);margin:0">Pulls any new home games from the HHS Media Events calendar (e.g. volleyball, soccer, wrestling) into Homestead Live as broadcasts to crew. Games already added — hardcoded or previously synced — are skipped automatically.</p>
-        <span id="bcast-sync-status" style="font-size:0.8rem;color:var(--dim)"></span>`
+        `<p style="font-size:0.875rem;color:var(--dim);margin:0">Pulls in anything added to the <strong>Homestead Live Event Calendar</strong> (thepoint91fm@gmail.com) as a new broadcast to crew. Add a game there whenever it's scheduled, then click this to bring it into Homestead Live. Games already added — hardcoded or previously synced — are skipped automatically.</p>`
       )}
 
       ${dbSec('yb_events',

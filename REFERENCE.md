@@ -281,13 +281,31 @@ Note: there's also an old, unrestricted "API key 1" (created Mar 21 2023) in the
 4. Paste new key into `data.js` → `GOOGLE_CAL_API_KEY`
 5. Commit and push
 
-### How Calendar Events Get Into the Sign-Up Dropdown
-1. `loadCalendarYbEvents()` runs on page load
+### Two Separate Calendars — Don't Mix Them Up
+| | HHS Media Events | Homestead Live Event Calendar |
+|---|---|---|
+| Calendar ID | `HHS_MEDIA_CAL_ID` (`2b9bdfdee6...@group.calendar.google.com`) | `HOMESTEAD_LIVE_CAL_ID` (`thepoint91fm@gmail.com`) |
+| Owner | shared HHS Media Google account | `thepoint91fm@gmail.com` (also owns the API key) |
+| Contains | **Everything** happening at school — auto-synced from the official athletics calendar (all varsity sports) plus dances, NHS, graduation, etc. | Only games the teacher has manually put on it — i.e. only what Homestead Live will actually broadcast |
+| Feeds | Yearbook sign-up dropdown (`allYbEvents()` / `loadCalendarYbEvents()`) | Homestead Live broadcasts (`syncBroadcastsFromCalendar()` / `loadCalendarBroadcastEvents()`) |
+| Filtering | Home games only by default (away games hidden unless toggled) | **None** — anything added to this calendar is treated as broadcast-worthy and synced as-is |
+
+> **Incident (Jul 31 2026):** The first version of the broadcast sync accidentally read from HHS Media Events (the all-sports calendar), which flooded Homestead Live with 71 broadcasts for sports it doesn't crew (golf, tennis, wrestling, swimming, track, etc.). All 71 were deleted via the Firestore REST API and the sync was repointed at `HOMESTEAD_LIVE_CAL_ID`. **Lesson: new events for Homestead Live to broadcast must be added to the `thepoint91fm@gmail.com` calendar, not HHS Media Events — that one is Yearbook's source only.**
+
+### How Calendar Events Get Into the Yearbook Sign-Up Dropdown
+1. `loadCalendarYbEvents()` runs on page load, reads `HHS_MEDIA_CAL_ID`
 2. Checks Firestore `hm_config/cal_cache` — if fresh (< 6 hours), uses that
 3. Otherwise calls Google Calendar API with the key above
 4. Maps event titles to types using `inferYbType()` (e.g., "volleyball" → `volleyball`)
 5. Saves results to Firestore cache
 6. Teacher can force refresh: Dashboard → Yearbook Event Manager → ↻ Refresh Calendar Events
+
+### How Calendar Events Get Into Homestead Live Broadcasts
+1. Teacher adds a game to the **Homestead Live Event Calendar** (`thepoint91fm@gmail.com`) whenever it's scheduled — any title, any sport, no restrictions
+2. Dashboard → 🎥 Homestead Live — Broadcast Calendar Sync → ↻ Sync New Broadcasts from Calendar
+3. This clears the `hm_config/bcast_cal_cache` cache, re-fetches `HOMESTEAD_LIVE_CAL_ID` via `loadCalendarBroadcastEvents()`, and calls `syncBroadcastsFromCalendar()`
+4. Every event on that calendar not already in `hm_broadcasts` (matched by ID or by `type|date`) gets added — no sport-type or home/away filtering, since the teacher already curated the calendar to only contain broadcast-worthy games
+5. Works every year automatically — no code changes needed, just keep adding games to that calendar and clicking sync
 
 ---
 

@@ -137,8 +137,11 @@ const TEACHER_PIN = '2027';
 // Paste the deployed Apps Script web app URL here (see Code.gs for setup instructions)
 const SYNC_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwH9agFB6OR5nPBGKWB7h0_xRq8HR-kdHcd5lo2xZSX5s36qcoWbjZ3UVrr0i-xnzpC/exec';
 
-// Google Calendar API — reads the HHS Media Events calendar directly (no Apps Script needed)
+// Google Calendar API — reads calendars directly (no Apps Script needed)
+// HHS Media Events = everything happening at school (Yearbook coverage candidates)
 const HHS_MEDIA_CAL_ID  = '2b9bdfdee65f7330d8d5d2fd1d4877c1b709289fa0b0747427f57fd62516bed5@group.calendar.google.com';
+// "Homestead Live Event Calendar" = only the games/events Homestead Live will actually broadcast
+const HOMESTEAD_LIVE_CAL_ID = 'thepoint91fm@gmail.com';
 const GOOGLE_CAL_API_KEY = 'AIzaSyCy5ZKtIjrF1lgDojmYgDlxit2Te7SKyeU';
 
 // Google Drive subfolder IDs for the Photo Dropbox — one folder per sport/category.
