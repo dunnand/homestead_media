@@ -265,14 +265,19 @@ TARGET_CAL_ID = '2b9bdfdee65f7330d8d5d2fd1d4877c1b709289fa0b0747427f57fd62516bed
 
 ## 10. Google Calendar API Key
 
-**Key:** `AIzaSyCy5ZKtIjrF1lgDojmYgDlxit2Te7SKyeU`  
+**Key:** `AIzaSyCy5ZKtIjrF1lgDojmYgDlxit2Te7SKyeU` (named "API key 2" in Cloud Console, created Jul 1 2026)  
 **Restrictions:** Websites → `https://dunnand.github.io/*` and `https://wcyt.org/*` | API → Google Calendar API only  
-**Cloud project:** "Singular" (project ID: singular-381913) at https://console.cloud.google.com
+**Google account:** `thepoint91fm@gmail.com` — **not** the account used for the "Singular" or "audioaficionados-21ba0" projects. Easy to lose track of; check the account switcher (top-right avatar) in Cloud Console if the key can't be found.  
+**Cloud project:** "My Project 67913" (default/unnamed auto-created project) at https://console.cloud.google.com, under the `thepoint91fm@gmail.com` account.
+
+> **Incident (Jul 31 2026):** After the site moved from `dunnand.github.io` to `wcyt.org`, the key's website restrictions were never updated to include `https://wcyt.org/*`, so every Calendar API fetch from the live site returned `403 API_KEY_HTTP_REFERRER_BLOCKED`. The error was swallowed by a `try/catch` in `loadCalendarYbEvents()`, so `S.calendarYbEvents` silently stayed empty and the Yearbook sign-up dropdown only ever showed the hardcoded types (football, basketball boys/girls, dance, NHS, showchoir, graduation) instead of the ~300 events actually on the calendar (soccer, volleyball, golf, tennis, cross country, wrestling, swimming, gymnastics, baseball, softball, track, etc.). Fixed by adding `https://wcyt.org/*` to the key's website restrictions. If a similar "dropdown is missing types" report comes in again after a future domain/hosting change, check this key's referrer restrictions first.
+
+Note: there's also an old, unrestricted "API key 1" (created Mar 21 2023) in the same `thepoint91fm@gmail.com` / "My Project 67913" project — unrelated to this site, left alone.
 
 ### If the Key Needs to Be Replaced
-1. Go to https://console.cloud.google.com → select "Singular" project
+1. Go to https://console.cloud.google.com → sign in as `thepoint91fm@gmail.com` → select "My Project 67913"
 2. APIs & Services → Credentials → + Create Credentials → API key
-3. Restrict to: Websites → `https://dunnand.github.io/*`; API → Google Calendar API
+3. Restrict to: Websites → `https://dunnand.github.io/*` and `https://wcyt.org/*`; API → Google Calendar API
 4. Paste new key into `data.js` → `GOOGLE_CAL_API_KEY`
 5. Commit and push
 

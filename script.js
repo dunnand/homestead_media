@@ -3439,6 +3439,21 @@ function attachListeners() {
     render();
   });
 
+  const bcastSyncBtn = document.getElementById('bcast-sync-btn');
+  if (bcastSyncBtn) bcastSyncBtn.addEventListener('click', async () => {
+    bcastSyncBtn.disabled = true;
+    bcastSyncBtn.textContent = 'Syncing…';
+    const db = getDB();
+    if (db) {
+      try { await db.collection('hm_config').doc('cal_cache').delete(); } catch(e) {}
+    }
+    S.calendarYbEvents = [];
+    await loadCalendarYbEvents();
+    const added = await syncBroadcastsFromCalendar();
+    showToast(added ? `Added ${added} new broadcast${added !== 1 ? 's' : ''}.` : 'No new broadcasts found — everything is already synced.');
+    render();
+  });
+
   document.querySelectorAll('[data-lesson-course]').forEach(el =>
     el.addEventListener('click', () => {
       S.lessonCourse = el.dataset.lessonCourse;
@@ -4302,6 +4317,33 @@ async function loadFromFirebase() {
     availSnap.forEach(doc => availabilities.push({ id: doc.id, ...doc.data() }));
     S.availabilities = availabilities;
   } catch(e) {}
+}
+
+// Sport types eligible for auto-sync from the HHS Media Events calendar into Homestead Live broadcasts.
+// Non-game types (dance, nhs, showchoir, graduation, arts, etc.) are excluded — those aren't broadcast crew assignments.
+const BROADCAST_SPORT_TYPES = new Set(['football', 'basketball_boys', 'basketball_girls', 'volleyball', 'soccer_boys', 'soccer_girls', 'golf_boys', 'golf_girls', 'baseball', 'softball', 'cross_country', 'swimming', 'tennis_boys', 'tennis_girls', 'track', 'wrestling', 'gymnastics', 'lacrosse_boys', 'lacrosse_girls', 'bowling_boys', 'bowling_girls']);
+
+async function syncBroadcastsFromCalendar() {
+  const db = getDB();
+  if (!db) return 0;
+  const existingIds  = new Set((S.broadcasts || []).map(b => b.id));
+  const existingKeys = new Set((S.broadcasts || []).map(b => b.type + '|' + b.date));
+  const candidates = (S.calendarYbEvents || []).filter(e =>
+    e.home !== false &&
+    BROADCAST_SPORT_TYPES.has(e.type) &&
+    !existingIds.has(e.id) &&
+    !existingKeys.has(e.type + '|' + e.date)
+  );
+  if (!candidates.length) return 0;
+  const newBroadcasts = candidates.map(e => ({
+    id: e.id, title: e.title, date: e.date, type: e.type,
+    gameTime: e.time || '', roles: {}, checks: {},
+    notes: [e.time, e.location].filter(Boolean).join(' · ')
+  }));
+  trackUsage('writes', newBroadcasts.length);
+  await Promise.all(newBroadcasts.map(g => db.collection('hm_broadcasts').doc(g.id).set(g).catch(() => {})));
+  S.broadcasts = [...(S.broadcasts || []), ...newBroadcasts];
+  return newBroadcasts.length;
 }
 
 function canvaEmbedUrl(url) {
@@ -5308,6 +5350,13 @@ function renderDashboard() {
         ${SYNC_SCRIPT_URL
           ? `<button class="btn-primary" id="sync-cal-btn" style="background:var(--success);color:#000">↻ Sync Athletics Calendar Now</button><span id="sync-cal-status" style="font-size:0.8rem;color:var(--dim);margin-left:12px"></span>`
           : `<div style="font-size:0.85rem;color:var(--dim);background:var(--surface2);border-radius:8px;padding:12px 14px;line-height:1.7"><strong style="color:var(--text)">One-time setup required:</strong><br>1. Open <code>Code.gs</code> from the project folder and paste it into <a href="https://script.google.com" target="_blank" style="color:var(--radio)">script.google.com</a><br>2. Deploy → Web app · Execute as: <em>Me</em> · Access: <em>Anyone with the link</em><br>3. Run <code>createAnnualTrigger()</code> once from the editor<br>4. Paste the web app URL into <code>data.js</code> → <code>SYNC_SCRIPT_URL</code></div>`}`
+      )}
+
+      ${dbSec('bcast_sync',
+        `<h2>🎥 Homestead Live — Broadcast Calendar Sync</h2>`,
+        `<button class="btn-secondary" id="bcast-sync-btn" style="font-size:0.8rem">↻ Sync New Broadcasts from Calendar</button>`,
+        `<p style="font-size:0.875rem;color:var(--dim);margin:0">Pulls any new home games from the HHS Media Events calendar (e.g. volleyball, soccer, wrestling) into Homestead Live as broadcasts to crew. Games already added — hardcoded or previously synced — are skipped automatically.</p>
+        <span id="bcast-sync-status" style="font-size:0.8rem;color:var(--dim)"></span>`
       )}
 
       ${dbSec('yb_events',
