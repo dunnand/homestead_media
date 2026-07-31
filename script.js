@@ -2445,10 +2445,15 @@ async function loadCalendarBroadcastEvents() {
           : '';
         // Calendar lists the JV start time, but Homestead Live broadcasts varsity,
         // which goes on ~1hr after JV — shift the stored time forward to match.
-        if (type === 'volleyball' && timeStr) timeStr = computeTimeOffset(timeStr, -60);
+        // Postseason "Regional" matches are varsity-only (no JV game first), so skip those.
+        let jvTime = '';
+        if (type === 'volleyball' && timeStr && !/regional/i.test(title)) {
+          jvTime = timeStr;
+          timeStr = computeTimeOffset(timeStr, -60);
+        }
         return {
           id:       'bc-' + ev.id.replace(/[^a-z0-9]/gi, '').slice(0, 20),
-          title, date: dateStr, time: timeStr, type,
+          title, date: dateStr, time: timeStr, jvTime, type,
           location: ev.location || '',
           icon:     YB_ICONS[type] || '📅'
         };
@@ -4393,7 +4398,7 @@ async function syncBroadcastsFromCalendar() {
   const newBroadcasts = candidates.map(e => ({
     id: e.id, title: e.title, date: e.date, type: e.type,
     gameTime: e.time || '', roles: {}, checks: {},
-    notes: [e.time, e.location].filter(Boolean).join(' · ')
+    notes: [e.jvTime ? `JV ${e.jvTime} · Broadcast ${e.time}` : e.time, e.location].filter(Boolean).join(' · ')
   }));
   trackUsage('writes', newBroadcasts.length);
   await Promise.all(newBroadcasts.map(g => db.collection('hm_broadcasts').doc(g.id).set(g).catch(() => {})));
