@@ -2488,6 +2488,7 @@ const LESSONS = {
                 { term: 'Industry', def: 'The official Homestead Live font family. Used for all scoreboard numbers, team names, labels, and lower thirds. Download from the Assets drive.' },
                 { term: 'Industry Bold', def: 'Use for scores, records, key stats — anything that needs to punch at a distance.' },
                 { term: 'Industry Book', def: 'Use for secondary labels, sub-headings, and supporting text.' },
+                { term: 'Mundial Bold', def: 'Secondary font family for graphics. Main titles are always Industry — use Mundial Bold elsewhere.' },
               ]},
               { type: 'text', title: '📐 Safe Area', content: 'The <strong>safe title area</strong> is the rectangle inside the frame where all critical text and logos must stay. Anything outside it risks being cut off on older TVs or broadcast monitors. Use the <a href="https://drive.google.com/drive/folders/1Au4CFu82rCkzyhEPzzHPjWtA9nSX2vxk?usp=drive_link" target="_blank">Safe Area Templates in the CLASS Drive ↗</a> as your starting layer for every graphic.' },
               { type: 'list', title: '📊 Scoreboard Essentials — What to Pull Every Game', items: [
