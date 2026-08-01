@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801o';
+const APP_VERSION = '20260801p';
 (function() {
   try {
     const k = 'hm_version';
@@ -1015,23 +1015,23 @@ async function clearCommonAnswers() {
   await batch.commit();
 }
 
-// ── ICEBREAKER: Story Chain (caption / one-liner wall) ────────────
+// ── ICEBREAKER: Story Chain (finish-the-sentence wall) ────────────
 const STORY_PROMPTS = [
-  "Caption this: the whole newsroom staring at one laptop screen.",
   "Finish the sentence: 'The mic cut out right as I said...'",
-  "Caption this: someone sprinting to make the broadcast on time.",
   "Finish the sentence: 'Live TV taught me that...'",
-  "Caption this: the teleprompter scrolling way too fast.",
   "Finish the sentence: 'If my life had a blooper reel, this clip would be...'",
-  "Caption this: two people fighting over the last good camera angle.",
   "Finish the sentence: 'Backstage right before the show, everyone was...'",
-  "Caption this: the moment you realize you're still on camera.",
   "Finish the sentence: 'The weirdest thing that's ever happened during a broadcast was...'",
-  "Caption this: a reporter interviewing someone who clearly doesn't want to talk.",
   "Finish the sentence: 'My dream headline to write someday is...'",
-  "Caption this: the control room five minutes before going live.",
   "Finish the sentence: 'The best plot twist for a school day would be...'",
-  "Caption this: someone discovering their mic was on the whole time.",
+  "Finish the sentence: 'The last thing I'd want to say live on air is...'",
+  "Finish the sentence: 'If I hosted my own show, it would be called...'",
+  "Finish the sentence: 'The most chaotic thing that's happened in this class was...'",
+  "Finish the sentence: 'If I could interview anyone, it would be...'",
+  "Finish the sentence: 'The worst possible time for your phone to go off is...'",
+  "Finish the sentence: 'My go-to excuse for being late is...'",
+  "Finish the sentence: 'The one sound effect that should exist for everyday life is...'",
+  "Finish the sentence: 'If today were a news headline, it would read...'",
 ];
 
 function loadStoryGame() {
@@ -1710,7 +1710,7 @@ function renderIcebreaker() {
         </div>
         <div class="form-group">
           <label>Your Line</label>
-          <input id="story-answer" type="text" placeholder="Type your caption or line...">
+          <input id="story-answer" type="text" placeholder="Type your line...">
         </div>
         <button class="btn-primary" id="story-submit">✍️ Add My Line</button>
         <p id="story-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
