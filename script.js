@@ -862,6 +862,7 @@ function renderLive() {
               <div class="live-ref-item"><span class="live-ref-label">Mode</span><span class="live-ref-val">RGB</span></div>
               <div class="live-ref-item"><span class="live-ref-label">BG</span><span class="live-ref-val">Transparent</span></div>
               <div class="live-ref-item"><span class="live-ref-label">Font</span><span class="live-ref-val">Industry</span></div>
+              <div class="live-ref-item"><span class="live-ref-label">Secondary</span><span class="live-ref-val">Mundial Bold</span></div>
               <div class="live-ref-item live-ref-rule"><span class="live-ref-label">Rule #1</span><span class="live-ref-val all-caps-badge">ALL CAPS</span></div>
             </div>
             <div class="live-ref-links">
