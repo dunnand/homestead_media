@@ -529,6 +529,165 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-winners .bingo-winners { justify-content: center; gap: 18px; }
 .ib-board-winners .bingo-winner-pill { font-size: 1.6rem; padding: 12px 26px; }
 
+/* ── Would You Rather ────────────────────────────────────────── */
+.wyr-choices {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+}
+.wyr-choice-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+}
+.wyr-choice-btn.active {
+  border-color: var(--radio);
+  background: color-mix(in srgb, var(--radio) 15%, var(--surface2));
+}
+.wyr-vs { flex-shrink: 0; font-size: 0.8rem; font-weight: 700; color: var(--dim); }
+.wyr-bar-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 90px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.wyr-bar-label { font-size: 0.85rem; font-weight: 600; }
+.wyr-bar-track {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 18px;
+  overflow: hidden;
+}
+.wyr-bar-fill { height: 100%; transition: width 0.3s ease; }
+.wyr-bar-a { background: var(--radio); }
+.wyr-bar-b { background: var(--sports); }
+.wyr-bar-count { font-size: 0.8rem; color: var(--dim); text-align: right; }
+.wyr-board-choices {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin: 20px 0 36px;
+}
+.wyr-board-choice { font-size: 2.6rem; font-weight: 800; text-align: center; }
+.wyr-board-poll { max-width: 900px; margin: 0 auto; }
+.wyr-board-poll .wyr-bar-row { grid-template-columns: 220px 1fr 140px; margin-bottom: 20px; }
+.wyr-board-poll .wyr-bar-label { font-size: 1.4rem; }
+.wyr-board-poll .wyr-bar-track { height: 36px; border-radius: 10px; }
+.wyr-board-poll .wyr-bar-count { font-size: 1.3rem; }
+.wyr-board-poll p { font-size: 1.1rem !important; text-align: center; }
+
+/* ── Speed Meet ──────────────────────────────────────────────── */
+.speed-question-text { font-size: 1.3rem; font-weight: 700; margin: 14px 0; }
+.speed-timer-display { text-align: center; margin: 20px 0; }
+.speed-timer {
+  display: inline-block;
+  font-size: 2.4rem;
+  font-weight: 800;
+  padding: 10px 28px;
+  border-radius: 12px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.speed-board-timer .speed-timer { font-size: 5rem; padding: 20px 60px; }
+
+/* ── Common Ground ───────────────────────────────────────────── */
+.common-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.common-option-btn {
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+}
+.common-option-btn.active {
+  border-color: var(--radio);
+  background: color-mix(in srgb, var(--radio) 15%, var(--surface2));
+}
+.common-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+}
+.common-group {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.common-group-label { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; }
+.common-group-count { font-weight: 400; color: var(--dim); }
+.common-group-names { display: flex; flex-wrap: wrap; gap: 6px; }
+.common-name-pill {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+.common-board-groups .common-group-label { font-size: 1.4rem; }
+.common-board-groups .common-name-pill { font-size: 1.1rem; padding: 6px 14px; }
+
+/* ── Rank It ─────────────────────────────────────────────────── */
+.rank-items { display: flex; flex-direction: column; gap: 8px; margin: 12px 0; }
+.rank-item-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.rank-item-btn.ranked {
+  border-color: var(--success);
+  background: color-mix(in srgb, var(--success) 15%, var(--surface2));
+}
+.rank-item-badge { font-size: 1.1rem; flex-shrink: 0; }
+.rank-item-label { flex: 1; }
+.rank-bar-row {
+  display: grid;
+  grid-template-columns: 180px 1fr 70px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.rank-bar-label { font-size: 0.85rem; font-weight: 600; }
+.rank-bar-track {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 18px;
+  overflow: hidden;
+}
+.rank-bar-fill { height: 100%; background: var(--radio); transition: width 0.3s ease; }
+.rank-bar-count { font-size: 0.8rem; color: var(--dim); text-align: right; }
+.rank-board-results { max-width: 900px; margin: 0 auto; }
+.rank-board-results .rank-bar-row { grid-template-columns: 260px 1fr 120px; margin-bottom: 20px; }
+.rank-board-results .rank-bar-label { font-size: 1.4rem; }
+.rank-board-results .rank-bar-track { height: 36px; border-radius: 10px; }
+.rank-board-results .rank-bar-count { font-size: 1.3rem; }
+.rank-board-results p { font-size: 1.1rem !important; text-align: center; }
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {
   background: var(--text); color: var(--bg);

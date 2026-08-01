@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801m';
+const APP_VERSION = '20260801n';
 (function() {
   try {
     const k = 'hm_version';
@@ -245,6 +245,29 @@ const S = {
   bingoWon: false,
   bingoWinners: [],
   bingoWinnersUnsub: null,
+  wyrCurrentIndex: 0,
+  wyrVotes: { a: 0, b: 0 },
+  wyrMyChoice: null,
+  wyrStateUnsub: null,
+  wyrVotesUnsub: null,
+  speedIndex: 0,
+  speedTimerStartedAt: null,
+  speedStateUnsub: null,
+  speedTickHandle: null,
+  commonCurrentIndex: 0,
+  commonAnswers: [],
+  commonMyChoice: null,
+  commonStateUnsub: null,
+  commonAnswersUnsub: null,
+  storyCurrentIndex: 0,
+  storyAnswers: [],
+  storyStateUnsub: null,
+  storyAnswersUnsub: null,
+  rankCurrentIndex: 0,
+  rankAnswers: [],
+  rankMyOrder: [],
+  rankStateUnsub: null,
+  rankAnswersUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -280,12 +303,27 @@ function unsubIcebreakerGames() {
   if (S.totStateUnsub)   { S.totStateUnsub();   S.totStateUnsub = null; }
   if (S.totVotesUnsub)   { S.totVotesUnsub();   S.totVotesUnsub = null; }
   if (S.bingoWinnersUnsub) { S.bingoWinnersUnsub(); S.bingoWinnersUnsub = null; }
+  if (S.wyrStateUnsub)   { S.wyrStateUnsub();   S.wyrStateUnsub = null; }
+  if (S.wyrVotesUnsub)   { S.wyrVotesUnsub();   S.wyrVotesUnsub = null; }
+  if (S.speedStateUnsub) { S.speedStateUnsub(); S.speedStateUnsub = null; }
+  if (S.speedTickHandle) { clearInterval(S.speedTickHandle); S.speedTickHandle = null; }
+  if (S.commonStateUnsub)   { S.commonStateUnsub();   S.commonStateUnsub = null; }
+  if (S.commonAnswersUnsub) { S.commonAnswersUnsub(); S.commonAnswersUnsub = null; }
+  if (S.storyStateUnsub)   { S.storyStateUnsub();   S.storyStateUnsub = null; }
+  if (S.storyAnswersUnsub) { S.storyAnswersUnsub(); S.storyAnswersUnsub = null; }
+  if (S.rankStateUnsub)   { S.rankStateUnsub();   S.rankStateUnsub = null; }
+  if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
 }
 
 function loadIcebreakerGame(game) {
   if (game === 'qa') return loadQaGame();
   if (game === 'tot') return loadTotGame();
   if (game === 'bingo') return loadBingoGame();
+  if (game === 'wyr') return loadWyrGame();
+  if (game === 'speed') return loadSpeedGame();
+  if (game === 'common') return loadCommonGame();
+  if (game === 'story') return loadStoryGame();
+  if (game === 'rank') return loadRankGame();
   return loadIcebreakerWall();
 }
 
@@ -687,6 +725,531 @@ async function clearTotVotes() {
   await batch.commit();
 }
 
+// ── ICEBREAKER: Would You Rather (live poll) ────────────────────
+const WYR_QUESTIONS = [
+  { a: 'Always be 10 minutes late', b: 'Always be an hour early' },
+  { a: 'Have unlimited free fast food for life', b: 'Have unlimited free streaming subscriptions for life' },
+  { a: 'Never use social media again', b: 'Never watch another movie or show again' },
+  { a: 'Be famous but broke', b: 'Be rich but unknown' },
+  { a: 'Only be able to text', b: 'Only be able to call' },
+  { a: 'Have to sing everything you say', b: 'Have to talk in rhymes all day' },
+  { a: 'Always know when someone is lying', b: 'Always get away with lying' },
+  { a: 'Live without music', b: 'Live without your phone' },
+  { a: 'Retake every test you\'ve ever failed', b: 'Redo every awkward conversation you\'ve had' },
+  { a: 'Have summer be 6 months long', b: 'Have winter break be 2 months long' },
+  { a: 'Be able to teleport anywhere', b: 'Be able to read minds' },
+  { a: 'Never have wifi at home', b: 'Never have wifi at school' },
+  { a: 'Have to wear the same outfit every day', b: 'Have to eat the same meal every day' },
+  { a: 'Win the school talent show', b: 'Win a state athletic championship' },
+  { a: 'Have an extra hour of sleep', b: 'Have an extra hour of free time after school' },
+];
+
+function loadWyrGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.wyrStateUnsub) { S.wyrStateUnsub(); S.wyrStateUnsub = null; }
+  S.wyrStateUnsub = db.collection('hm_wyr_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    const newIdx = Math.max(0, Math.min(idx, WYR_QUESTIONS.length - 1));
+    if (newIdx !== S.wyrCurrentIndex) S.wyrMyChoice = null;
+    S.wyrCurrentIndex = newIdx;
+    const q = WYR_QUESTIONS[S.wyrCurrentIndex];
+    document.querySelectorAll('.wyr-question-a').forEach(el => { el.textContent = q.a; });
+    document.querySelectorAll('.wyr-question-b').forEach(el => { el.textContent = q.b; });
+    document.querySelectorAll('.wyr-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === S.wyrMyChoice));
+    const posEl = document.getElementById('wyr-position');
+    if (posEl) posEl.textContent = `${S.wyrCurrentIndex + 1} / ${WYR_QUESTIONS.length}`;
+    loadWyrVotes();
+  }, err => console.error('wyr state snapshot error', err));
+}
+
+function loadWyrVotes() {
+  const db = getDB();
+  if (!db) return;
+  if (S.wyrVotesUnsub) { S.wyrVotesUnsub(); S.wyrVotesUnsub = null; }
+  S.wyrVotesUnsub = db.collection('hm_wyr_votes').where('questionIndex', '==', S.wyrCurrentIndex).onSnapshot(snap => {
+    let a = 0, b = 0;
+    snap.docs.forEach(d => {
+      const choice = d.data().choice;
+      if (choice === 'a') a++; else if (choice === 'b') b++;
+    });
+    S.wyrVotes = { a, b };
+    document.querySelectorAll('.wyr-poll').forEach(el => { el.innerHTML = renderWyrPoll(); });
+  }, err => console.error('wyr votes snapshot error', err));
+}
+
+function renderWyrPoll() {
+  const q = WYR_QUESTIONS[S.wyrCurrentIndex];
+  const { a, b } = S.wyrVotes;
+  const total = a + b;
+  const aPct = total ? Math.round((a / total) * 100) : 0;
+  const bPct = total ? 100 - aPct : 0;
+  return `
+    <div class="wyr-bar-row">
+      <div class="wyr-bar-label">${esc(q.a)}</div>
+      <div class="wyr-bar-track"><div class="wyr-bar-fill wyr-bar-a" style="width:${aPct}%"></div></div>
+      <div class="wyr-bar-count">${a} (${aPct}%)</div>
+    </div>
+    <div class="wyr-bar-row">
+      <div class="wyr-bar-label">${esc(q.b)}</div>
+      <div class="wyr-bar-track"><div class="wyr-bar-fill wyr-bar-b" style="width:${bPct}%"></div></div>
+      <div class="wyr-bar-count">${b} (${bPct}%)</div>
+    </div>
+    <p class="dim" style="font-size:0.78rem;margin-top:6px">${total} vote${total === 1 ? '' : 's'} so far</p>`;
+}
+
+async function submitWyrVote(choice) {
+  const nameEl = document.getElementById('wyr-name');
+  const msg    = document.getElementById('wyr-msg');
+  const name = nameEl.value.trim();
+  if (!name) {
+    msg.textContent = 'Enter your name first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+  try {
+    localStorage.setItem('hm_student_name', name);
+    const voteId = `${S.wyrCurrentIndex}_${slugifyName(name)}`;
+    await db.collection('hm_wyr_votes').doc(voteId).set({ name, choice, questionIndex: S.wyrCurrentIndex, createdAt: Date.now() });
+    S.wyrMyChoice = choice;
+    document.querySelectorAll('.wyr-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === choice));
+    msg.textContent = '✅ Vote counted! Change your mind? Just tap the other option.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  }
+}
+
+async function advanceWyrQuestion(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.wyrCurrentIndex + delta, WYR_QUESTIONS.length - 1));
+  await db.collection('hm_wyr_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearWyrVotes() {
+  if (!confirm('Clear all Would You Rather votes (every question)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_wyr_votes').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+// ── ICEBREAKER: Speed Meet (question roulette) ──────────────────
+const SPEED_QUESTIONS = [
+  "What's your go-to order at a fast food drive-thru?",
+  "What's a show or movie you could rewatch forever?",
+  "What's the last song you had on repeat?",
+  "What's a food combo you love that sounds weird?",
+  "What app do you spend the most time on?",
+  "What's a small thing that instantly makes your day better?",
+  "If you could have any job for a day, what would it be?",
+  "What's your comfort snack?",
+  "What's something you're weirdly good at?",
+  "What's a place you'd love to visit someday?",
+  "What's your favorite way to spend a free Saturday?",
+  "What's a video game or app you were obsessed with as a kid?",
+  "What's the best gift you've ever gotten?",
+  "What's a skill you'd want to learn if you had unlimited time?",
+  "What's your go-to karaoke or shower song?",
+  "What's a food you refuse to eat?",
+  "What's your dream car?",
+  "What's a class you wish existed at school?",
+  "What's the last thing you binge-watched?",
+  "If you had $100 to spend right now, what would you buy?",
+];
+const SPEED_TIMER_SECONDS = 60;
+
+function loadSpeedGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.speedStateUnsub) { S.speedStateUnsub(); S.speedStateUnsub = null; }
+  S.speedStateUnsub = db.collection('hm_speed_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0, timerStartedAt: null };
+    S.speedIndex = Number.isInteger(data.index) ? Math.max(0, Math.min(data.index, SPEED_QUESTIONS.length - 1)) : 0;
+    S.speedTimerStartedAt = data.timerStartedAt || null;
+    document.querySelectorAll('.speed-question-text').forEach(el => { el.textContent = SPEED_QUESTIONS[S.speedIndex]; });
+    startSpeedTick();
+  }, err => console.error('speed state snapshot error', err));
+}
+
+function startSpeedTick() {
+  if (S.speedTickHandle) { clearInterval(S.speedTickHandle); S.speedTickHandle = null; }
+  updateSpeedTimerDisplay();
+  S.speedTickHandle = setInterval(updateSpeedTimerDisplay, 1000);
+}
+
+function updateSpeedTimerDisplay() {
+  const els = document.querySelectorAll('.speed-timer');
+  if (!els.length) return;
+  let text = `⏱️ ${SPEED_TIMER_SECONDS}`;
+  if (S.speedTimerStartedAt) {
+    const remaining = Math.max(0, SPEED_TIMER_SECONDS - Math.floor((Date.now() - S.speedTimerStartedAt) / 1000));
+    text = remaining > 0 ? `⏱️ ${remaining}` : '⏰ Time! Switch partners';
+  }
+  els.forEach(el => { el.textContent = text; });
+}
+
+async function newSpeedQuestion() {
+  const db = getDB();
+  if (!db) return;
+  let next = Math.floor(Math.random() * SPEED_QUESTIONS.length);
+  if (SPEED_QUESTIONS.length > 1 && next === S.speedIndex) next = (next + 1) % SPEED_QUESTIONS.length;
+  await db.collection('hm_speed_state').doc('current').set({ index: next, timerStartedAt: null, updatedAt: Date.now() });
+}
+
+async function startSpeedTimer() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_speed_state').doc('current').set({ index: S.speedIndex, timerStartedAt: Date.now(), updatedAt: Date.now() });
+}
+
+// ── ICEBREAKER: Common Ground (find your group) ──────────────────
+const COMMON_GROUND_CATEGORIES = [
+  { q: 'Favorite Season', options: ['❄️ Winter', '🌸 Spring', '☀️ Summer', '🍂 Fall'] },
+  { q: 'Go-To Fast Food', options: ['🍔 McDonald\'s', '🌮 Taco Bell', '🍗 Chick-fil-A', '🍕 Domino\'s', '🌯 Chipotle'] },
+  { q: 'Favorite School Subject', options: ['🔢 Math', '🔬 Science', '📖 English', '🌍 History', '🎨 Art/Elective'] },
+  { q: 'Go-To Music Genre', options: ['🎤 Pop', '🎸 Rock', '🎹 Hip-Hop', '🤠 Country', '🎧 EDM'] },
+  { q: 'Ideal Weekend', options: ['🛏️ Relaxing at home', '🎉 Hanging with friends', '🏃 Being active/outdoors', '🎮 Gaming'] },
+  { q: 'Favorite Streaming Service', options: ['🎬 Netflix', '🏰 Disney+', '📦 Prime Video', '📱 YouTube', '🎥 Hulu'] },
+  { q: 'Type of Pet', options: ['🐶 Dog', '🐱 Cat', '🐟 Other/None', '🐾 Want one someday'] },
+  { q: 'Birth Season', options: ['❄️ Winter (Dec-Feb)', '🌸 Spring (Mar-May)', '☀️ Summer (Jun-Aug)', '🍂 Fall (Sep-Nov)'] },
+  { q: 'Sport You\'d Rather Watch', options: ['🏈 Football', '🏀 Basketball', '⚾ Baseball', '⚽ Soccer', '🚫 Not a sports person'] },
+  { q: 'Morning or Night', options: ['🌅 Morning person', '🌙 Night owl'] },
+];
+
+function loadCommonGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.commonStateUnsub) { S.commonStateUnsub(); S.commonStateUnsub = null; }
+  S.commonStateUnsub = db.collection('hm_common_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    const newIdx = Math.max(0, Math.min(idx, COMMON_GROUND_CATEGORIES.length - 1));
+    if (newIdx !== S.commonCurrentIndex) S.commonMyChoice = null;
+    S.commonCurrentIndex = newIdx;
+    const cat = COMMON_GROUND_CATEGORIES[S.commonCurrentIndex];
+    document.querySelectorAll('.common-question-text').forEach(el => { el.textContent = cat.q; });
+    const optsEl = document.getElementById('common-options');
+    if (optsEl) optsEl.innerHTML = renderCommonOptions();
+    const posEl = document.getElementById('common-position');
+    if (posEl) posEl.textContent = `${S.commonCurrentIndex + 1} / ${COMMON_GROUND_CATEGORIES.length}`;
+    loadCommonAnswers();
+  }, err => console.error('common state snapshot error', err));
+}
+
+function loadCommonAnswers() {
+  const db = getDB();
+  if (!db) return;
+  if (S.commonAnswersUnsub) { S.commonAnswersUnsub(); S.commonAnswersUnsub = null; }
+  S.commonAnswersUnsub = db.collection('hm_common_answers').where('categoryIndex', '==', S.commonCurrentIndex).onSnapshot(snap => {
+    S.commonAnswers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.querySelectorAll('.common-groups').forEach(el => { el.innerHTML = renderCommonGroups(); });
+  }, err => console.error('common answers snapshot error', err));
+}
+
+function renderCommonOptions() {
+  const cat = COMMON_GROUND_CATEGORIES[S.commonCurrentIndex];
+  return cat.options.map(o => `<button class="common-option-btn ${S.commonMyChoice === o ? 'active' : ''}" data-option="${esc(o)}">${esc(o)}</button>`).join('');
+}
+
+function renderCommonGroups() {
+  const cat = COMMON_GROUND_CATEGORIES[S.commonCurrentIndex];
+  const groups = {};
+  cat.options.forEach(o => { groups[o] = []; });
+  S.commonAnswers.forEach(a => { if (groups[a.option]) groups[a.option].push(a.name); });
+  return cat.options.map(o => `
+    <div class="common-group">
+      <div class="common-group-label">${esc(o)} <span class="common-group-count">(${groups[o].length})</span></div>
+      <div class="common-group-names">${groups[o].length ? groups[o].map(n => `<span class="common-name-pill">${esc(n)}</span>`).join('') : '<span class="dim" style="font-size:0.78rem">Nobody yet</span>'}</div>
+    </div>`).join('');
+}
+
+async function submitCommonAnswer(option) {
+  const nameEl = document.getElementById('common-name');
+  const msg    = document.getElementById('common-msg');
+  const name = nameEl.value.trim();
+  if (!name) {
+    msg.textContent = 'Enter your name first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+  try {
+    localStorage.setItem('hm_student_name', name);
+    const docId = `${S.commonCurrentIndex}_${slugifyName(name)}`;
+    await db.collection('hm_common_answers').doc(docId).set({ name, option, categoryIndex: S.commonCurrentIndex, createdAt: Date.now() });
+    S.commonMyChoice = option;
+    const optsEl = document.getElementById('common-options');
+    if (optsEl) optsEl.innerHTML = renderCommonOptions();
+    msg.textContent = '✅ Added! Go find your group.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  }
+}
+
+async function advanceCommonCategory(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.commonCurrentIndex + delta, COMMON_GROUND_CATEGORIES.length - 1));
+  await db.collection('hm_common_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearCommonAnswers() {
+  if (!confirm('Clear all Common Ground answers (every category)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_common_answers').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+// ── ICEBREAKER: Story Chain (caption / one-liner wall) ────────────
+const STORY_PROMPTS = [
+  "Caption this: the whole newsroom staring at one laptop screen.",
+  "Finish the sentence: 'The mic cut out right as I said...'",
+  "Caption this: someone sprinting to make the broadcast on time.",
+  "Finish the sentence: 'Live TV taught me that...'",
+  "Caption this: the teleprompter scrolling way too fast.",
+  "Finish the sentence: 'If my life had a blooper reel, this clip would be...'",
+  "Caption this: two people fighting over the last good camera angle.",
+  "Finish the sentence: 'Backstage right before the show, everyone was...'",
+  "Caption this: the moment you realize you're still on camera.",
+  "Finish the sentence: 'The weirdest thing that's ever happened during a broadcast was...'",
+  "Caption this: a reporter interviewing someone who clearly doesn't want to talk.",
+  "Finish the sentence: 'My dream headline to write someday is...'",
+  "Caption this: the control room five minutes before going live.",
+  "Finish the sentence: 'The best plot twist for a school day would be...'",
+  "Caption this: someone discovering their mic was on the whole time.",
+];
+
+function loadStoryGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.storyStateUnsub) { S.storyStateUnsub(); S.storyStateUnsub = null; }
+  S.storyStateUnsub = db.collection('hm_story_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    S.storyCurrentIndex = Math.max(0, Math.min(idx, STORY_PROMPTS.length - 1));
+    document.querySelectorAll('.story-prompt-text').forEach(el => { el.textContent = STORY_PROMPTS[S.storyCurrentIndex]; });
+    const posEl = document.getElementById('story-position');
+    if (posEl) posEl.textContent = `${S.storyCurrentIndex + 1} / ${STORY_PROMPTS.length}`;
+    loadStoryAnswers();
+  }, err => console.error('story state snapshot error', err));
+}
+
+function loadStoryAnswers() {
+  const db = getDB();
+  if (!db) return;
+  if (S.storyAnswersUnsub) { S.storyAnswersUnsub(); S.storyAnswersUnsub = null; }
+  S.storyAnswersUnsub = db.collection('hm_story_answers').where('promptIndex', '==', S.storyCurrentIndex).onSnapshot(snap => {
+    S.storyAnswers = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const wall = document.getElementById('story-wall');
+    if (wall) wall.innerHTML = renderStoryWallCards(S.storyAnswers);
+    const count = document.getElementById('story-count');
+    if (count) count.textContent = S.storyAnswers.length;
+  }, err => console.error('story answers snapshot error', err));
+}
+
+function renderStoryWallCards(entries) {
+  if (!entries.length) return `<p class="dim" style="font-size:0.85rem">No lines yet — be the first!</p>`;
+  return `<div class="ib-wall">` + entries.map(e => `
+    <div class="ib-card">
+      <div class="ib-card-name">${esc(e.name)}</div>
+      <div class="qa-card-answer">${esc(e.answer)}</div>
+    </div>`).join('') + `</div>`;
+}
+
+async function submitStoryAnswer() {
+  const nameEl = document.getElementById('story-name');
+  const ansEl  = document.getElementById('story-answer');
+  const msg    = document.getElementById('story-msg');
+  const name = nameEl.value.trim(), answer = ansEl.value.trim();
+  if (!name || !answer) {
+    msg.textContent = 'Fill in your name and a line first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+
+  const btn = document.getElementById('story-submit');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_story_answers').add({ name, answer, promptIndex: S.storyCurrentIndex, createdAt: Date.now() });
+    ansEl.value = '';
+    msg.textContent = '✅ Added! Check the wall for everyone else\'s lines.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  } finally {
+    btn.disabled = false; btn.textContent = '✍️ Add My Line';
+  }
+}
+
+async function advanceStoryPrompt(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.storyCurrentIndex + delta, STORY_PROMPTS.length - 1));
+  await db.collection('hm_story_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearStoryAnswers() {
+  if (!confirm('Clear all Story Chain lines (every prompt)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_story_answers').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+// ── ICEBREAKER: Rank It (tap-to-rank, live leaderboard) ───────────
+const RANK_ROUNDS = [
+  { title: '🍔 Rank the Fast Food Chains', items: ['🍔 McDonald\'s', '🌮 Taco Bell', '🍕 Domino\'s', '🍗 Chick-fil-A', '🌯 Chipotle'] },
+  { title: '📺 Rank the Streaming Services', items: ['🎬 Netflix', '🏰 Disney+', '📦 Amazon Prime', '🎥 Hulu', '📱 YouTube'] },
+  { title: '📚 Rank the School Subjects', items: ['🔢 Math', '🔬 Science', '📖 English', '🌍 History', '🎨 Art'] },
+  { title: '🎵 Rank the Music Genres', items: ['🎤 Pop', '🎸 Rock', '🎹 Hip-Hop', '🤠 Country', '🎧 EDM'] },
+  { title: '🦸 Rank the Superpowers', items: ['✈️ Flight', '👻 Invisibility', '⏱️ Time travel', '🧠 Mind reading', '💪 Super strength'] },
+  { title: '❄️ Rank Ways to Spend a Snow Day', items: ['🛷 Sledding', '🎮 Video games', '🎬 Movie marathon', '😴 Sleeping in', '☕ Baking/cooking'] },
+];
+
+function loadRankGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.rankStateUnsub) { S.rankStateUnsub(); S.rankStateUnsub = null; }
+  S.rankStateUnsub = db.collection('hm_rank_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    const newIdx = Math.max(0, Math.min(idx, RANK_ROUNDS.length - 1));
+    if (newIdx !== S.rankCurrentIndex) S.rankMyOrder = [];
+    S.rankCurrentIndex = newIdx;
+    const round = RANK_ROUNDS[S.rankCurrentIndex];
+    document.querySelectorAll('.rank-round-title').forEach(el => { el.textContent = round.title; });
+    const posEl = document.getElementById('rank-position');
+    if (posEl) posEl.textContent = `${S.rankCurrentIndex + 1} / ${RANK_ROUNDS.length}`;
+    const itemsEl = document.getElementById('rank-items');
+    if (itemsEl) itemsEl.innerHTML = renderRankItems();
+    updateRankProgress();
+    loadRankAnswers();
+  }, err => console.error('rank state snapshot error', err));
+}
+
+function loadRankAnswers() {
+  const db = getDB();
+  if (!db) return;
+  if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
+  S.rankAnswersUnsub = db.collection('hm_rank_answers').where('roundIndex', '==', S.rankCurrentIndex).onSnapshot(snap => {
+    S.rankAnswers = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    document.querySelectorAll('.rank-results').forEach(el => { el.innerHTML = renderRankResults(); });
+  }, err => console.error('rank answers snapshot error', err));
+}
+
+function renderRankItems() {
+  const round = RANK_ROUNDS[S.rankCurrentIndex];
+  const medals = ['🥇', '🥈', '🥉'];
+  return round.items.map((item, i) => {
+    const pos = S.rankMyOrder.indexOf(i);
+    const ranked = pos !== -1;
+    const badge = ranked ? (medals[pos] || `#${pos + 1}`) : '';
+    return `<button class="rank-item-btn ${ranked ? 'ranked' : ''}" data-item="${i}">
+      ${badge ? `<span class="rank-item-badge">${badge}</span>` : ''}
+      <span class="rank-item-label">${esc(item)}</span>
+    </button>`;
+  }).join('');
+}
+
+function renderRankResults() {
+  const round = RANK_ROUNDS[S.rankCurrentIndex];
+  const n = round.items.length;
+  const totals = new Array(n).fill(0);
+  S.rankAnswers.forEach(a => {
+    (a.ranking || []).forEach((itemIdx, pos) => {
+      if (itemIdx >= 0 && itemIdx < n) totals[itemIdx] += (n - pos);
+    });
+  });
+  const maxTotal = Math.max(1, ...totals);
+  const order = round.items.map((item, i) => ({ item, total: totals[i] })).sort((a, b) => b.total - a.total);
+  const respondents = S.rankAnswers.length;
+  return order.map(o => `
+    <div class="rank-bar-row">
+      <div class="rank-bar-label">${esc(o.item)}</div>
+      <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${Math.round((o.total / maxTotal) * 100)}%"></div></div>
+      <div class="rank-bar-count">${o.total} pt${o.total === 1 ? '' : 's'}</div>
+    </div>`).join('') +
+    `<p class="dim" style="font-size:0.78rem;margin-top:6px">${respondents} ranking${respondents === 1 ? '' : 's'} submitted</p>`;
+}
+
+function updateRankProgress() {
+  const round = RANK_ROUNDS[S.rankCurrentIndex];
+  const progEl = document.getElementById('rank-progress');
+  if (progEl) progEl.textContent = `${S.rankMyOrder.length} / ${round.items.length} ranked`;
+  const submitBtn = document.getElementById('rank-submit');
+  if (submitBtn) submitBtn.disabled = S.rankMyOrder.length !== round.items.length;
+}
+
+function tapRankItem(i) {
+  const round = RANK_ROUNDS[S.rankCurrentIndex];
+  const pos = S.rankMyOrder.indexOf(i);
+  if (pos !== -1) S.rankMyOrder.splice(pos, 1);
+  else if (S.rankMyOrder.length < round.items.length) S.rankMyOrder.push(i);
+  const itemsEl = document.getElementById('rank-items');
+  if (itemsEl) itemsEl.innerHTML = renderRankItems();
+  updateRankProgress();
+}
+
+async function submitRankAnswer() {
+  const round = RANK_ROUNDS[S.rankCurrentIndex];
+  const nameEl = document.getElementById('rank-name');
+  const msg    = document.getElementById('rank-msg');
+  const name = nameEl.value.trim();
+  if (!name) { msg.textContent = 'Enter your name first.'; msg.style.color = 'var(--danger)'; return; }
+  if (S.rankMyOrder.length !== round.items.length) { msg.textContent = 'Tap every item to rank it before submitting.'; msg.style.color = 'var(--danger)'; return; }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+  try {
+    localStorage.setItem('hm_student_name', name);
+    const docId = `${S.rankCurrentIndex}_${slugifyName(name)}`;
+    await db.collection('hm_rank_answers').doc(docId).set({ name, ranking: S.rankMyOrder, roundIndex: S.rankCurrentIndex, createdAt: Date.now() });
+    msg.textContent = '✅ Ranking submitted! Want to change it? Re-tap the items, then submit again.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  }
+}
+
+async function advanceRankRound(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.rankCurrentIndex + delta, RANK_ROUNDS.length - 1));
+  await db.collection('hm_rank_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearRankAnswers() {
+  if (!confirm('Clear all Rank It submissions (every round)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_rank_answers').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
 // ── ICEBREAKER: Human Bingo (get up and learn names) ────────────
 const BINGO_PROMPTS = [
   'Has a pet at home',
@@ -892,6 +1455,11 @@ function renderIcebreaker() {
       <button class="ib-game-tab ${game === 'qa' ? 'active' : ''}" data-game="qa">🙋 Get to Know You</button>
       <button class="ib-game-tab ${game === 'tot' ? 'active' : ''}" data-game="tot">⚖️ This or That</button>
       <button class="ib-game-tab ${game === 'bingo' ? 'active' : ''}" data-game="bingo">🏃 Human Bingo</button>
+      <button class="ib-game-tab ${game === 'wyr' ? 'active' : ''}" data-game="wyr">🤔 Would You Rather</button>
+      <button class="ib-game-tab ${game === 'speed' ? 'active' : ''}" data-game="speed">⏱️ Speed Meet</button>
+      <button class="ib-game-tab ${game === 'common' ? 'active' : ''}" data-game="common">🧭 Common Ground</button>
+      <button class="ib-game-tab ${game === 'story' ? 'active' : ''}" data-game="story">✍️ Story Chain</button>
+      <button class="ib-game-tab ${game === 'rank' ? 'active' : ''}" data-game="rank">🏅 Rank It</button>
     </div>`;
 
   const truthsSection = `
@@ -1025,11 +1593,161 @@ function renderIcebreaker() {
         <div id="bingo-winners-wall">${renderBingoWinners()}</div>
       </section>`;
 
+  const wyrQ = WYR_QUESTIONS[S.wyrCurrentIndex];
+  const wyrSection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2>🤔 Would You Rather</h2>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <button class="btn-secondary" id="wyr-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="wyr-position" style="font-size:0.8rem">${S.wyrCurrentIndex + 1} / ${WYR_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="wyr-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="wyr-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="wyr-choices">
+          <button class="wyr-choice-btn ${S.wyrMyChoice === 'a' ? 'active' : ''}" data-choice="a"><span class="wyr-question-a">${esc(wyrQ.a)}</span></button>
+          <div class="wyr-vs">or</div>
+          <button class="wyr-choice-btn ${S.wyrMyChoice === 'b' ? 'active' : ''}" data-choice="b"><span class="wyr-question-b">${esc(wyrQ.b)}</span></button>
+        </div>
+        <p id="wyr-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">📊 Live Results</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=wyr" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="wyr-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Votes</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">Watch the class split live, then go find someone who picked the other side and ask them why.</p>
+        <div class="wyr-poll">${renderWyrPoll()}</div>
+      </section>`;
+
+  const speedSection = `
+      <section class="card">
+        <h2>⏱️ Speed Meet</h2>
+        <p class="cal-section-sub">Find a partner nearby. When the timer starts, talk about the question below until time's up — then find a new partner for the next one.</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap">
+          <button class="btn-secondary" id="speed-new" style="font-size:0.78rem;padding:4px 12px">🔀 New Question</button>
+          <button class="btn-primary" id="speed-start-timer" style="font-size:0.78rem;padding:4px 12px">▶️ Start 60s Timer</button>
+        </div>` : ''}
+        <p class="speed-question-text">${esc(SPEED_QUESTIONS[S.speedIndex])}</p>
+        <div class="speed-timer-display"><span class="speed-timer">⏱️ ${SPEED_TIMER_SECONDS}</span></div>
+      </section>`;
+
+  const commonCat = COMMON_GROUND_CATEGORIES[S.commonCurrentIndex];
+  const commonSection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2>🧭 Common Ground</h2>
+        <p class="common-question-text qa-question-text">${esc(commonCat.q)}</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+          <button class="btn-secondary" id="common-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="common-position" style="font-size:0.8rem">${S.commonCurrentIndex + 1} / ${COMMON_GROUND_CATEGORIES.length}</span>
+          <button class="btn-secondary" id="common-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="common-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div id="common-options" class="common-options">${renderCommonOptions()}</div>
+        <p id="common-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🧑‍🤝‍🧑 Find Your Group</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=common" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="common-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Answers</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">Pick your answer, then find and talk to someone in your group (or a different one!).</p>
+        <div class="common-groups">${renderCommonGroups()}</div>
+      </section>`;
+
+  const storySection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2>✍️ Today's Prompt</h2>
+        <p class="story-prompt-text qa-question-text">${esc(STORY_PROMPTS[S.storyCurrentIndex])}</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+          <button class="btn-secondary" id="story-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="story-position" style="font-size:0.8rem">${S.storyCurrentIndex + 1} / ${STORY_PROMPTS.length}</span>
+          <button class="btn-secondary" id="story-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="story-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="form-group">
+          <label>Your Line</label>
+          <input id="story-answer" type="text" placeholder="Type your caption or line...">
+        </div>
+        <button class="btn-primary" id="story-submit">✍️ Add My Line</button>
+        <p id="story-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">📜 The Wall (<span id="story-count">${S.storyAnswers.length}</span>)</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=story" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="story-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Lines</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">Read everyone's lines, then go tell someone which one was your favorite.</p>
+        <div id="story-wall">${renderStoryWallCards(S.storyAnswers)}</div>
+      </section>`;
+
+  const rankRound = RANK_ROUNDS[S.rankCurrentIndex];
+  const rankSection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2 class="rank-round-title">${esc(rankRound.title)}</h2>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <button class="btn-secondary" id="rank-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="rank-position" style="font-size:0.8rem">${S.rankCurrentIndex + 1} / ${RANK_ROUNDS.length}</span>
+          <button class="btn-secondary" id="rank-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <p class="cal-section-sub">Tap the items in order from your favorite to least favorite.</p>
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="rank-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div id="rank-items" class="rank-items">${renderRankItems()}</div>
+        <p class="dim" id="rank-progress" style="font-size:0.8rem;margin:8px 0">${S.rankMyOrder.length} / ${rankRound.items.length} ranked</p>
+        <button class="btn-primary" id="rank-submit" ${S.rankMyOrder.length !== rankRound.items.length ? 'disabled' : ''}>🏅 Submit My Ranking</button>
+        <p id="rank-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">📊 Class Results</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=rank" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="rank-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Rankings</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">See how the class ranked things overall, then go ask someone why they picked their #1.</p>
+        <div class="rank-results">${renderRankResults()}</div>
+      </section>`;
+
   const meta = {
     truths: { icon: '🧊', title: 'Icebreaker: Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person.", section: truthsSection },
     qa:     { icon: '🙋', title: 'Icebreaker: Get to Know You',       sub: "Answer today's question, then compare with classmates in person.",              section: qaSection },
     tot:    { icon: '⚖️', title: 'Icebreaker: This or That',          sub: 'Vote on today\'s either/or, watch the live results, then find someone on the other side.', section: totSection },
     bingo:  { icon: '🏃', title: 'Icebreaker: Human Bingo',           sub: "Get up, walk around, and fill your card by learning classmates' names.", section: bingoSection },
+    wyr:    { icon: '🤔', title: 'Icebreaker: Would You Rather',      sub: 'Vote on today\'s dilemma, watch the live results, then find someone on the other side.', section: wyrSection },
+    speed:  { icon: '⏱️', title: 'Icebreaker: Speed Meet',            sub: "Grab a nearby partner and talk it out before the timer runs out.", section: speedSection },
+    common: { icon: '🧭', title: 'Icebreaker: Common Ground',         sub: "Answer today's category, then go find your group in person.", section: commonSection },
+    story:  { icon: '✍️', title: 'Icebreaker: Story Chain',           sub: "Add your line to today's prompt, then see what everyone else came up with.", section: storySection },
+    rank:   { icon: '🏅', title: 'Icebreaker: Rank It',               sub: "Tap to rank today's list, then compare with the class results.", section: rankSection },
   }[game];
 
   return `
@@ -1084,6 +1802,68 @@ function renderIcebreakerBoard() {
           <p>Get up, find classmates matching each square, and learn their names. First to BINGO shows up here — <span id="bingo-winners-count">${S.bingoWinners.length}</span> so far.</p>
         </div>
         <div id="bingo-winners-wall" class="ib-board-winners">${renderBingoWinners()}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'wyr') {
+    const wyrQ = WYR_QUESTIONS[S.wyrCurrentIndex];
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🤔 Would You Rather</h1>
+        </div>
+        <div class="wyr-board-choices">
+          <div class="wyr-board-choice"><span class="wyr-question-a">${esc(wyrQ.a)}</span></div>
+          <div class="wyr-vs">or</div>
+          <div class="wyr-board-choice"><span class="wyr-question-b">${esc(wyrQ.b)}</span></div>
+        </div>
+        <div class="wyr-poll wyr-board-poll">${renderWyrPoll()}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'speed') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>⏱️ Speed Meet</h1>
+        </div>
+        <p class="speed-question-text ib-board-question">${esc(SPEED_QUESTIONS[S.speedIndex])}</p>
+        <div class="speed-timer-display speed-board-timer"><span class="speed-timer">⏱️ ${SPEED_TIMER_SECONDS}</span></div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'common') {
+    const commonCat = COMMON_GROUND_CATEGORIES[S.commonCurrentIndex];
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🧭 Common Ground</h1>
+          <p class="common-question-text ib-board-question">${esc(commonCat.q)}</p>
+        </div>
+        <div class="common-groups common-board-groups">${renderCommonGroups()}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'story') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>✍️ Story Chain</h1>
+          <p class="story-prompt-text ib-board-question">${esc(STORY_PROMPTS[S.storyCurrentIndex])}</p>
+        </div>
+        <div id="story-wall" class="ib-board-wall">${renderStoryWallCards(S.storyAnswers)}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'rank') {
+    const rankRound = RANK_ROUNDS[S.rankCurrentIndex];
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🏅 Rank It</h1>
+          <p class="rank-round-title ib-board-question">${esc(rankRound.title)}</p>
+        </div>
+        <div class="rank-results rank-board-results">${renderRankResults()}</div>
       </div>`;
   }
   return `
@@ -4053,6 +4833,69 @@ function attachListeners() {
   const bingoName = document.getElementById('bingo-name');
   if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', bingoName.value.trim()));
 
+  document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
+    btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));
+
+  const wyrClear = document.getElementById('wyr-clear');
+  if (wyrClear) wyrClear.addEventListener('click', clearWyrVotes);
+
+  const wyrPrev = document.getElementById('wyr-prev');
+  if (wyrPrev) wyrPrev.addEventListener('click', () => advanceWyrQuestion(-1));
+
+  const wyrNext = document.getElementById('wyr-next');
+  if (wyrNext) wyrNext.addEventListener('click', () => advanceWyrQuestion(1));
+
+  const speedNew = document.getElementById('speed-new');
+  if (speedNew) speedNew.addEventListener('click', newSpeedQuestion);
+
+  const speedStartTimer = document.getElementById('speed-start-timer');
+  if (speedStartTimer) speedStartTimer.addEventListener('click', startSpeedTimer);
+
+  const commonOptions = document.getElementById('common-options');
+  if (commonOptions) commonOptions.addEventListener('click', e => {
+    const btn = e.target.closest('[data-option]');
+    if (btn) submitCommonAnswer(btn.dataset.option);
+  });
+
+  const commonPrev = document.getElementById('common-prev');
+  if (commonPrev) commonPrev.addEventListener('click', () => advanceCommonCategory(-1));
+
+  const commonNext = document.getElementById('common-next');
+  if (commonNext) commonNext.addEventListener('click', () => advanceCommonCategory(1));
+
+  const commonClear = document.getElementById('common-clear');
+  if (commonClear) commonClear.addEventListener('click', clearCommonAnswers);
+
+  const storySubmit = document.getElementById('story-submit');
+  if (storySubmit) storySubmit.addEventListener('click', submitStoryAnswer);
+
+  const storyClear = document.getElementById('story-clear');
+  if (storyClear) storyClear.addEventListener('click', clearStoryAnswers);
+
+  const storyPrev = document.getElementById('story-prev');
+  if (storyPrev) storyPrev.addEventListener('click', () => advanceStoryPrompt(-1));
+
+  const storyNext = document.getElementById('story-next');
+  if (storyNext) storyNext.addEventListener('click', () => advanceStoryPrompt(1));
+
+  const rankItems = document.getElementById('rank-items');
+  if (rankItems) rankItems.addEventListener('click', e => {
+    const btn = e.target.closest('[data-item]');
+    if (btn) tapRankItem(parseInt(btn.dataset.item));
+  });
+
+  const rankSubmit = document.getElementById('rank-submit');
+  if (rankSubmit) rankSubmit.addEventListener('click', submitRankAnswer);
+
+  const rankClear = document.getElementById('rank-clear');
+  if (rankClear) rankClear.addEventListener('click', clearRankAnswers);
+
+  const rankPrev = document.getElementById('rank-prev');
+  if (rankPrev) rankPrev.addEventListener('click', () => advanceRankRound(-1));
+
+  const rankNext = document.getElementById('rank-next');
+  if (rankNext) rankNext.addEventListener('click', () => advanceRankRound(1));
+
   document.querySelectorAll('.rd-input').forEach(ta =>
     ta.addEventListener('blur', () => saveRundownCell(ta.dataset.week, ta.dataset.role, ta.value)));
 
@@ -5732,7 +6575,8 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
-    S.icebreakerGame = (gameParam === 'qa' || gameParam === 'tot' || gameParam === 'bingo') ? gameParam : 'truths';
+    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'story', 'rank'];
+    S.icebreakerGame = validGames.includes(gameParam) ? gameParam : 'truths';
     if (S.icebreakerGame === 'bingo') loadBingoState();
     render();
     loadIcebreakerGame(S.icebreakerGame);
