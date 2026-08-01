@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801h';
+const APP_VERSION = '20260801i';
 (function() {
   try {
     const k = 'hm_version';
@@ -698,13 +698,13 @@ const BINGO_PROMPTS = [
   'Has been camping',
   'Prefers texts over calls',
   'Has curly hair',
-  'Has been on the radio or TV before',
+  'Has gone viral on social media before (even just with friends)',
   'Wants to work in media or broadcasting someday',
   'Has edited a video before',
   'Has a favorite podcast',
   'Can do an impression of someone',
   'Has a driver’s license',
-  'Has never seen snow',
+  'Has a Snapchat or texting streak going 100+ days',
   'Plays video games competitively',
   'Has the same birthday month as you',
   'Has been in a school dance',
@@ -712,7 +712,7 @@ const BINGO_PROMPTS = [
   'Has had a part in a play or musical',
   'Has run a mile in under 8 minutes',
   'Has more than one job',
-  'Has a favorite band that isn’t mainstream',
+  'Can name their top artist from Spotify Wrapped this year',
   'Has never had a cavity',
 ];
 const BINGO_SIZE = 5;
