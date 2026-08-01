@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801j';
+const APP_VERSION = '20260801k';
 (function() {
   try {
     const k = 'hm_version';
@@ -722,7 +722,7 @@ const BINGO_PROMPTS = [
   'Plays Fortnite, Roblox, or another online game',
   'Has a water bottle covered in stickers',
   'Uses ChatGPT or another AI tool for homework',
-  'Knows their MBTI or Zodiac sign by heart',
+  'Knows their Myers-Briggs personality type or Zodiac sign by heart',
   'Has more than 10,000 photos on their phone',
 ];
 const BINGO_SIZE = 5;
