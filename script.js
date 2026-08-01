@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801i';
+const APP_VERSION = '20260801j';
 (function() {
   try {
     const k = 'hm_version';
@@ -714,6 +714,16 @@ const BINGO_PROMPTS = [
   'Has more than one job',
   'Can name their top artist from Spotify Wrapped this year',
   'Has never had a cavity',
+  'Has a go-to order at a fast food drive-thru',
+  'Has worked (or currently works) a fast food job',
+  'Would pick Chick-fil-A over any other fast food',
+  'Has tried a fast food item that got discontinued',
+  'Has binge-watched an entire show in one day',
+  'Plays Fortnite, Roblox, or another online game',
+  'Has a water bottle covered in stickers',
+  'Uses ChatGPT or another AI tool for homework',
+  'Knows their MBTI or Zodiac sign by heart',
+  'Has more than 10,000 photos on their phone',
 ];
 const BINGO_SIZE = 5;
 const BINGO_CENTER = Math.floor((BINGO_SIZE * BINGO_SIZE) / 2);
