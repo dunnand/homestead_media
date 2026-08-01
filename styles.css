@@ -340,27 +340,40 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .qa-card-answer { font-size: 0.88rem; color: var(--text); }
 
-.ib-game-tabs {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+.ib-menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
 }
-.ib-game-tab {
+.ib-menu-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
   background: var(--surface2);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 8px 16px;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  color: var(--text);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+.ib-menu-card:hover {
+  border-color: var(--radio);
+  transform: translateY(-2px);
+}
+.ib-menu-card-icon { font-size: 1.8rem; margin-bottom: 10px; }
+.ib-menu-card-title { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
+.ib-menu-card-sub { font-size: 0.82rem; color: var(--dim); line-height: 1.4; }
+.ib-back-link {
+  display: inline-block;
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--dim);
   cursor: pointer;
+  margin-bottom: 20px;
 }
-.ib-game-tab.active {
-  background: var(--radio);
-  border-color: var(--radio);
-  color: #fff;
-}
+.ib-back-link:hover { color: var(--radio); }
 .qa-question-text {
   font-size: 1.3rem;
   font-weight: 700;

@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801n';
+const APP_VERSION = '20260801o';
 (function() {
   try {
     const k = 'hm_version';
@@ -230,7 +230,7 @@ const S = {
   quickLinks: {},
   icebreakerEntries: [],
   icebreakerUnsub: null,
-  icebreakerGame: 'truths',
+  icebreakerGame: 'menu',
   qaCurrentIndex: 0,
   qaAnswers: [],
   qaStateUnsub: null,
@@ -316,6 +316,7 @@ function unsubIcebreakerGames() {
 }
 
 function loadIcebreakerGame(game) {
+  if (game === 'menu') return;
   if (game === 'qa') return loadQaGame();
   if (game === 'tot') return loadTotGame();
   if (game === 'bingo') return loadBingoGame();
@@ -1447,20 +1448,42 @@ async function clearBingoWinners() {
   await batch.commit();
 }
 
+const ICEBREAKER_GAMES = [
+  { key: 'truths', icon: '🧊', title: 'Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person." },
+  { key: 'qa',     icon: '🙋', title: 'Get to Know You',      sub: "Answer today's question, then compare with classmates in person." },
+  { key: 'tot',    icon: '⚖️', title: 'This or That',         sub: "Vote on today's either/or, watch the live results, then find someone on the other side." },
+  { key: 'bingo',  icon: '🏃', title: 'Human Bingo',          sub: "Get up, walk around, and fill your card by learning classmates' names." },
+  { key: 'wyr',    icon: '🤔', title: 'Would You Rather',     sub: "Vote on today's dilemma, watch the live results, then find someone on the other side." },
+  { key: 'speed',  icon: '⏱️', title: 'Speed Meet',           sub: "Grab a nearby partner and talk it out before the timer runs out." },
+  { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
+  { key: 'story',  icon: '✍️', title: 'Story Chain',          sub: "Add your line to today's prompt, then see what everyone else came up with." },
+  { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
+];
+
+function renderIcebreakerMenu() {
+  const cards = ICEBREAKER_GAMES.map(g => `
+    <button class="ib-menu-card" data-game="${g.key}">
+      <div class="ib-menu-card-icon">${g.icon}</div>
+      <div class="ib-menu-card-title">${esc(g.title)}</div>
+      <div class="ib-menu-card-sub">${esc(g.sub)}</div>
+    </button>`).join('');
+  return `
+    ${navBar('icebreaker')}
+    <div class="class-page">
+      <div class="class-header">
+        <div class="class-header-icon">🧊</div>
+        <div>
+          <h1>Icebreakers</h1>
+          <p>Pick a game to get the class talking.</p>
+        </div>
+      </div>
+      <div class="ib-menu-grid">${cards}</div>
+    </div>`;
+}
+
 function renderIcebreaker() {
   const game = S.icebreakerGame;
-  const gameTabs = `
-    <div class="ib-game-tabs">
-      <button class="ib-game-tab ${game === 'truths' ? 'active' : ''}" data-game="truths">🧊 Two Truths and a Lie</button>
-      <button class="ib-game-tab ${game === 'qa' ? 'active' : ''}" data-game="qa">🙋 Get to Know You</button>
-      <button class="ib-game-tab ${game === 'tot' ? 'active' : ''}" data-game="tot">⚖️ This or That</button>
-      <button class="ib-game-tab ${game === 'bingo' ? 'active' : ''}" data-game="bingo">🏃 Human Bingo</button>
-      <button class="ib-game-tab ${game === 'wyr' ? 'active' : ''}" data-game="wyr">🤔 Would You Rather</button>
-      <button class="ib-game-tab ${game === 'speed' ? 'active' : ''}" data-game="speed">⏱️ Speed Meet</button>
-      <button class="ib-game-tab ${game === 'common' ? 'active' : ''}" data-game="common">🧭 Common Ground</button>
-      <button class="ib-game-tab ${game === 'story' ? 'active' : ''}" data-game="story">✍️ Story Chain</button>
-      <button class="ib-game-tab ${game === 'rank' ? 'active' : ''}" data-game="rank">🏅 Rank It</button>
-    </div>`;
+  if (game === 'menu') return renderIcebreakerMenu();
 
   const truthsSection = `
       <section class="card" style="margin-bottom:20px">
@@ -1738,30 +1761,21 @@ function renderIcebreaker() {
         <div class="rank-results">${renderRankResults()}</div>
       </section>`;
 
-  const meta = {
-    truths: { icon: '🧊', title: 'Icebreaker: Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person.", section: truthsSection },
-    qa:     { icon: '🙋', title: 'Icebreaker: Get to Know You',       sub: "Answer today's question, then compare with classmates in person.",              section: qaSection },
-    tot:    { icon: '⚖️', title: 'Icebreaker: This or That',          sub: 'Vote on today\'s either/or, watch the live results, then find someone on the other side.', section: totSection },
-    bingo:  { icon: '🏃', title: 'Icebreaker: Human Bingo',           sub: "Get up, walk around, and fill your card by learning classmates' names.", section: bingoSection },
-    wyr:    { icon: '🤔', title: 'Icebreaker: Would You Rather',      sub: 'Vote on today\'s dilemma, watch the live results, then find someone on the other side.', section: wyrSection },
-    speed:  { icon: '⏱️', title: 'Icebreaker: Speed Meet',            sub: "Grab a nearby partner and talk it out before the timer runs out.", section: speedSection },
-    common: { icon: '🧭', title: 'Icebreaker: Common Ground',         sub: "Answer today's category, then go find your group in person.", section: commonSection },
-    story:  { icon: '✍️', title: 'Icebreaker: Story Chain',           sub: "Add your line to today's prompt, then see what everyone else came up with.", section: storySection },
-    rank:   { icon: '🏅', title: 'Icebreaker: Rank It',               sub: "Tap to rank today's list, then compare with the class results.", section: rankSection },
-  }[game];
+  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, story: storySection, rank: rankSection };
+  const gameMeta = ICEBREAKER_GAMES.find(g => g.key === game);
 
   return `
     ${navBar('icebreaker')}
     <div class="class-page">
       <div class="class-header">
-        <div class="class-header-icon">${meta.icon}</div>
+        <div class="class-header-icon">${gameMeta.icon}</div>
         <div>
-          <h1>${meta.title}</h1>
-          <p>${meta.sub}</p>
+          <h1>Icebreaker: ${gameMeta.title}</h1>
+          <p>${gameMeta.sub}</p>
         </div>
       </div>
-      ${gameTabs}
-      ${meta.section}
+      <a class="ib-back-link" data-game="menu">← All Icebreakers</a>
+      ${sections[game]}
     </div>`;
 }
 
@@ -4700,6 +4714,10 @@ function attachListeners() {
       if (el.dataset.nav === 'lessons') {
         S.lessonCourse = null; S.lessonUnit = null; S.lessonId = null;
       }
+      if (el.dataset.nav === 'icebreaker') {
+        unsubIcebreakerGames();
+        S.icebreakerGame = 'menu';
+      }
       go(el.dataset.nav);
     }));
 
@@ -4794,8 +4812,11 @@ function attachListeners() {
   const ibClear = document.getElementById('ib-clear');
   if (ibClear) ibClear.addEventListener('click', clearIcebreakerWall);
 
-  document.querySelectorAll('.ib-game-tab').forEach(btn =>
+  document.querySelectorAll('.ib-menu-card').forEach(btn =>
     btn.addEventListener('click', () => switchIcebreakerGame(btn.dataset.game)));
+
+  const ibBackLink = document.querySelector('.ib-back-link');
+  if (ibBackLink) ibBackLink.addEventListener('click', () => switchIcebreakerGame('menu'));
 
   const qaSubmit = document.getElementById('qa-submit');
   if (qaSubmit) qaSubmit.addEventListener('click', submitQaAnswer);
