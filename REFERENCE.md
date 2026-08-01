@@ -81,7 +81,7 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_qa_answers` | Answers for "Get to Know You": `{name, answer, questionIndex, createdAt}`. Wall/board query filters `where('questionIndex', '==', current index)`. Teacher's "Clear All Answers" wipes every question's answers between class periods |
 | `hm_tot_state` | Single doc `current`: `{index, updatedAt}` — which of the hardcoded `THIS_OR_THAT_QUESTIONS` (script.js) is live for the "This or That" icebreaker game. Same Prev/Next pattern as `hm_qa_state` |
 | `hm_tot_votes` | Votes for "This or That": doc ID is `{questionIndex}_{slugified name}` (via `.set()`, not `.add()`) so re-voting overwrites instead of double-counting: `{name, choice: 'a'|'b', questionIndex, createdAt}`. Live bar-chart tallies via `onSnapshot` filtered by questionIndex |
-| `hm_bingo_winners` | "Human Bingo" (get-up-and-learn-names game): `{name, createdAt}`, one doc per student who completes a row/column/diagonal on their personal card. The 4x4 card itself (`BINGO_PROMPTS`, order, filled squares) lives only in each student's `localStorage` — never synced; only the winners list is shared live via `onSnapshot` |
+| `hm_bingo_winners` | "Human Bingo" (get-up-and-learn-names game): `{name, createdAt}`, one doc per student who completes a row/column/diagonal on their personal card. The 5x5 card (free center space, 24 prompt squares randomly drawn per device from a 40-prompt pool in `BINGO_PROMPTS`) lives only in each student's `localStorage` — never synced; only the winners list is shared live via `onSnapshot` |
 
 ---
 

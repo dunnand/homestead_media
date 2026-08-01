@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801f';
+const APP_VERSION = '20260801g';
 (function() {
   try {
     const k = 'hm_version';
@@ -698,9 +698,26 @@ const BINGO_PROMPTS = [
   'Has been camping',
   'Prefers texts over calls',
   'Has curly hair',
+  'Has been on the radio or TV before',
+  'Wants to work in media or broadcasting someday',
+  'Has edited a video before',
+  'Has a favorite podcast',
+  'Can do an impression of someone',
+  'Has a driver’s license',
+  'Has never seen snow',
+  'Plays video games competitively',
+  'Has the same birthday month as you',
+  'Has been in a school dance',
+  'Can solve a Rubik’s Cube',
+  'Has had a part in a play or musical',
+  'Has run a mile in under 8 minutes',
+  'Has more than one job',
+  'Has a favorite band that isn’t mainstream',
+  'Has never had a cavity',
 ];
 const BINGO_SIZE = 5;
 const BINGO_CENTER = Math.floor((BINGO_SIZE * BINGO_SIZE) / 2);
+const BINGO_CARD_SLOTS = BINGO_SIZE * BINGO_SIZE - 1; // 24 prompt squares, center is free
 
 function shuffledBingoOrder() {
   const order = BINGO_PROMPTS.map((_, i) => i);
@@ -708,14 +725,15 @@ function shuffledBingoOrder() {
     const j = Math.floor(Math.random() * (i + 1));
     [order[i], order[j]] = [order[j], order[i]];
   }
-  try { localStorage.setItem('hm_bingo_order', JSON.stringify(order)); } catch (e) {}
-  return order;
+  const picked = order.slice(0, BINGO_CARD_SLOTS);
+  try { localStorage.setItem('hm_bingo_order', JSON.stringify(picked)); } catch (e) {}
+  return picked;
 }
 
 function loadBingoState() {
   try {
     const order = JSON.parse(localStorage.getItem('hm_bingo_order') || 'null');
-    S.bingoOrder = (Array.isArray(order) && order.length === BINGO_PROMPTS.length) ? order : shuffledBingoOrder();
+    S.bingoOrder = (Array.isArray(order) && order.length === BINGO_CARD_SLOTS) ? order : shuffledBingoOrder();
     const filled = JSON.parse(localStorage.getItem('hm_bingo_filled') || '{}');
     S.bingoFilled = (filled && typeof filled === 'object') ? filled : {};
     S.bingoWon = localStorage.getItem('hm_bingo_won') === '1';
