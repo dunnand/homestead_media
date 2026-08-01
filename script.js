@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801l';
+const APP_VERSION = '20260801m';
 (function() {
   try {
     const k = 'hm_version';
@@ -569,6 +569,21 @@ const THIS_OR_THAT_QUESTIONS = [
   { a: '🏙️ City',          b: '🌲 Countryside' },
   { a: '🎸 Concert',        b: '🏟️ Sports game' },
   { a: '🧩 Puzzles',        b: '🎲 Board games' },
+  { a: '🍔 McDonald\'s',    b: '🌯 Chipotle' },
+  { a: '🍗 Chick-fil-A',    b: '🍕 Domino\'s' },
+  { a: '🍟 Fries',          b: '🧀 Mozzarella sticks' },
+  { a: '📸 Instagram',      b: '🎵 TikTok' },
+  { a: '🕹️ Fortnite',      b: '🧱 Minecraft' },
+  { a: '🎮 Console gaming', b: '💻 PC gaming' },
+  { a: '🍿 Movie theater',  b: '🛋️ Watching at home' },
+  { a: '🏈 Football',       b: '🏀 Basketball' },
+  { a: '👟 Nike',           b: '👟 Adidas' },
+  { a: '📖 Physical book',  b: '📱 E-book' },
+  { a: '🚙 Driving yourself', b: '🚌 Getting a ride' },
+  { a: '🛒 Target',         b: '🛍️ Amazon' },
+  { a: '🎧 Spotify',        b: '🍎 Apple Music' },
+  { a: '🌭 Hot dog',        b: '🍔 Burger' },
+  { a: '🛹 Skateboard',     b: '🛴 Scooter' },
 ];
 
 function slugifyName(name) {
