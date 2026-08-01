@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801c';
+const APP_VERSION = '20260801d';
 (function() {
   try {
     const k = 'hm_version';
@@ -235,6 +235,11 @@ const S = {
   qaAnswers: [],
   qaStateUnsub: null,
   qaAnswersUnsub: null,
+  totCurrentIndex: 0,
+  totVotes: { a: 0, b: 0 },
+  totMyChoice: null,
+  totStateUnsub: null,
+  totVotesUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -263,12 +268,22 @@ function computeDoor33(gameTime, type) {
 }
 
 // ── Router ────────────────────────────────────────────────────
+function unsubIcebreakerGames() {
+  if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
+  if (S.qaStateUnsub)    { S.qaStateUnsub();    S.qaStateUnsub = null; }
+  if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
+  if (S.totStateUnsub)   { S.totStateUnsub();   S.totStateUnsub = null; }
+  if (S.totVotesUnsub)   { S.totVotesUnsub();   S.totVotesUnsub = null; }
+}
+
+function loadIcebreakerGame(game) {
+  if (game === 'qa') return loadQaGame();
+  if (game === 'tot') return loadTotGame();
+  return loadIcebreakerWall();
+}
+
 function go(view, extra) {
-  if (S.view === 'icebreaker' && view !== 'icebreaker') {
-    if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
-    if (S.qaStateUnsub)    { S.qaStateUnsub();    S.qaStateUnsub = null; }
-    if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
-  }
+  if (S.view === 'icebreaker' && view !== 'icebreaker') unsubIcebreakerGames();
   S.view = view;
   if (extra) Object.assign(S, extra);
   render();
@@ -278,17 +293,15 @@ function go(view, extra) {
   if (view === 'beats')   loadBeatAssignments();
   if (view === 'indepth') loadRundownData();
   if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadRundownData(S.broadcastId); }
-  if (view === 'icebreaker') { S.icebreakerGame === 'qa' ? loadQaGame() : loadIcebreakerWall(); }
+  if (view === 'icebreaker') loadIcebreakerGame(S.icebreakerGame);
 }
 
 function switchIcebreakerGame(game) {
   if (S.icebreakerGame === game) return;
-  if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
-  if (S.qaStateUnsub)    { S.qaStateUnsub();    S.qaStateUnsub = null; }
-  if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
+  unsubIcebreakerGames();
   S.icebreakerGame = game;
   render();
-  game === 'qa' ? loadQaGame() : loadIcebreakerWall();
+  loadIcebreakerGame(game);
 }
 
 // ── Render ────────────────────────────────────────────────────
@@ -530,12 +543,133 @@ async function clearQaAnswers() {
   await batch.commit();
 }
 
+// ── ICEBREAKER: This or That (live poll) ────────────────────────
+const THIS_OR_THAT_QUESTIONS = [
+  { a: '🏖️ Beach',        b: '⛰️ Mountains' },
+  { a: '🌅 Morning person', b: '🌙 Night owl' },
+  { a: '🍕 Pizza',          b: '🌮 Tacos' },
+  { a: '📺 Movies',         b: '📚 Books' },
+  { a: '🐱 Cats',           b: '🐶 Dogs' },
+  { a: '☕ Coffee',         b: '🍵 Tea' },
+  { a: '🎬 Netflix',        b: '🎮 Video games' },
+  { a: '❄️ Winter',         b: '☀️ Summer' },
+  { a: '🚗 Road trip',      b: '✈️ Flight' },
+  { a: '🎤 Karaoke',        b: '💃 Dancing' },
+  { a: '🍦 Ice cream',      b: '🍰 Cake' },
+  { a: '📱 Texting',        b: '📞 Calling' },
+  { a: '🏙️ City',          b: '🌲 Countryside' },
+  { a: '🎸 Concert',        b: '🏟️ Sports game' },
+  { a: '🧩 Puzzles',        b: '🎲 Board games' },
+];
+
+function slugifyName(name) {
+  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function loadTotGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.totStateUnsub) { S.totStateUnsub(); S.totStateUnsub = null; }
+  S.totStateUnsub = db.collection('hm_tot_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    const newIdx = Math.max(0, Math.min(idx, THIS_OR_THAT_QUESTIONS.length - 1));
+    if (newIdx !== S.totCurrentIndex) S.totMyChoice = null;
+    S.totCurrentIndex = newIdx;
+    const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+    document.querySelectorAll('.tot-question-a').forEach(el => { el.textContent = q.a; });
+    document.querySelectorAll('.tot-question-b').forEach(el => { el.textContent = q.b; });
+    document.querySelectorAll('.tot-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === S.totMyChoice));
+    const posEl = document.getElementById('tot-position');
+    if (posEl) posEl.textContent = `${S.totCurrentIndex + 1} / ${THIS_OR_THAT_QUESTIONS.length}`;
+    loadTotVotes();
+  }, err => console.error('tot state snapshot error', err));
+}
+
+function loadTotVotes() {
+  const db = getDB();
+  if (!db) return;
+  if (S.totVotesUnsub) { S.totVotesUnsub(); S.totVotesUnsub = null; }
+  S.totVotesUnsub = db.collection('hm_tot_votes').where('questionIndex', '==', S.totCurrentIndex).onSnapshot(snap => {
+    let a = 0, b = 0;
+    snap.docs.forEach(d => {
+      const choice = d.data().choice;
+      if (choice === 'a') a++; else if (choice === 'b') b++;
+    });
+    S.totVotes = { a, b };
+    document.querySelectorAll('.tot-poll').forEach(el => { el.innerHTML = renderTotPoll(); });
+  }, err => console.error('tot votes snapshot error', err));
+}
+
+function renderTotPoll() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  const { a, b } = S.totVotes;
+  const total = a + b;
+  const aPct = total ? Math.round((a / total) * 100) : 0;
+  const bPct = total ? 100 - aPct : 0;
+  return `
+    <div class="tot-bar-row">
+      <div class="tot-bar-label">${esc(q.a)}</div>
+      <div class="tot-bar-track"><div class="tot-bar-fill tot-bar-a" style="width:${aPct}%"></div></div>
+      <div class="tot-bar-count">${a} (${aPct}%)</div>
+    </div>
+    <div class="tot-bar-row">
+      <div class="tot-bar-label">${esc(q.b)}</div>
+      <div class="tot-bar-track"><div class="tot-bar-fill tot-bar-b" style="width:${bPct}%"></div></div>
+      <div class="tot-bar-count">${b} (${bPct}%)</div>
+    </div>
+    <p class="dim" style="font-size:0.78rem;margin-top:6px">${total} vote${total === 1 ? '' : 's'} so far</p>`;
+}
+
+async function submitTotVote(choice) {
+  const nameEl = document.getElementById('tot-name');
+  const msg    = document.getElementById('tot-msg');
+  const name = nameEl.value.trim();
+  if (!name) {
+    msg.textContent = 'Enter your name first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+  try {
+    localStorage.setItem('hm_student_name', name);
+    const voteId = `${S.totCurrentIndex}_${slugifyName(name)}`;
+    await db.collection('hm_tot_votes').doc(voteId).set({ name, choice, questionIndex: S.totCurrentIndex, createdAt: Date.now() });
+    S.totMyChoice = choice;
+    document.querySelectorAll('.tot-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === choice));
+    msg.textContent = '✅ Vote counted! Change your mind? Just tap the other option.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  }
+}
+
+async function advanceTotQuestion(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.totCurrentIndex + delta, THIS_OR_THAT_QUESTIONS.length - 1));
+  await db.collection('hm_tot_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearTotVotes() {
+  if (!confirm('Clear all This or That votes (every question)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_tot_votes').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
 function renderIcebreaker() {
   const game = S.icebreakerGame;
   const gameTabs = `
     <div class="ib-game-tabs">
-      <button class="ib-game-tab ${game !== 'qa' ? 'active' : ''}" data-game="truths">🧊 Two Truths and a Lie</button>
+      <button class="ib-game-tab ${game === 'truths' ? 'active' : ''}" data-game="truths">🧊 Two Truths and a Lie</button>
       <button class="ib-game-tab ${game === 'qa' ? 'active' : ''}" data-game="qa">🙋 Get to Know You</button>
+      <button class="ib-game-tab ${game === 'tot' ? 'active' : ''}" data-game="tot">⚖️ This or That</button>
     </div>`;
 
   const truthsSection = `
@@ -608,18 +742,58 @@ function renderIcebreaker() {
         <div id="qa-wall">${renderQaWallCards(S.qaAnswers)}</div>
       </section>`;
 
+  const totQ = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  const totSection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2>⚖️ This or That</h2>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <button class="btn-secondary" id="tot-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="tot-position" style="font-size:0.8rem">${S.totCurrentIndex + 1} / ${THIS_OR_THAT_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="tot-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="tot-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="tot-choices">
+          <button class="tot-choice-btn ${S.totMyChoice === 'a' ? 'active' : ''}" data-choice="a"><span class="tot-question-a">${esc(totQ.a)}</span></button>
+          <div class="tot-vs">vs</div>
+          <button class="tot-choice-btn ${S.totMyChoice === 'b' ? 'active' : ''}" data-choice="b"><span class="tot-question-b">${esc(totQ.b)}</span></button>
+        </div>
+        <p id="tot-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">📊 Live Results</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=tot" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="tot-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Votes</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">Watch the class split live, then go find someone who picked the other side and ask them why.</p>
+        <div class="tot-poll">${renderTotPoll()}</div>
+      </section>`;
+
+  const meta = {
+    truths: { icon: '🧊', title: 'Icebreaker: Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person.", section: truthsSection },
+    qa:     { icon: '🙋', title: 'Icebreaker: Get to Know You',       sub: "Answer today's question, then compare with classmates in person.",              section: qaSection },
+    tot:    { icon: '⚖️', title: 'Icebreaker: This or That',          sub: 'Vote on today\'s either/or, watch the live results, then find someone on the other side.', section: totSection },
+  }[game];
+
   return `
     ${navBar('icebreaker')}
     <div class="class-page">
       <div class="class-header">
-        <div class="class-header-icon">${game === 'qa' ? '🙋' : '🧊'}</div>
+        <div class="class-header-icon">${meta.icon}</div>
         <div>
-          <h1>${game === 'qa' ? 'Icebreaker: Get to Know You' : 'Icebreaker: Two Truths and a Lie'}</h1>
-          <p>${game === 'qa' ? "Answer today's question, then compare with classmates in person." : "Add yourself to the wall, then mingle and guess everyone else's lie in person."}</p>
+          <h1>${meta.title}</h1>
+          <p>${meta.sub}</p>
         </div>
       </div>
       ${gameTabs}
-      ${game === 'qa' ? qaSection : truthsSection}
+      ${meta.section}
     </div>`;
 }
 
@@ -633,6 +807,22 @@ function renderIcebreakerBoard() {
           <p class="qa-question-text ib-board-question">${esc(QA_QUESTIONS[S.qaCurrentIndex])}</p>
         </div>
         <div id="qa-wall" class="ib-board-wall">${renderQaWallCards(S.qaAnswers)}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'tot') {
+    const totQ = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>⚖️ This or That</h1>
+        </div>
+        <div class="tot-board-choices">
+          <div class="tot-board-choice"><span class="tot-question-a">${esc(totQ.a)}</span></div>
+          <div class="tot-vs">vs</div>
+          <div class="tot-board-choice"><span class="tot-question-b">${esc(totQ.b)}</span></div>
+        </div>
+        <div class="tot-poll tot-board-poll">${renderTotPoll()}</div>
       </div>`;
   }
   return `
@@ -3578,6 +3768,18 @@ function attachListeners() {
   const qaNext = document.getElementById('qa-next');
   if (qaNext) qaNext.addEventListener('click', () => advanceQaQuestion(1));
 
+  document.querySelectorAll('.tot-choice-btn').forEach(btn =>
+    btn.addEventListener('click', () => submitTotVote(btn.dataset.choice)));
+
+  const totClear = document.getElementById('tot-clear');
+  if (totClear) totClear.addEventListener('click', clearTotVotes);
+
+  const totPrev = document.getElementById('tot-prev');
+  if (totPrev) totPrev.addEventListener('click', () => advanceTotQuestion(-1));
+
+  const totNext = document.getElementById('tot-next');
+  if (totNext) totNext.addEventListener('click', () => advanceTotQuestion(1));
+
   document.querySelectorAll('.rd-input').forEach(ta =>
     ta.addEventListener('blur', () => saveRundownCell(ta.dataset.week, ta.dataset.role, ta.value)));
 
@@ -5256,9 +5458,10 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
-    S.icebreakerGame = new URLSearchParams(location.search).get('game') === 'qa' ? 'qa' : 'truths';
+    const gameParam = new URLSearchParams(location.search).get('game');
+    S.icebreakerGame = (gameParam === 'qa' || gameParam === 'tot') ? gameParam : 'truths';
     render();
-    S.icebreakerGame === 'qa' ? loadQaGame() : loadIcebreakerWall();
+    loadIcebreakerGame(S.icebreakerGame);
     return;
   }
 

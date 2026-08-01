@@ -367,6 +367,54 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   margin: 6px 0;
 }
 
+.tot-choices {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin: 12px 0;
+}
+.tot-choice-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 18px 14px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+}
+.tot-choice-btn.active {
+  border-color: var(--radio);
+  background: color-mix(in srgb, var(--radio) 15%, var(--surface2));
+}
+.tot-vs {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--dim);
+}
+.tot-bar-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 90px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tot-bar-label { font-size: 0.85rem; font-weight: 600; }
+.tot-bar-track {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  height: 18px;
+  overflow: hidden;
+}
+.tot-bar-fill { height: 100%; transition: width 0.3s ease; }
+.tot-bar-a { background: var(--radio); }
+.tot-bar-b { background: var(--sports); }
+.tot-bar-count { font-size: 0.8rem; color: var(--dim); text-align: right; }
+
 /* ── Icebreaker board (fullscreen display) ──────────────────── */
 .ib-board {
   min-height: 100vh;
@@ -405,6 +453,28 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-card-statements li { font-size: 1.25rem; gap: 12px; }
 .ib-board-wall .ib-letter { font-size: 1rem; padding: 2px 8px; border-radius: 6px; }
 .ib-board-wall .qa-card-answer { font-size: 1.25rem; }
+
+.tot-board-choices {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin: 20px 0 36px;
+}
+.tot-board-choice {
+  font-size: 2.6rem;
+  font-weight: 800;
+  text-align: center;
+}
+.tot-board-poll {
+  max-width: 900px;
+  margin: 0 auto;
+}
+.tot-board-poll .tot-bar-row { grid-template-columns: 220px 1fr 140px; margin-bottom: 20px; }
+.tot-board-poll .tot-bar-label { font-size: 1.4rem; }
+.tot-board-poll .tot-bar-track { height: 36px; border-radius: 10px; }
+.tot-board-poll .tot-bar-count { font-size: 1.3rem; }
+.tot-board-poll p { font-size: 1.1rem !important; text-align: center; }
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {

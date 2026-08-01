@@ -79,6 +79,8 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_icebreaker` | Live "Two Truths and a Lie" wall (🧊 Icebreaker nav link, one of two game tabs there): `{name, statements: [3 shuffled strings], createdAt}` — no field marks which statement is the lie; that's revealed face-to-face. Real-time via `onSnapshot`. Teacher's "Clear Wall" button deletes all docs between class periods |
 | `hm_qa_state` | Single doc `current`: `{index, updatedAt}` — which of the hardcoded `QA_QUESTIONS` (script.js) is live for the "Get to Know You" icebreaker game. Teacher's Prev/Next buttons write this; students' and the board's onSnapshot listeners react live |
 | `hm_qa_answers` | Answers for "Get to Know You": `{name, answer, questionIndex, createdAt}`. Wall/board query filters `where('questionIndex', '==', current index)`. Teacher's "Clear All Answers" wipes every question's answers between class periods |
+| `hm_tot_state` | Single doc `current`: `{index, updatedAt}` — which of the hardcoded `THIS_OR_THAT_QUESTIONS` (script.js) is live for the "This or That" icebreaker game. Same Prev/Next pattern as `hm_qa_state` |
+| `hm_tot_votes` | Votes for "This or That": doc ID is `{questionIndex}_{slugified name}` (via `.set()`, not `.add()`) so re-voting overwrites instead of double-counting: `{name, choice: 'a'|'b', questionIndex, createdAt}`. Live bar-chart tallies via `onSnapshot` filtered by questionIndex |
 
 ---
 
