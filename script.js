@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801e';
+const APP_VERSION = '20260801f';
 (function() {
   try {
     const k = 'hm_version';
@@ -293,6 +293,7 @@ function go(view, extra) {
   if (S.view === 'icebreaker' && view !== 'icebreaker') unsubIcebreakerGames();
   S.view = view;
   if (extra) Object.assign(S, extra);
+  if (view === 'icebreaker' && S.icebreakerGame === 'bingo') loadBingoState();
   render();
   window.scrollTo(0, 0);
   if (view === 'dashboard') { dashboardLoadPlans(); loadYearbookCoverage(); loadShowSchedule(); }
@@ -307,6 +308,7 @@ function switchIcebreakerGame(game) {
   if (S.icebreakerGame === game) return;
   unsubIcebreakerGames();
   S.icebreakerGame = game;
+  if (game === 'bingo') loadBingoState();
   render();
   loadIcebreakerGame(game);
 }
@@ -688,8 +690,17 @@ const BINGO_PROMPTS = [
   'Watched the same movie as you this year',
   'Wants to visit Japan',
   'Has more than 2 siblings',
+  'Has a summer birthday',
+  'Is left-handed',
+  'Has the same shoe size as you',
+  'Has a job outside of school',
+  'Can do a cartwheel',
+  'Has been camping',
+  'Prefers texts over calls',
+  'Has curly hair',
 ];
-const BINGO_SIZE = 4;
+const BINGO_SIZE = 5;
+const BINGO_CENTER = Math.floor((BINGO_SIZE * BINGO_SIZE) / 2);
 
 function shuffledBingoOrder() {
   const order = BINGO_PROMPTS.map((_, i) => i);
@@ -743,11 +754,16 @@ function renderBingoWinners() {
 function renderBingoGrid() {
   const n = BINGO_SIZE;
   let rows = '';
+  let slot = 0;
   for (let r = 0; r < n; r++) {
     let cells = '';
     for (let c = 0; c < n; c++) {
       const pos = r * n + c;
-      const promptIdx = S.bingoOrder[pos];
+      if (pos === BINGO_CENTER) {
+        cells += `<div class="bingo-cell bingo-free filled"><span class="bingo-cell-name">FREE</span></div>`;
+        continue;
+      }
+      const promptIdx = S.bingoOrder[slot]; slot++;
       const filledName = S.bingoFilled[pos];
       cells += `
         <button class="bingo-cell ${filledName ? 'filled' : ''}" data-bingo-pos="${pos}">
@@ -763,7 +779,7 @@ function renderBingoGrid() {
 
 function checkBingoWin() {
   const n = BINGO_SIZE;
-  const has = (r, c) => !!S.bingoFilled[r * n + c];
+  const has = (r, c) => { const p = r * n + c; return p === BINGO_CENTER || !!S.bingoFilled[p]; };
   for (let r = 0; r < n; r++) if ([...Array(n).keys()].every(c => has(r, c))) return true;
   for (let c = 0; c < n; c++) if ([...Array(n).keys()].every(r => has(r, c))) return true;
   if ([...Array(n).keys()].every(i => has(i, i))) return true;
@@ -937,7 +953,7 @@ function renderIcebreaker() {
           <h2 style="margin:0">🏃 Human Bingo</h2>
           <button class="btn-secondary" id="bingo-reset" style="font-size:0.78rem;padding:4px 12px">🔄 New Card</button>
         </div>
-        <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it and type their name. Get 4 in a row — across, down, or diagonal — to win!</p>
+        <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it and type their name. The center is a free space — get 5 in a row (across, down, or diagonal) to win!</p>
         <div class="form-group">
           <label>Your Name</label>
           <input id="bingo-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
@@ -5666,6 +5682,7 @@ async function init() {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
     S.icebreakerGame = (gameParam === 'qa' || gameParam === 'tot' || gameParam === 'bingo') ? gameParam : 'truths';
+    if (S.icebreakerGame === 'bingo') loadBingoState();
     render();
     loadIcebreakerGame(S.icebreakerGame);
     return;
