@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801a';
+const APP_VERSION = '20260801b';
 (function() {
   try {
     const k = 'hm_version';
@@ -296,7 +296,8 @@ function render() {
     case 'iasb-category': app.innerHTML = renderIASBCategory();  break;
     case 'dashboard':     app.innerHTML = renderDashboard();     break;
     case 'lessons':       app.innerHTML = renderLessons();       break;
-    case 'icebreaker':    app.innerHTML = renderIcebreaker();    break;
+    case 'icebreaker':       app.innerHTML = renderIcebreaker();      break;
+    case 'icebreaker-board': app.innerHTML = renderIcebreakerBoard(); break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -447,11 +448,26 @@ function renderIcebreaker() {
       <section class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
           <h2 style="margin:0">🧑‍🤝‍🧑 The Wall (<span id="icebreaker-count">${S.icebreakerEntries.length}</span>)</h2>
-          ${S.teacherMode ? `<button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>` : ''}
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>` : ''}
+          </div>
         </div>
-        <p class="cal-section-sub">Find each person and guess which statement is their lie — then have them explain the true ones.</p>
+        <p class="cal-section-sub">Find each person and guess which statement is their lie — then have them explain the true ones. Open the board view on the classroom TV so everyone can browse it while they mingle.</p>
         <div id="icebreaker-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>
       </section>
+    </div>`;
+}
+
+function renderIcebreakerBoard() {
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>🧊 Two Truths and a Lie</h1>
+        <p>Find each person on the wall, guess their lie, then ask them to explain the true ones. <span id="icebreaker-count">${S.icebreakerEntries.length}</span> on the wall so far.</p>
+      </div>
+      <div id="icebreaker-wall" class="ib-board-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>
     </div>`;
 }
 
@@ -5047,6 +5063,14 @@ async function loadBroadcastChecklist(bid) {
 async function init() {
   await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides()]);
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
+
+  if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
+    S.view = 'icebreaker-board';
+    render();
+    loadIcebreakerWall();
+    return;
+  }
+
   render();
 
   document.addEventListener('keydown', e => {

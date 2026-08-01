@@ -339,6 +339,43 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   padding: 1px 5px;
 }
 
+/* ── Icebreaker board (fullscreen display) ──────────────────── */
+.ib-board {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 32px 40px 48px;
+  box-sizing: border-box;
+}
+.ib-board-exit {
+  position: fixed;
+  top: 14px;
+  right: 18px;
+  font-size: 0.75rem;
+  color: var(--dim);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 10px;
+  background: var(--surface);
+  opacity: 0.5;
+}
+.ib-board-exit:hover { opacity: 1; }
+.ib-board-header { text-align: center; margin-bottom: 28px; }
+.ib-board-header h1 { font-size: 3rem; margin: 0 0 8px; }
+.ib-board-header p { font-size: 1.3rem; color: var(--dim); margin: 0; }
+.ib-board-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 22px;
+}
+.ib-board-wall .ib-card {
+  padding: 22px 26px;
+  border-radius: 14px;
+}
+.ib-board-wall .ib-card-name { font-size: 1.6rem; margin-bottom: 12px; }
+.ib-board-wall .ib-card-statements li { font-size: 1.25rem; gap: 12px; }
+.ib-board-wall .ib-letter { font-size: 1rem; padding: 2px 8px; border-radius: 6px; }
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {
   background: var(--text); color: var(--bg);
