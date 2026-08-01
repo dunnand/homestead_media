@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801p';
+const APP_VERSION = '20260801q';
 (function() {
   try {
     const k = 'hm_version';
@@ -259,10 +259,6 @@ const S = {
   commonMyChoice: null,
   commonStateUnsub: null,
   commonAnswersUnsub: null,
-  storyCurrentIndex: 0,
-  storyAnswers: [],
-  storyStateUnsub: null,
-  storyAnswersUnsub: null,
   rankCurrentIndex: 0,
   rankAnswers: [],
   rankMyOrder: [],
@@ -309,8 +305,6 @@ function unsubIcebreakerGames() {
   if (S.speedTickHandle) { clearInterval(S.speedTickHandle); S.speedTickHandle = null; }
   if (S.commonStateUnsub)   { S.commonStateUnsub();   S.commonStateUnsub = null; }
   if (S.commonAnswersUnsub) { S.commonAnswersUnsub(); S.commonAnswersUnsub = null; }
-  if (S.storyStateUnsub)   { S.storyStateUnsub();   S.storyStateUnsub = null; }
-  if (S.storyAnswersUnsub) { S.storyAnswersUnsub(); S.storyAnswersUnsub = null; }
   if (S.rankStateUnsub)   { S.rankStateUnsub();   S.rankStateUnsub = null; }
   if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
 }
@@ -323,7 +317,6 @@ function loadIcebreakerGame(game) {
   if (game === 'wyr') return loadWyrGame();
   if (game === 'speed') return loadSpeedGame();
   if (game === 'common') return loadCommonGame();
-  if (game === 'story') return loadStoryGame();
   if (game === 'rank') return loadRankGame();
   return loadIcebreakerWall();
 }
@@ -1015,110 +1008,6 @@ async function clearCommonAnswers() {
   await batch.commit();
 }
 
-// ── ICEBREAKER: Story Chain (finish-the-sentence wall) ────────────
-const STORY_PROMPTS = [
-  "Finish the sentence: 'The mic cut out right as I said...'",
-  "Finish the sentence: 'Live TV taught me that...'",
-  "Finish the sentence: 'If my life had a blooper reel, this clip would be...'",
-  "Finish the sentence: 'Backstage right before the show, everyone was...'",
-  "Finish the sentence: 'The weirdest thing that's ever happened during a broadcast was...'",
-  "Finish the sentence: 'My dream headline to write someday is...'",
-  "Finish the sentence: 'The best plot twist for a school day would be...'",
-  "Finish the sentence: 'The last thing I'd want to say live on air is...'",
-  "Finish the sentence: 'If I hosted my own show, it would be called...'",
-  "Finish the sentence: 'The most chaotic thing that's happened in this class was...'",
-  "Finish the sentence: 'If I could interview anyone, it would be...'",
-  "Finish the sentence: 'The worst possible time for your phone to go off is...'",
-  "Finish the sentence: 'My go-to excuse for being late is...'",
-  "Finish the sentence: 'The one sound effect that should exist for everyday life is...'",
-  "Finish the sentence: 'If today were a news headline, it would read...'",
-];
-
-function loadStoryGame() {
-  const db = getDB();
-  if (!db) return;
-  if (S.storyStateUnsub) { S.storyStateUnsub(); S.storyStateUnsub = null; }
-  S.storyStateUnsub = db.collection('hm_story_state').doc('current').onSnapshot(doc => {
-    const data = doc.exists ? doc.data() : { index: 0 };
-    const idx = Number.isInteger(data.index) ? data.index : 0;
-    S.storyCurrentIndex = Math.max(0, Math.min(idx, STORY_PROMPTS.length - 1));
-    document.querySelectorAll('.story-prompt-text').forEach(el => { el.textContent = STORY_PROMPTS[S.storyCurrentIndex]; });
-    const posEl = document.getElementById('story-position');
-    if (posEl) posEl.textContent = `${S.storyCurrentIndex + 1} / ${STORY_PROMPTS.length}`;
-    loadStoryAnswers();
-  }, err => console.error('story state snapshot error', err));
-}
-
-function loadStoryAnswers() {
-  const db = getDB();
-  if (!db) return;
-  if (S.storyAnswersUnsub) { S.storyAnswersUnsub(); S.storyAnswersUnsub = null; }
-  S.storyAnswersUnsub = db.collection('hm_story_answers').where('promptIndex', '==', S.storyCurrentIndex).onSnapshot(snap => {
-    S.storyAnswers = snap.docs
-      .map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-    const wall = document.getElementById('story-wall');
-    if (wall) wall.innerHTML = renderStoryWallCards(S.storyAnswers);
-    const count = document.getElementById('story-count');
-    if (count) count.textContent = S.storyAnswers.length;
-  }, err => console.error('story answers snapshot error', err));
-}
-
-function renderStoryWallCards(entries) {
-  if (!entries.length) return `<p class="dim" style="font-size:0.85rem">No lines yet — be the first!</p>`;
-  return `<div class="ib-wall">` + entries.map(e => `
-    <div class="ib-card">
-      <div class="ib-card-name">${esc(e.name)}</div>
-      <div class="qa-card-answer">${esc(e.answer)}</div>
-    </div>`).join('') + `</div>`;
-}
-
-async function submitStoryAnswer() {
-  const nameEl = document.getElementById('story-name');
-  const ansEl  = document.getElementById('story-answer');
-  const msg    = document.getElementById('story-msg');
-  const name = nameEl.value.trim(), answer = ansEl.value.trim();
-  if (!name || !answer) {
-    msg.textContent = 'Fill in your name and a line first.';
-    msg.style.color = 'var(--danger)';
-    return;
-  }
-  const db = getDB();
-  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
-
-  const btn = document.getElementById('story-submit');
-  btn.disabled = true; btn.textContent = 'Adding…';
-  try {
-    localStorage.setItem('hm_student_name', name);
-    await db.collection('hm_story_answers').add({ name, answer, promptIndex: S.storyCurrentIndex, createdAt: Date.now() });
-    ansEl.value = '';
-    msg.textContent = '✅ Added! Check the wall for everyone else\'s lines.';
-    msg.style.color = 'var(--success)';
-  } catch (e) {
-    msg.textContent = 'Could not save: ' + e.message;
-    msg.style.color = 'var(--danger)';
-  } finally {
-    btn.disabled = false; btn.textContent = '✍️ Add My Line';
-  }
-}
-
-async function advanceStoryPrompt(delta) {
-  const db = getDB();
-  if (!db) return;
-  const next = Math.max(0, Math.min(S.storyCurrentIndex + delta, STORY_PROMPTS.length - 1));
-  await db.collection('hm_story_state').doc('current').set({ index: next, updatedAt: Date.now() });
-}
-
-async function clearStoryAnswers() {
-  if (!confirm('Clear all Story Chain lines (every prompt)? Do this between class periods.')) return;
-  const db = getDB();
-  if (!db) return;
-  const snap = await db.collection('hm_story_answers').get();
-  const batch = db.batch();
-  snap.docs.forEach(d => batch.delete(d.ref));
-  await batch.commit();
-}
-
 // ── ICEBREAKER: Rank It (tap-to-rank, live leaderboard) ───────────
 const RANK_ROUNDS = [
   { title: '🍔 Rank the Fast Food Chains', items: ['🍔 McDonald\'s', '🌮 Taco Bell', '🍕 Domino\'s', '🍗 Chick-fil-A', '🌯 Chipotle'] },
@@ -1456,7 +1345,6 @@ const ICEBREAKER_GAMES = [
   { key: 'wyr',    icon: '🤔', title: 'Would You Rather',     sub: "Vote on today's dilemma, watch the live results, then find someone on the other side." },
   { key: 'speed',  icon: '⏱️', title: 'Speed Meet',           sub: "Grab a nearby partner and talk it out before the timer runs out." },
   { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
-  { key: 'story',  icon: '✍️', title: 'Story Chain',          sub: "Add your line to today's prompt, then see what everyone else came up with." },
   { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
 ];
 
@@ -1694,40 +1582,6 @@ function renderIcebreaker() {
         <div class="common-groups">${renderCommonGroups()}</div>
       </section>`;
 
-  const storySection = `
-      <section class="card" style="margin-bottom:20px">
-        <h2>✍️ Today's Prompt</h2>
-        <p class="story-prompt-text qa-question-text">${esc(STORY_PROMPTS[S.storyCurrentIndex])}</p>
-        ${S.teacherMode ? `
-        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
-          <button class="btn-secondary" id="story-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
-          <span class="dim" id="story-position" style="font-size:0.8rem">${S.storyCurrentIndex + 1} / ${STORY_PROMPTS.length}</span>
-          <button class="btn-secondary" id="story-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
-        </div>` : ''}
-        <div class="form-group">
-          <label>Your Name</label>
-          <input id="story-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
-        </div>
-        <div class="form-group">
-          <label>Your Line</label>
-          <input id="story-answer" type="text" placeholder="Type your line...">
-        </div>
-        <button class="btn-primary" id="story-submit">✍️ Add My Line</button>
-        <p id="story-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
-      </section>
-
-      <section class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
-          <h2 style="margin:0">📜 The Wall (<span id="story-count">${S.storyAnswers.length}</span>)</h2>
-          <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="?board=icebreaker&game=story" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
-            ${S.teacherMode ? `<button class="btn-secondary" id="story-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Lines</button>` : ''}
-          </div>
-        </div>
-        <p class="cal-section-sub">Read everyone's lines, then go tell someone which one was your favorite.</p>
-        <div id="story-wall">${renderStoryWallCards(S.storyAnswers)}</div>
-      </section>`;
-
   const rankRound = RANK_ROUNDS[S.rankCurrentIndex];
   const rankSection = `
       <section class="card" style="margin-bottom:20px">
@@ -1761,7 +1615,7 @@ function renderIcebreaker() {
         <div class="rank-results">${renderRankResults()}</div>
       </section>`;
 
-  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, story: storySection, rank: rankSection };
+  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection };
   const gameMeta = ICEBREAKER_GAMES.find(g => g.key === game);
 
   return `
@@ -1855,17 +1709,6 @@ function renderIcebreakerBoard() {
           <p class="common-question-text ib-board-question">${esc(commonCat.q)}</p>
         </div>
         <div class="common-groups common-board-groups">${renderCommonGroups()}</div>
-      </div>`;
-  }
-  if (S.icebreakerGame === 'story') {
-    return `
-      <div class="ib-board">
-        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
-        <div class="ib-board-header">
-          <h1>✍️ Story Chain</h1>
-          <p class="story-prompt-text ib-board-question">${esc(STORY_PROMPTS[S.storyCurrentIndex])}</p>
-        </div>
-        <div id="story-wall" class="ib-board-wall">${renderStoryWallCards(S.storyAnswers)}</div>
       </div>`;
   }
   if (S.icebreakerGame === 'rank') {
@@ -4887,18 +4730,6 @@ function attachListeners() {
   const commonClear = document.getElementById('common-clear');
   if (commonClear) commonClear.addEventListener('click', clearCommonAnswers);
 
-  const storySubmit = document.getElementById('story-submit');
-  if (storySubmit) storySubmit.addEventListener('click', submitStoryAnswer);
-
-  const storyClear = document.getElementById('story-clear');
-  if (storyClear) storyClear.addEventListener('click', clearStoryAnswers);
-
-  const storyPrev = document.getElementById('story-prev');
-  if (storyPrev) storyPrev.addEventListener('click', () => advanceStoryPrompt(-1));
-
-  const storyNext = document.getElementById('story-next');
-  if (storyNext) storyNext.addEventListener('click', () => advanceStoryPrompt(1));
-
   const rankItems = document.getElementById('rank-items');
   if (rankItems) rankItems.addEventListener('click', e => {
     const btn = e.target.closest('[data-item]');
@@ -6596,7 +6427,7 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
-    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'story', 'rank'];
+    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'rank'];
     S.icebreakerGame = validGames.includes(gameParam) ? gameParam : 'truths';
     if (S.icebreakerGame === 'bingo') loadBingoState();
     render();
