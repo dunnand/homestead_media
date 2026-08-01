@@ -415,6 +415,53 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .tot-bar-b { background: var(--sports); }
 .tot-bar-count { font-size: 0.8rem; color: var(--dim); text-align: right; }
 
+.bingo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+}
+.bingo-row { display: contents; }
+.bingo-cell {
+  aspect-ratio: 1 / 1;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  cursor: pointer;
+  font-size: 0.7rem;
+  color: var(--dim);
+}
+.bingo-cell.filled {
+  background: color-mix(in srgb, var(--success) 18%, var(--surface2));
+  border-color: var(--success);
+  color: var(--text);
+}
+.bingo-cell-name { font-weight: 700; font-size: 0.8rem; }
+.bingo-cell-prompt { line-height: 1.25; }
+.bingo-won-banner {
+  background: color-mix(in srgb, var(--success) 15%, transparent);
+  border: 1px solid var(--success);
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-weight: 700;
+  color: var(--success);
+  margin-bottom: 10px;
+}
+.bingo-winners { display: flex; flex-wrap: wrap; gap: 8px; }
+.bingo-winner-pill {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 /* ── Icebreaker board (fullscreen display) ──────────────────── */
 .ib-board {
   min-height: 100vh;
@@ -475,6 +522,10 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .tot-board-poll .tot-bar-track { height: 36px; border-radius: 10px; }
 .tot-board-poll .tot-bar-count { font-size: 1.3rem; }
 .tot-board-poll p { font-size: 1.1rem !important; text-align: center; }
+
+.ib-board-winners { display: flex; }
+.ib-board-winners .bingo-winners { justify-content: center; gap: 18px; }
+.ib-board-winners .bingo-winner-pill { font-size: 1.6rem; padding: 12px 26px; }
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {

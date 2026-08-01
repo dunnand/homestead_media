@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801d';
+const APP_VERSION = '20260801e';
 (function() {
   try {
     const k = 'hm_version';
@@ -240,6 +240,11 @@ const S = {
   totMyChoice: null,
   totStateUnsub: null,
   totVotesUnsub: null,
+  bingoOrder: [],
+  bingoFilled: {},
+  bingoWon: false,
+  bingoWinners: [],
+  bingoWinnersUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -274,11 +279,13 @@ function unsubIcebreakerGames() {
   if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
   if (S.totStateUnsub)   { S.totStateUnsub();   S.totStateUnsub = null; }
   if (S.totVotesUnsub)   { S.totVotesUnsub();   S.totVotesUnsub = null; }
+  if (S.bingoWinnersUnsub) { S.bingoWinnersUnsub(); S.bingoWinnersUnsub = null; }
 }
 
 function loadIcebreakerGame(game) {
   if (game === 'qa') return loadQaGame();
   if (game === 'tot') return loadTotGame();
+  if (game === 'bingo') return loadBingoGame();
   return loadIcebreakerWall();
 }
 
@@ -663,6 +670,153 @@ async function clearTotVotes() {
   await batch.commit();
 }
 
+// ── ICEBREAKER: Human Bingo (get up and learn names) ────────────
+const BINGO_PROMPTS = [
+  'Has a pet at home',
+  'Plays a musical instrument',
+  'Speaks more than one language',
+  'Has an older sibling',
+  'Has traveled outside the U.S.',
+  'Was born in a different state',
+  'Plays a sport',
+  'Has the same favorite food as you',
+  'Has never broken a bone',
+  'Loves to read for fun',
+  'Has met someone famous',
+  'Can whistle',
+  'Has been to a concert',
+  'Watched the same movie as you this year',
+  'Wants to visit Japan',
+  'Has more than 2 siblings',
+];
+const BINGO_SIZE = 4;
+
+function shuffledBingoOrder() {
+  const order = BINGO_PROMPTS.map((_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  try { localStorage.setItem('hm_bingo_order', JSON.stringify(order)); } catch (e) {}
+  return order;
+}
+
+function loadBingoState() {
+  try {
+    const order = JSON.parse(localStorage.getItem('hm_bingo_order') || 'null');
+    S.bingoOrder = (Array.isArray(order) && order.length === BINGO_PROMPTS.length) ? order : shuffledBingoOrder();
+    const filled = JSON.parse(localStorage.getItem('hm_bingo_filled') || '{}');
+    S.bingoFilled = (filled && typeof filled === 'object') ? filled : {};
+    S.bingoWon = localStorage.getItem('hm_bingo_won') === '1';
+  } catch (e) {
+    S.bingoOrder = shuffledBingoOrder();
+    S.bingoFilled = {};
+    S.bingoWon = false;
+  }
+}
+
+function loadBingoGame() {
+  loadBingoState();
+  loadBingoWinners();
+}
+
+function loadBingoWinners() {
+  const db = getDB();
+  if (!db) return;
+  if (S.bingoWinnersUnsub) { S.bingoWinnersUnsub(); S.bingoWinnersUnsub = null; }
+  S.bingoWinnersUnsub = db.collection('hm_bingo_winners').onSnapshot(snap => {
+    S.bingoWinners = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    const wall = document.getElementById('bingo-winners-wall');
+    if (wall) wall.innerHTML = renderBingoWinners();
+    const count = document.getElementById('bingo-winners-count');
+    if (count) count.textContent = S.bingoWinners.length;
+  }, err => console.error('bingo winners snapshot error', err));
+}
+
+function renderBingoWinners() {
+  if (!S.bingoWinners.length) return `<p class="dim" style="font-size:0.85rem">Nobody's gotten BINGO yet...</p>`;
+  return `<div class="bingo-winners">` + S.bingoWinners.map(w => `<span class="bingo-winner-pill">🎉 ${esc(w.name)}</span>`).join('') + `</div>`;
+}
+
+function renderBingoGrid() {
+  const n = BINGO_SIZE;
+  let rows = '';
+  for (let r = 0; r < n; r++) {
+    let cells = '';
+    for (let c = 0; c < n; c++) {
+      const pos = r * n + c;
+      const promptIdx = S.bingoOrder[pos];
+      const filledName = S.bingoFilled[pos];
+      cells += `
+        <button class="bingo-cell ${filledName ? 'filled' : ''}" data-bingo-pos="${pos}">
+          ${filledName
+            ? `<span class="bingo-cell-name">${esc(filledName)}</span>`
+            : `<span class="bingo-cell-prompt">${esc(BINGO_PROMPTS[promptIdx])}</span>`}
+        </button>`;
+    }
+    rows += `<div class="bingo-row">${cells}</div>`;
+  }
+  return `<div class="bingo-grid">${rows}</div>`;
+}
+
+function checkBingoWin() {
+  const n = BINGO_SIZE;
+  const has = (r, c) => !!S.bingoFilled[r * n + c];
+  for (let r = 0; r < n; r++) if ([...Array(n).keys()].every(c => has(r, c))) return true;
+  for (let c = 0; c < n; c++) if ([...Array(n).keys()].every(r => has(r, c))) return true;
+  if ([...Array(n).keys()].every(i => has(i, i))) return true;
+  if ([...Array(n).keys()].every(i => has(i, n - 1 - i))) return true;
+  return false;
+}
+
+function fillBingoSquare(pos) {
+  const name = window.prompt("Classmate's name for this square:");
+  if (!name || !name.trim()) return;
+  S.bingoFilled[pos] = name.trim();
+  try { localStorage.setItem('hm_bingo_filled', JSON.stringify(S.bingoFilled)); } catch (e) {}
+  if (!S.bingoWon && checkBingoWin()) {
+    S.bingoWon = true;
+    try { localStorage.setItem('hm_bingo_won', '1'); } catch (e) {}
+    submitBingoWin();
+  }
+  render();
+}
+
+async function submitBingoWin() {
+  const db = getDB();
+  if (!db) return;
+  const nameEl = document.getElementById('bingo-name');
+  const name = (nameEl && nameEl.value.trim()) || localStorage.getItem('hm_student_name') || 'Someone';
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_bingo_winners').add({ name, createdAt: Date.now() });
+  } catch (e) { console.error('bingo winner submit error', e); }
+}
+
+function resetBingoCard() {
+  if (!confirm('Start a new BINGO card? This clears your current progress.')) return;
+  S.bingoOrder = shuffledBingoOrder();
+  S.bingoFilled = {};
+  S.bingoWon = false;
+  try {
+    localStorage.setItem('hm_bingo_filled', '{}');
+    localStorage.removeItem('hm_bingo_won');
+  } catch (e) {}
+  render();
+}
+
+async function clearBingoWinners() {
+  if (!confirm('Clear the BINGO winners list for the next class?')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_bingo_winners').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
 function renderIcebreaker() {
   const game = S.icebreakerGame;
   const gameTabs = `
@@ -670,6 +824,7 @@ function renderIcebreaker() {
       <button class="ib-game-tab ${game === 'truths' ? 'active' : ''}" data-game="truths">🧊 Two Truths and a Lie</button>
       <button class="ib-game-tab ${game === 'qa' ? 'active' : ''}" data-game="qa">🙋 Get to Know You</button>
       <button class="ib-game-tab ${game === 'tot' ? 'active' : ''}" data-game="tot">⚖️ This or That</button>
+      <button class="ib-game-tab ${game === 'bingo' ? 'active' : ''}" data-game="bingo">🏃 Human Bingo</button>
     </div>`;
 
   const truthsSection = `
@@ -776,10 +931,38 @@ function renderIcebreaker() {
         <div class="tot-poll">${renderTotPoll()}</div>
       </section>`;
 
+  const bingoSection = `
+      <section class="card" style="margin-bottom:20px">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🏃 Human Bingo</h2>
+          <button class="btn-secondary" id="bingo-reset" style="font-size:0.78rem;padding:4px 12px">🔄 New Card</button>
+        </div>
+        <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it and type their name. Get 4 in a row — across, down, or diagonal — to win!</p>
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="bingo-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        ${S.bingoWon ? `<p class="bingo-won-banner">🎉 BINGO! You're on the board below.</p>` : ''}
+        ${renderBingoGrid()}
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🎉 BINGO! (<span id="bingo-winners-count">${S.bingoWinners.length}</span>)</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=bingo" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="bingo-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Winners</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">First names to call BINGO show up here — everyone else is still racing to fill their card.</p>
+        <div id="bingo-winners-wall">${renderBingoWinners()}</div>
+      </section>`;
+
   const meta = {
     truths: { icon: '🧊', title: 'Icebreaker: Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person.", section: truthsSection },
     qa:     { icon: '🙋', title: 'Icebreaker: Get to Know You',       sub: "Answer today's question, then compare with classmates in person.",              section: qaSection },
     tot:    { icon: '⚖️', title: 'Icebreaker: This or That',          sub: 'Vote on today\'s either/or, watch the live results, then find someone on the other side.', section: totSection },
+    bingo:  { icon: '🏃', title: 'Icebreaker: Human Bingo',           sub: "Get up, walk around, and fill your card by learning classmates' names.", section: bingoSection },
   }[game];
 
   return `
@@ -823,6 +1006,17 @@ function renderIcebreakerBoard() {
           <div class="tot-board-choice"><span class="tot-question-b">${esc(totQ.b)}</span></div>
         </div>
         <div class="tot-poll tot-board-poll">${renderTotPoll()}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'bingo') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🏃 Human Bingo</h1>
+          <p>Get up, find classmates matching each square, and learn their names. First to BINGO shows up here — <span id="bingo-winners-count">${S.bingoWinners.length}</span> so far.</p>
+        </div>
+        <div id="bingo-winners-wall" class="ib-board-winners">${renderBingoWinners()}</div>
       </div>`;
   }
   return `
@@ -3780,6 +3974,18 @@ function attachListeners() {
   const totNext = document.getElementById('tot-next');
   if (totNext) totNext.addEventListener('click', () => advanceTotQuestion(1));
 
+  document.querySelectorAll('[data-bingo-pos]').forEach(btn =>
+    btn.addEventListener('click', () => fillBingoSquare(parseInt(btn.dataset.bingoPos))));
+
+  const bingoReset = document.getElementById('bingo-reset');
+  if (bingoReset) bingoReset.addEventListener('click', resetBingoCard);
+
+  const bingoClear = document.getElementById('bingo-clear');
+  if (bingoClear) bingoClear.addEventListener('click', clearBingoWinners);
+
+  const bingoName = document.getElementById('bingo-name');
+  if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', bingoName.value.trim()));
+
   document.querySelectorAll('.rd-input').forEach(ta =>
     ta.addEventListener('blur', () => saveRundownCell(ta.dataset.week, ta.dataset.role, ta.value)));
 
@@ -5459,7 +5665,7 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
-    S.icebreakerGame = (gameParam === 'qa' || gameParam === 'tot') ? gameParam : 'truths';
+    S.icebreakerGame = (gameParam === 'qa' || gameParam === 'tot' || gameParam === 'bingo') ? gameParam : 'truths';
     render();
     loadIcebreakerGame(S.icebreakerGame);
     return;
