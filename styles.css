@@ -338,6 +338,34 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-radius: 5px;
   padding: 1px 5px;
 }
+.qa-card-answer { font-size: 0.88rem; color: var(--text); }
+
+.ib-game-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.ib-game-tab {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--dim);
+  cursor: pointer;
+}
+.ib-game-tab.active {
+  background: var(--radio);
+  border-color: var(--radio);
+  color: #fff;
+}
+.qa-question-text {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 6px 0;
+}
 
 /* ── Icebreaker board (fullscreen display) ──────────────────── */
 .ib-board {
@@ -363,6 +391,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-header { text-align: center; margin-bottom: 28px; }
 .ib-board-header h1 { font-size: 3rem; margin: 0 0 8px; }
 .ib-board-header p { font-size: 1.3rem; color: var(--dim); margin: 0; }
+.ib-board-question { font-size: 2rem !important; font-weight: 700; color: var(--text) !important; }
 .ib-board-wall {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -375,6 +404,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-card-name { font-size: 1.6rem; margin-bottom: 12px; }
 .ib-board-wall .ib-card-statements li { font-size: 1.25rem; gap: 12px; }
 .ib-board-wall .ib-letter { font-size: 1rem; padding: 2px 8px; border-radius: 6px; }
+.ib-board-wall .qa-card-answer { font-size: 1.25rem; }
 
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {

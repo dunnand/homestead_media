@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801b';
+const APP_VERSION = '20260801c';
 (function() {
   try {
     const k = 'hm_version';
@@ -230,6 +230,11 @@ const S = {
   quickLinks: {},
   icebreakerEntries: [],
   icebreakerUnsub: null,
+  icebreakerGame: 'truths',
+  qaCurrentIndex: 0,
+  qaAnswers: [],
+  qaStateUnsub: null,
+  qaAnswersUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -259,9 +264,10 @@ function computeDoor33(gameTime, type) {
 
 // ── Router ────────────────────────────────────────────────────
 function go(view, extra) {
-  if (S.view === 'icebreaker' && view !== 'icebreaker' && S.icebreakerUnsub) {
-    S.icebreakerUnsub();
-    S.icebreakerUnsub = null;
+  if (S.view === 'icebreaker' && view !== 'icebreaker') {
+    if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
+    if (S.qaStateUnsub)    { S.qaStateUnsub();    S.qaStateUnsub = null; }
+    if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
   }
   S.view = view;
   if (extra) Object.assign(S, extra);
@@ -272,7 +278,17 @@ function go(view, extra) {
   if (view === 'beats')   loadBeatAssignments();
   if (view === 'indepth') loadRundownData();
   if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadRundownData(S.broadcastId); }
-  if (view === 'icebreaker') loadIcebreakerWall();
+  if (view === 'icebreaker') { S.icebreakerGame === 'qa' ? loadQaGame() : loadIcebreakerWall(); }
+}
+
+function switchIcebreakerGame(game) {
+  if (S.icebreakerGame === game) return;
+  if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
+  if (S.qaStateUnsub)    { S.qaStateUnsub();    S.qaStateUnsub = null; }
+  if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
+  S.icebreakerGame = game;
+  render();
+  game === 'qa' ? loadQaGame() : loadIcebreakerWall();
 }
 
 // ── Render ────────────────────────────────────────────────────
@@ -410,18 +426,119 @@ async function clearIcebreakerWall() {
   await batch.commit();
 }
 
-function renderIcebreaker() {
-  return `
-    ${navBar('icebreaker')}
-    <div class="class-page">
-      <div class="class-header">
-        <div class="class-header-icon">🧊</div>
-        <div>
-          <h1>Icebreaker: Two Truths and a Lie</h1>
-          <p>Add yourself to the wall, then mingle and guess everyone else's lie in person.</p>
-        </div>
-      </div>
+// ── ICEBREAKER: Get to Know You (teacher-driven Q&A wall) ──────
+const QA_QUESTIONS = [
+  "What's your favorite movie of all time?",
+  "If you could have any superpower, what would it be?",
+  "What's a hobby you have outside of school?",
+  "What's your go-to comfort food?",
+  "If you could travel anywhere right now, where would you go?",
+  "What's a skill you wish you had?",
+  "What's your favorite song right now?",
+  "What's the best trip you've ever taken?",
+  "If you could meet anyone, living or dead, who would it be?",
+  "What's something you're good at that most people don't know?",
+  "What's your favorite way to spend a weekend?",
+  "What show are you currently binge-watching?",
+  "If you could switch lives with anyone for a day, who would it be?",
+  "What's the last thing that made you laugh really hard?",
+  "What's a place you've always wanted to visit?",
+];
 
+function loadQaGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.qaStateUnsub) { S.qaStateUnsub(); S.qaStateUnsub = null; }
+  S.qaStateUnsub = db.collection('hm_qa_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    S.qaCurrentIndex = Math.max(0, Math.min(idx, QA_QUESTIONS.length - 1));
+    document.querySelectorAll('.qa-question-text').forEach(el => { el.textContent = QA_QUESTIONS[S.qaCurrentIndex]; });
+    const posEl = document.getElementById('qa-position');
+    if (posEl) posEl.textContent = `${S.qaCurrentIndex + 1} / ${QA_QUESTIONS.length}`;
+    loadQaAnswers();
+  }, err => console.error('qa state snapshot error', err));
+}
+
+function loadQaAnswers() {
+  const db = getDB();
+  if (!db) return;
+  if (S.qaAnswersUnsub) { S.qaAnswersUnsub(); S.qaAnswersUnsub = null; }
+  S.qaAnswersUnsub = db.collection('hm_qa_answers').where('questionIndex', '==', S.qaCurrentIndex).onSnapshot(snap => {
+    S.qaAnswers = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const wall = document.getElementById('qa-wall');
+    if (wall) wall.innerHTML = renderQaWallCards(S.qaAnswers);
+    const count = document.getElementById('qa-count');
+    if (count) count.textContent = S.qaAnswers.length;
+  }, err => console.error('qa answers snapshot error', err));
+}
+
+function renderQaWallCards(entries) {
+  if (!entries.length) return `<p class="dim" style="font-size:0.85rem">No answers yet — be the first!</p>`;
+  return `<div class="ib-wall">` + entries.map(e => `
+    <div class="ib-card">
+      <div class="ib-card-name">${esc(e.name)}</div>
+      <div class="qa-card-answer">${esc(e.answer)}</div>
+    </div>`).join('') + `</div>`;
+}
+
+async function submitQaAnswer() {
+  const nameEl = document.getElementById('qa-name');
+  const ansEl  = document.getElementById('qa-answer');
+  const msg    = document.getElementById('qa-msg');
+  const name = nameEl.value.trim(), answer = ansEl.value.trim();
+  if (!name || !answer) {
+    msg.textContent = 'Fill in your name and an answer first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+
+  const btn = document.getElementById('qa-submit');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_qa_answers').add({ name, answer, questionIndex: S.qaCurrentIndex, createdAt: Date.now() });
+    ansEl.value = '';
+    msg.textContent = '✅ Added! Go compare answers with someone near you.';
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  } finally {
+    btn.disabled = false; btn.textContent = '🙋 Add My Answer';
+  }
+}
+
+async function advanceQaQuestion(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.qaCurrentIndex + delta, QA_QUESTIONS.length - 1));
+  await db.collection('hm_qa_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
+async function clearQaAnswers() {
+  if (!confirm('Clear all Get to Know You answers (every question)? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_qa_answers').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+function renderIcebreaker() {
+  const game = S.icebreakerGame;
+  const gameTabs = `
+    <div class="ib-game-tabs">
+      <button class="ib-game-tab ${game !== 'qa' ? 'active' : ''}" data-game="truths">🧊 Two Truths and a Lie</button>
+      <button class="ib-game-tab ${game === 'qa' ? 'active' : ''}" data-game="qa">🙋 Get to Know You</button>
+    </div>`;
+
+  const truthsSection = `
       <section class="card" style="margin-bottom:20px">
         <h2>✏️ Add Yourself to the Wall</h2>
         <p class="cal-section-sub">Write two true statements about yourself and one lie, in any order — don't say which is which.</p>
@@ -449,17 +566,75 @@ function renderIcebreaker() {
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
           <h2 style="margin:0">🧑‍🤝‍🧑 The Wall (<span id="icebreaker-count">${S.icebreakerEntries.length}</span>)</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <a href="?board=icebreaker" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            <a href="?board=icebreaker&game=truths" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
             ${S.teacherMode ? `<button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>` : ''}
           </div>
         </div>
         <p class="cal-section-sub">Find each person and guess which statement is their lie — then have them explain the true ones. Open the board view on the classroom TV so everyone can browse it while they mingle.</p>
         <div id="icebreaker-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>
+      </section>`;
+
+  const qaSection = `
+      <section class="card" style="margin-bottom:20px">
+        <h2>❓ Today's Question</h2>
+        <p class="qa-question-text">${esc(QA_QUESTIONS[S.qaCurrentIndex])}</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+          <button class="btn-secondary" id="qa-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="qa-position" style="font-size:0.8rem">${S.qaCurrentIndex + 1} / ${QA_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="qa-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>` : ''}
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="qa-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="form-group">
+          <label>Your Answer</label>
+          <input id="qa-answer" type="text" placeholder="Type your answer...">
+        </div>
+        <button class="btn-primary" id="qa-submit">🙋 Add My Answer</button>
+        <p id="qa-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
       </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🙋 Answers (<span id="qa-count">${S.qaAnswers.length}</span>)</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=qa" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="qa-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Answers</button>` : ''}
+          </div>
+        </div>
+        <p class="cal-section-sub">See what everyone said, then go find someone and ask them to explain their answer.</p>
+        <div id="qa-wall">${renderQaWallCards(S.qaAnswers)}</div>
+      </section>`;
+
+  return `
+    ${navBar('icebreaker')}
+    <div class="class-page">
+      <div class="class-header">
+        <div class="class-header-icon">${game === 'qa' ? '🙋' : '🧊'}</div>
+        <div>
+          <h1>${game === 'qa' ? 'Icebreaker: Get to Know You' : 'Icebreaker: Two Truths and a Lie'}</h1>
+          <p>${game === 'qa' ? "Answer today's question, then compare with classmates in person." : "Add yourself to the wall, then mingle and guess everyone else's lie in person."}</p>
+        </div>
+      </div>
+      ${gameTabs}
+      ${game === 'qa' ? qaSection : truthsSection}
     </div>`;
 }
 
 function renderIcebreakerBoard() {
+  if (S.icebreakerGame === 'qa') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🙋 Get to Know You</h1>
+          <p class="qa-question-text ib-board-question">${esc(QA_QUESTIONS[S.qaCurrentIndex])}</p>
+        </div>
+        <div id="qa-wall" class="ib-board-wall">${renderQaWallCards(S.qaAnswers)}</div>
+      </div>`;
+  }
   return `
     <div class="ib-board">
       <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
@@ -3388,6 +3563,21 @@ function attachListeners() {
   const ibClear = document.getElementById('ib-clear');
   if (ibClear) ibClear.addEventListener('click', clearIcebreakerWall);
 
+  document.querySelectorAll('.ib-game-tab').forEach(btn =>
+    btn.addEventListener('click', () => switchIcebreakerGame(btn.dataset.game)));
+
+  const qaSubmit = document.getElementById('qa-submit');
+  if (qaSubmit) qaSubmit.addEventListener('click', submitQaAnswer);
+
+  const qaClear = document.getElementById('qa-clear');
+  if (qaClear) qaClear.addEventListener('click', clearQaAnswers);
+
+  const qaPrev = document.getElementById('qa-prev');
+  if (qaPrev) qaPrev.addEventListener('click', () => advanceQaQuestion(-1));
+
+  const qaNext = document.getElementById('qa-next');
+  if (qaNext) qaNext.addEventListener('click', () => advanceQaQuestion(1));
+
   document.querySelectorAll('.rd-input').forEach(ta =>
     ta.addEventListener('blur', () => saveRundownCell(ta.dataset.week, ta.dataset.role, ta.value)));
 
@@ -5066,8 +5256,9 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
+    S.icebreakerGame = new URLSearchParams(location.search).get('game') === 'qa' ? 'qa' : 'truths';
     render();
-    loadIcebreakerWall();
+    S.icebreakerGame === 'qa' ? loadQaGame() : loadIcebreakerWall();
     return;
   }
 
