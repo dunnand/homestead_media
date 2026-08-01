@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801r';
+const APP_VERSION = '20260801s';
 (function() {
   try {
     const k = 'hm_version';
@@ -3078,6 +3078,7 @@ function blankStoryPlan() {
   return {
     id: null,
     reporter: '', title: '', whatAbout: '', whyCare: '',
+    airDate: '',
     interviews: [
       { name: '', title: '', questions: '' },
       { name: '', title: '', questions: '' },
@@ -3087,7 +3088,21 @@ function blankStoryPlan() {
     broll: {},
     brollOther: '',
     production: '',
+    createdBy: '',
+    approved: false,
+    approvedAt: null,
+    suggestions: [],
   };
+}
+
+function storyPlanIsOwner(p) {
+  if (!p || !p.createdBy) return true;
+  const me = (localStorage.getItem('hm_student_name') || '').trim().toLowerCase();
+  return !!me && me === String(p.createdBy).trim().toLowerCase();
+}
+
+function storyPlanCanEdit(p) {
+  return S.teacherMode || storyPlanIsOwner(p);
 }
 
 async function loadStoryPlans() {
@@ -3101,7 +3116,8 @@ async function loadStoryPlans() {
 }
 
 function storyPlanStartNew() {
-  _storyPlanDraft = blankStoryPlan();
+  const createdBy = rundownEditorName();
+  _storyPlanDraft = { ...blankStoryPlan(), createdBy, reporter: createdBy === 'Teacher' ? '' : createdBy };
   S.expandedStoryPlan = 'new';
   render();
 }
@@ -3113,6 +3129,7 @@ function storyPlanStartEdit(id) {
     id,
     reporter: p.reporter || '', title: p.title || '',
     whatAbout: p.whatAbout || '', whyCare: p.whyCare || '',
+    airDate: p.airDate || '',
     interviews: [0, 1, 2].map(i => ({
       name:      p.interviews?.[i]?.name      || '',
       title:     p.interviews?.[i]?.title     || '',
@@ -3122,6 +3139,10 @@ function storyPlanStartEdit(id) {
     broll: { ...(p.broll || {}) },
     brollOther: p.brollOther || '',
     production: p.production || '',
+    createdBy: p.createdBy || '',
+    approved: !!p.approved,
+    approvedAt: p.approvedAt || null,
+    suggestions: [...(p.suggestions || [])],
   };
   S.expandedStoryPlan = id;
   render();
@@ -3140,6 +3161,7 @@ function storyPlanSyncFromDom() {
   d.title       = val('story-title');
   d.whatAbout   = val('story-whatabout');
   d.whyCare     = val('story-whycare');
+  d.airDate     = val('story-airdate');
   d.interviews  = [0, 1, 2].map(i => ({
     name:      val(`story-iv-${i}-name`),
     title:     val(`story-iv-${i}-title`),
@@ -3163,8 +3185,12 @@ async function storyPlanSave() {
   if (!d.reporter || !d.title) { showToast('Please add a reporter name and story title.'); return; }
   const data = {
     reporter: d.reporter, title: d.title, whatAbout: d.whatAbout, whyCare: d.whyCare,
+    airDate: d.airDate,
     interviews: d.interviews, standupWhere: d.standupWhere,
     broll: d.broll, brollOther: d.brollOther, production: d.production,
+    createdBy: d.createdBy || (S.teacherMode ? 'Teacher' : rundownEditorName()),
+    approved: !!d.approved, approvedAt: d.approvedAt || null,
+    suggestions: d.suggestions || [],
     updatedAt: new Date().toISOString(),
   };
   const db = getDB();
@@ -3198,48 +3224,102 @@ async function storyPlanDelete(id) {
   loadStoryPlans();
 }
 
-function renderStoryPlanForm(d) {
+async function storyPlanSetApproved(id, approved) {
+  const p = (S.storyPlans || []).find(x => x.id === id);
+  const approvedAt = approved ? new Date().toISOString() : null;
+  if (p) { p.approved = approved; p.approvedAt = approvedAt; }
+  if (_storyPlanDraft && _storyPlanDraft.id === id) { _storyPlanDraft.approved = approved; _storyPlanDraft.approvedAt = approvedAt; }
+  const db = getDB();
+  if (db) {
+    try { await db.collection('hm_story_plans').doc(id).set({ approved, approvedAt }, { merge: true }); trackUsage('writes'); }
+    catch(e) { showToast('Update failed.'); console.error(e); return; }
+  }
+  showToast(approved ? 'Story plan approved!' : 'Approval removed.');
+  render();
+}
+
+async function storyPlanAddSuggestion(id) {
+  const text = val('story-suggestion-input');
+  if (!text) return;
+  const by = rundownEditorName();
+  const p = (S.storyPlans || []).find(x => x.id === id);
+  const suggestions = [...((p && p.suggestions) || []), { text, by, at: new Date().toISOString() }];
+  if (p) p.suggestions = suggestions;
+  if (_storyPlanDraft && _storyPlanDraft.id === id) _storyPlanDraft.suggestions = suggestions;
+  const db = getDB();
+  if (db) {
+    try { await db.collection('hm_story_plans').doc(id).set({ suggestions }, { merge: true }); trackUsage('writes'); }
+    catch(e) { showToast('Could not add suggestion.'); console.error(e); return; }
+  }
+  showToast('Suggestion sent.');
+  render();
+}
+
+function renderStoryPlanForm(d, editable) {
   d = d || blankStoryPlan();
+  const ro = editable ? '' : 'disabled';
   const interviewBlocks = d.interviews.map((iv, i) => `
     <div class="story-interview-block">
       <div class="story-interview-head">Person #${i + 1}${i === 2 ? ' <span class="hint">(only if necessary)</span>' : ''}</div>
       <div class="form-group">
         <label>Name</label>
-        <input id="story-iv-${i}-name" type="text" value="${esc(iv.name)}" placeholder="Who are you interviewing?">
+        <input id="story-iv-${i}-name" type="text" value="${esc(iv.name)}" placeholder="Who are you interviewing?" ${ro}>
       </div>
       <div class="form-group">
         <label>Title / Role</label>
-        <input id="story-iv-${i}-title" type="text" value="${esc(iv.title)}" placeholder="e.g. Principal, Team Captain, Coach">
+        <input id="story-iv-${i}-title" type="text" value="${esc(iv.title)}" placeholder="e.g. Principal, Team Captain, Coach" ${ro}>
       </div>
       <div class="form-group">
         <label>Questions <span class="hint">(at least 4, one per line)</span></label>
-        <textarea id="story-iv-${i}-questions" rows="4" placeholder="1. ...&#10;2. ...&#10;3. ...&#10;4. ...">${esc(iv.questions)}</textarea>
+        <textarea id="story-iv-${i}-questions" rows="4" placeholder="1. ...&#10;2. ...&#10;3. ...&#10;4. ..." ${ro}>${esc(iv.questions)}</textarea>
       </div>
     </div>`).join('');
 
   const brollChecks = BROLL_ITEMS.map(item => `
     <label class="story-broll-item">
-      <input type="checkbox" id="story-broll-${item.key}" ${d.broll?.[item.key] ? 'checked' : ''}>
+      <input type="checkbox" id="story-broll-${item.key}" ${d.broll?.[item.key] ? 'checked' : ''} ${ro}>
       <span>${item.label}</span>
     </label>`).join('');
 
+  const suggestions = d.id ? `
+      <h3 class="story-section-title">Suggestions ${(d.suggestions || []).length ? `<span class="hint">(${d.suggestions.length})</span>` : ''}</h3>
+      <div class="story-suggestions">
+        ${(d.suggestions || []).length
+          ? d.suggestions.map(s => `
+            <div class="story-suggestion-item">
+              <div class="story-suggestion-text">${esc(s.text)}</div>
+              <div class="story-suggestion-meta">— ${esc(s.by || 'Anonymous')}${s.at ? ', ' + fmtDate(s.at.slice(0, 10)) : ''}</div>
+            </div>`).join('')
+          : `<div class="beat-meet-empty">No suggestions yet.</div>`}
+        ${!editable ? `
+          <div class="story-suggestion-form">
+            <textarea id="story-suggestion-input" rows="2" placeholder="Suggest a change or addition..."></textarea>
+            <button class="btn-secondary" id="story-plan-suggest-btn" style="margin-top:8px">Submit Suggestion</button>
+          </div>` : ''}
+      </div>` : '';
+
   return `
     <div class="story-plan-form">
+      ${!editable ? `<div class="story-readonly-notice">👀 You're viewing ${esc(d.reporter || 'this reporter')}'s story plan. Only ${esc(d.createdBy || 'the reporter')} and your teacher can change it — leave a suggestion below instead.</div>` : ''}
       <div class="form-group">
         <label>Reporter</label>
-        <input id="story-reporter" type="text" value="${esc(d.reporter)}" placeholder="Your name">
+        <input id="story-reporter" type="text" value="${esc(d.reporter)}" placeholder="Your name" ${ro}>
       </div>
       <div class="form-group">
         <label>Story Idea / Title</label>
-        <input id="story-title" type="text" value="${esc(d.title)}" placeholder="What's this story called?">
+        <input id="story-title" type="text" value="${esc(d.title)}" placeholder="What's this story called?" ${ro}>
+      </div>
+      <div class="form-group">
+        <label>Potential Date to Be Played</label>
+        <input id="story-airdate" type="date" value="${esc(d.airDate)}" ${ro}>
       </div>
       <div class="form-group">
         <label>What is this story about?</label>
-        <textarea id="story-whatabout" rows="3" placeholder="Give a quick summary.">${esc(d.whatAbout)}</textarea>
+        <textarea id="story-whatabout" rows="3" placeholder="Give a quick summary." ${ro}>${esc(d.whatAbout)}</textarea>
       </div>
       <div class="form-group">
         <label>Why should our viewers care? What's the impact?</label>
-        <textarea id="story-whycare" rows="3" placeholder="Why does this matter to your audience?">${esc(d.whyCare)}</textarea>
+        <textarea id="story-whycare" rows="3" placeholder="Why does this matter to your audience?" ${ro}>${esc(d.whyCare)}</textarea>
       </div>
 
       <h3 class="story-section-title">Interviews <span class="hint">(at least #1–#2 — #3 only if necessary)</span></h3>
@@ -3248,7 +3328,7 @@ function renderStoryPlanForm(d) {
       <h3 class="story-section-title">Stand-Up</h3>
       <div class="form-group">
         <label>Where will you stand? Why is this location relevant to the story?</label>
-        <textarea id="story-standup" rows="3" placeholder="Describe your stand-up location and why it fits the story.">${esc(d.standupWhere)}</textarea>
+        <textarea id="story-standup" rows="3" placeholder="Describe your stand-up location and why it fits the story." ${ro}>${esc(d.standupWhere)}</textarea>
       </div>
 
       <h3 class="story-section-title">I Need B-Roll Footage Of…</h3>
@@ -3256,18 +3336,20 @@ function renderStoryPlanForm(d) {
       <div class="story-broll-grid">${brollChecks}</div>
       <div class="form-group" style="margin-top:12px">
         <label>Other shots?</label>
-        <input id="story-broll-other" type="text" value="${esc(d.brollOther)}" placeholder="Anything else you need to capture?">
+        <input id="story-broll-other" type="text" value="${esc(d.brollOther)}" placeholder="Anything else you need to capture?" ${ro}>
       </div>
 
       <h3 class="story-section-title">Other Things?</h3>
       <div class="form-group">
         <label>Graphics, music, audio, lower thirds, titles, animations, or other production needs?</label>
-        <textarea id="story-production" rows="3" placeholder="Any other production notes...">${esc(d.production)}</textarea>
+        <textarea id="story-production" rows="3" placeholder="Any other production notes..." ${ro}>${esc(d.production)}</textarea>
       </div>
 
+      ${suggestions}
+
       <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-        <button class="btn-primary" id="story-plan-save-btn" style="background:var(--indepth)">Save Plan</button>
-        <button class="btn-secondary" id="story-plan-cancel-btn">Cancel</button>
+        ${editable ? `<button class="btn-primary" id="story-plan-save-btn" style="background:var(--indepth)">Save Plan</button>` : ''}
+        <button class="btn-secondary" id="story-plan-cancel-btn">${editable ? 'Cancel' : 'Close'}</button>
         ${d.id && S.teacherMode ? `<button class="btn-danger" id="story-plan-delete-btn" style="margin-left:auto">Delete</button>` : ''}
       </div>
     </div>`;
@@ -3280,15 +3362,21 @@ function renderStoryPlans() {
   const rows = plans.map(p => {
     const editing = S.expandedStoryPlan === p.id;
     const updated = p.updatedAt ? fmtDate(p.updatedAt.slice(0, 10)) : '';
+    const suggestCount = (p.suggestions || []).length;
     return `
       <div class="story-plan-row ${editing ? 'open' : ''}">
         <div class="story-plan-row-main" data-story-toggle="${esc(p.id)}">
           <span class="story-plan-title">${esc(p.title || '(untitled story)')}</span>
           <span class="story-plan-reporter">${esc(p.reporter || 'Unknown reporter')}</span>
+          ${p.airDate ? `<span class="story-plan-airdate">🗓️ ${fmtDate(p.airDate)}</span>` : ''}
+          ${suggestCount ? `<span class="story-suggest-badge">💬 ${suggestCount}</span>` : ''}
+          ${S.teacherMode
+            ? `<button class="btn-sm story-approve-btn ${p.approved ? 'approved' : ''}" data-story-approve="${esc(p.id)}">${p.approved ? '✓ Approved' : 'Approve'}</button>`
+            : (p.approved ? `<span class="story-approved-badge">✓ Approved</span>` : '')}
           <span class="story-plan-updated">${updated}</span>
           <span class="beat-row-chevron">${editing ? '▾' : '▸'}</span>
         </div>
-        ${editing ? renderStoryPlanForm(_storyPlanDraft) : ''}
+        ${editing ? renderStoryPlanForm(_storyPlanDraft, storyPlanCanEdit(_storyPlanDraft)) : ''}
       </div>`;
   }).join('');
 
@@ -3304,7 +3392,7 @@ function renderStoryPlans() {
       </div>
       <section class="card">
         ${creating
-          ? `<div class="story-plan-row open">${renderStoryPlanForm(_storyPlanDraft)}</div>`
+          ? `<div class="story-plan-row open">${renderStoryPlanForm(_storyPlanDraft, true)}</div>`
           : `<button class="btn-primary" id="story-plan-new-btn" style="background:var(--indepth)">+ New Story Plan</button>`}
         <div class="story-plan-list" style="margin-top:16px">
           ${rows || (creating ? '' : '<div class="beat-meet-empty">No story plans yet. Click "+ New Story Plan" to start one.</div>')}
@@ -5135,6 +5223,16 @@ function attachListeners() {
   document.getElementById('story-plan-delete-btn')?.addEventListener('click', () => {
     if (_storyPlanDraft?.id) storyPlanDelete(_storyPlanDraft.id);
   });
+  document.getElementById('story-plan-suggest-btn')?.addEventListener('click', () => {
+    if (_storyPlanDraft?.id) storyPlanAddSuggestion(_storyPlanDraft.id);
+  });
+  document.querySelectorAll('[data-story-approve]').forEach(btn =>
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = btn.dataset.storyApprove;
+      const p = (S.storyPlans || []).find(x => x.id === id);
+      storyPlanSetApproved(id, !(p && p.approved));
+    }));
 
   document.querySelectorAll('[data-iasb-cat]').forEach(el =>
     el.addEventListener('click', () => {
