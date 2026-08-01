@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20270722';
+const APP_VERSION = '20260801a';
 (function() {
   try {
     const k = 'hm_version';
@@ -228,6 +228,8 @@ const S = {
   calMonthOffset: 0,
   dashSections: {},
   quickLinks: {},
+  icebreakerEntries: [],
+  icebreakerUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -257,6 +259,10 @@ function computeDoor33(gameTime, type) {
 
 // ── Router ────────────────────────────────────────────────────
 function go(view, extra) {
+  if (S.view === 'icebreaker' && view !== 'icebreaker' && S.icebreakerUnsub) {
+    S.icebreakerUnsub();
+    S.icebreakerUnsub = null;
+  }
   S.view = view;
   if (extra) Object.assign(S, extra);
   render();
@@ -266,6 +272,7 @@ function go(view, extra) {
   if (view === 'beats')   loadBeatAssignments();
   if (view === 'indepth') loadRundownData();
   if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadRundownData(S.broadcastId); }
+  if (view === 'icebreaker') loadIcebreakerWall();
 }
 
 // ── Render ────────────────────────────────────────────────────
@@ -289,6 +296,7 @@ function render() {
     case 'iasb-category': app.innerHTML = renderIASBCategory();  break;
     case 'dashboard':     app.innerHTML = renderDashboard();     break;
     case 'lessons':       app.innerHTML = renderLessons();       break;
+    case 'icebreaker':    app.innerHTML = renderIcebreaker();    break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -307,6 +315,7 @@ function navBar(active) {
         <a class="${active === 'indepth'  ? 'active' : ''}" data-nav="indepth">📺 In-Depth</a>
         <a class="${active === 'intro'    ? 'active' : ''}" data-nav="intro">🎓 Intro</a>
         <a class="${active === 'lessons'  ? 'active' : ''}" data-nav="lessons">📚 Lessons</a>
+        <a class="${active === 'icebreaker' ? 'active' : ''}" data-nav="icebreaker">🧊 Icebreaker</a>
         ${S.teacherMode ? `<a class="${active === 'dashboard' ? 'active' : ''}" data-nav="dashboard" style="color:var(--radio)">📊 Dashboard</a>` : ''}
         <button class="teacher-btn ${S.teacherMode ? 'active' : ''}" id="teacher-toggle">
           ${S.teacherMode ? '🔓 Teacher' : '🔑'}
@@ -324,6 +333,126 @@ function navBar(active) {
         </div>
       </div>
     </div>` : ''}`;
+}
+
+// ── ICEBREAKER (Two Truths and a Lie, shared live wall) ────────
+function loadIcebreakerWall() {
+  const db = getDB();
+  if (!db) return;
+  if (S.icebreakerUnsub) { S.icebreakerUnsub(); S.icebreakerUnsub = null; }
+  S.icebreakerUnsub = db.collection('hm_icebreaker').onSnapshot(snap => {
+    S.icebreakerEntries = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    const wall = document.getElementById('icebreaker-wall');
+    if (wall) wall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+    const count = document.getElementById('icebreaker-count');
+    if (count) count.textContent = S.icebreakerEntries.length;
+  }, err => console.error('icebreaker snapshot error', err));
+}
+
+function renderIcebreakerWallCards(entries) {
+  if (!entries.length) return `<p class="dim" style="font-size:0.85rem">Nobody's added themselves yet — be the first!</p>`;
+  return `<div class="ib-wall">` + entries.map(e => `
+    <div class="ib-card">
+      <div class="ib-card-name">${esc(e.name)}</div>
+      <ul class="ib-card-statements">
+        ${(e.statements || []).map((s, i) => `<li><span class="ib-letter">${String.fromCharCode(65 + i)}</span> ${esc(s)}</li>`).join('')}
+      </ul>
+    </div>`).join('') + `</div>`;
+}
+
+async function submitIcebreaker() {
+  const nameEl = document.getElementById('ib-name');
+  const s1El   = document.getElementById('ib-s1');
+  const s2El   = document.getElementById('ib-s2');
+  const s3El   = document.getElementById('ib-s3');
+  const msg    = document.getElementById('ib-msg');
+  const name = nameEl.value.trim(), s1 = s1El.value.trim(), s2 = s2El.value.trim(), s3 = s3El.value.trim();
+  if (!name || !s1 || !s2 || !s3) {
+    msg.textContent = 'Fill in your name and all three statements first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+
+  const statements = [s1, s2, s3];
+  for (let i = statements.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [statements[i], statements[j]] = [statements[j], statements[i]];
+  }
+
+  const btn = document.getElementById('ib-submit');
+  btn.disabled = true; btn.textContent = 'Adding…';
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_icebreaker').add({ name, statements, createdAt: Date.now() });
+    s1El.value = ''; s2El.value = ''; s3El.value = '';
+    msg.textContent = "✅ You're on the wall! Go find your match's card and guess their lie.";
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  } finally {
+    btn.disabled = false; btn.textContent = '🧊 Add Me to the Wall';
+  }
+}
+
+async function clearIcebreakerWall() {
+  if (!confirm('Clear everyone currently on the wall? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_icebreaker').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+}
+
+function renderIcebreaker() {
+  return `
+    ${navBar('icebreaker')}
+    <div class="class-page">
+      <div class="class-header">
+        <div class="class-header-icon">🧊</div>
+        <div>
+          <h1>Icebreaker: Two Truths and a Lie</h1>
+          <p>Add yourself to the wall, then mingle and guess everyone else's lie in person.</p>
+        </div>
+      </div>
+
+      <section class="card" style="margin-bottom:20px">
+        <h2>✏️ Add Yourself to the Wall</h2>
+        <p class="cal-section-sub">Write two true statements about yourself and one lie, in any order — don't say which is which.</p>
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="ib-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="form-group">
+          <label>Statement 1</label>
+          <input id="ib-s1" type="text" placeholder="e.g. I've met a professional athlete">
+        </div>
+        <div class="form-group">
+          <label>Statement 2</label>
+          <input id="ib-s2" type="text" placeholder="e.g. I've broken a bone">
+        </div>
+        <div class="form-group">
+          <label>Statement 3</label>
+          <input id="ib-s3" type="text" placeholder="e.g. I can't swim">
+        </div>
+        <button class="btn-primary" id="ib-submit">🧊 Add Me to the Wall</button>
+        <p id="ib-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🧑‍🤝‍🧑 The Wall (<span id="icebreaker-count">${S.icebreakerEntries.length}</span>)</h2>
+          ${S.teacherMode ? `<button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>` : ''}
+        </div>
+        <p class="cal-section-sub">Find each person and guess which statement is their lie — then have them explain the true ones.</p>
+        <div id="icebreaker-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>
+      </section>
+    </div>`;
 }
 
 // ── HOME ──────────────────────────────────────────────────────
@@ -3236,6 +3365,12 @@ function attachListeners() {
 
   const oi = document.getElementById('open-iasb');
   if (oi) oi.addEventListener('click', () => go('iasb'));
+
+  const ibSubmit = document.getElementById('ib-submit');
+  if (ibSubmit) ibSubmit.addEventListener('click', submitIcebreaker);
+
+  const ibClear = document.getElementById('ib-clear');
+  if (ibClear) ibClear.addEventListener('click', clearIcebreakerWall);
 
   document.querySelectorAll('.rd-input').forEach(ta =>
     ta.addEventListener('blur', () => saveRundownCell(ta.dataset.week, ta.dataset.role, ta.value)));

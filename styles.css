@@ -315,6 +315,30 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .card h3 { font-size: 0.95rem; font-weight: 700; margin-bottom: 8px; }
 .week-label { font-size: 0.8rem; color: var(--dim); }
 
+/* ── Icebreaker wall ─────────────────────────────────────── */
+.ib-wall {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 14px;
+}
+.ib-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.ib-card-name { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; }
+.ib-card-statements { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.ib-card-statements li { font-size: 0.85rem; color: var(--text); display: flex; gap: 8px; align-items: baseline; }
+.ib-letter {
+  flex-shrink: 0;
+  font-size: 0.7rem; font-weight: 800;
+  color: var(--dim);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 1px 5px;
+}
+
 /* ── Buttons ─────────────────────────────────────────────── */
 .btn-primary {
   background: var(--text); color: var(--bg);

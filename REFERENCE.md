@@ -76,6 +76,7 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_yearbook_coverage` | Yearbook event sign-ups (student, event, role) |
 | `hm_yearbook_events` | Custom events added by teacher via dashboard |
 | `hm_config` | App config: `show_schedule` (skipped Fridays), `cal_cache` (calendar event cache) |
+| `hm_icebreaker` | Live "Two Truths and a Lie" wall (🧊 Icebreaker nav link): `{name, statements: [3 shuffled strings], createdAt}` — no field marks which statement is the lie; that's revealed face-to-face. Real-time via `onSnapshot`. Teacher's "Clear Wall" button deletes all docs between class periods |
 
 ---
 
