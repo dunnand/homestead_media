@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801g';
+const APP_VERSION = '20260801h';
 (function() {
   try {
     const k = 'hm_version';
@@ -769,10 +769,16 @@ function renderBingoWinners() {
   return `<div class="bingo-winners">` + S.bingoWinners.map(w => `<span class="bingo-winner-pill">🎉 ${esc(w.name)}</span>`).join('') + `</div>`;
 }
 
+function bingoPromptForPos(pos) {
+  if (pos === BINGO_CENTER) return null;
+  let slot = 0;
+  for (let p = 0; p < pos; p++) if (p !== BINGO_CENTER) slot++;
+  return BINGO_PROMPTS[S.bingoOrder[slot]];
+}
+
 function renderBingoGrid() {
   const n = BINGO_SIZE;
   let rows = '';
-  let slot = 0;
   for (let r = 0; r < n; r++) {
     let cells = '';
     for (let c = 0; c < n; c++) {
@@ -781,13 +787,13 @@ function renderBingoGrid() {
         cells += `<div class="bingo-cell bingo-free filled"><span class="bingo-cell-name">FREE</span></div>`;
         continue;
       }
-      const promptIdx = S.bingoOrder[slot]; slot++;
-      const filledName = S.bingoFilled[pos];
+      const raw = S.bingoFilled[pos];
+      const entry = raw ? (typeof raw === 'string' ? { name: raw, answer: '' } : raw) : null;
       cells += `
-        <button class="bingo-cell ${filledName ? 'filled' : ''}" data-bingo-pos="${pos}">
-          ${filledName
-            ? `<span class="bingo-cell-name">${esc(filledName)}</span>`
-            : `<span class="bingo-cell-prompt">${esc(BINGO_PROMPTS[promptIdx])}</span>`}
+        <button class="bingo-cell ${entry ? 'filled' : ''}" data-bingo-pos="${pos}">
+          ${entry
+            ? `<span class="bingo-cell-name">${esc(entry.name)}</span>${entry.answer ? `<span class="bingo-cell-answer">${esc(entry.answer)}</span>` : ''}`
+            : `<span class="bingo-cell-prompt">${esc(bingoPromptForPos(pos))}</span>`}
         </button>`;
     }
     rows += `<div class="bingo-row">${cells}</div>`;
@@ -806,9 +812,11 @@ function checkBingoWin() {
 }
 
 function fillBingoSquare(pos) {
-  const name = window.prompt("Classmate's name for this square:");
+  const prompt = bingoPromptForPos(pos);
+  const name = window.prompt(`Who matches: "${prompt}"?\nEnter their name:`);
   if (!name || !name.trim()) return;
-  S.bingoFilled[pos] = name.trim();
+  const answer = window.prompt(`What's their answer? (e.g. which pet, which language, etc. — so you can share it later)`);
+  S.bingoFilled[pos] = { name: name.trim(), answer: (answer || '').trim() };
   try { localStorage.setItem('hm_bingo_filled', JSON.stringify(S.bingoFilled)); } catch (e) {}
   if (!S.bingoWon && checkBingoWin()) {
     S.bingoWon = true;
@@ -971,7 +979,7 @@ function renderIcebreaker() {
           <h2 style="margin:0">🏃 Human Bingo</h2>
           <button class="btn-secondary" id="bingo-reset" style="font-size:0.78rem;padding:4px 12px">🔄 New Card</button>
         </div>
-        <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it and type their name. The center is a free space — get 5 in a row (across, down, or diagonal) to win!</p>
+        <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it, type their name, and jot down their answer so you can share it at the end. The center is a free space — get 5 in a row (across, down, or diagonal) to win!</p>
         <div class="form-group">
           <label>Your Name</label>
           <input id="bingo-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">

@@ -443,6 +443,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .bingo-cell.bingo-free { cursor: default; font-style: italic; }
 .bingo-cell-name { font-weight: 700; font-size: 0.8rem; }
+.bingo-cell-answer { display: block; font-size: 0.68rem; font-weight: 400; opacity: 0.8; margin-top: 2px; line-height: 1.2; }
 .bingo-cell-prompt { line-height: 1.25; }
 .bingo-won-banner {
   background: color-mix(in srgb, var(--success) 15%, transparent);
