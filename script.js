@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801s';
+const APP_VERSION = '20260801t';
 (function() {
   try {
     const k = 'hm_version';
@@ -2655,12 +2655,17 @@ function getSchoolYearFridays() {
   return { fridays, startYear };
 }
 
-function getRundownWeeks() {
-  const now = new Date();
-  const day = now.getDay();
-  const monday = new Date(now);
-  monday.setDate(now.getDate() - (day === 0 ? 6 : day - 1) + (S.rundownWeekOffset || 0) * 7);
+function mondayOf(date) {
+  const day = date.getDay();
+  const monday = new Date(date);
+  monday.setDate(date.getDate() - (day === 0 ? 6 : day - 1));
   monday.setHours(0, 0, 0, 0);
+  return monday;
+}
+
+function getRundownWeeks() {
+  const monday = mondayOf(new Date());
+  monday.setDate(monday.getDate() + (S.rundownWeekOffset || 0) * 7);
   return Array.from({ length: 5 }, (_, i) => {
     const d = new Date(monday);
     d.setDate(monday.getDate() + i * 7);
@@ -2669,6 +2674,8 @@ function getRundownWeeks() {
 }
 
 function weekKey(d) { return d.toISOString().slice(0, 10); }
+
+function currentWeekKey() { return weekKey(mondayOf(new Date())); }
 
 function fmtWeekRange(d) {
   const fri = new Date(d); fri.setDate(d.getDate() + 4);
@@ -2826,7 +2833,7 @@ function renderRundownLog() {
 function renderInDepth() {
   const weeks    = getRundownWeeks();
   const offset   = S.rundownWeekOffset || 0;
-  const todayKey = weekKey(new Date());
+  const todayKey = currentWeekKey();
   const isPast   = weekKey(weeks[0]) < todayKey;
 
   const headerCols = weeks.map(w => {
@@ -3238,6 +3245,39 @@ async function storyPlanSetApproved(id, approved) {
   render();
 }
 
+async function storyPlanAddToRundown(id) {
+  const p = (S.storyPlans || []).find(x => x.id === id);
+  if (!p || !p.approved || !p.airDate || p.addedToRundown) return;
+  const db = getDB();
+  if (!db) return;
+  const wk = weekKey(mondayOf(new Date(p.airDate + 'T00:00:00')));
+  let existing;
+  try {
+    const doc = await db.collection('hm_indepth_rundown').doc(wk).get();
+    existing = doc.exists ? doc.data().packages : undefined;
+  } catch(e) { showToast('Could not read rundown.'); console.error(e); return; }
+  const items = Array.isArray(existing) ? [...existing] : (existing ? [{ type: 'VO', topic: existing, student: '' }] : []);
+  items.push({ type: 'VO', topic: p.title, student: p.reporter });
+  try {
+    await db.collection('hm_indepth_rundown').doc(wk).set({ packages: items }, { merge: true });
+    await db.collection('hm_rundown_edits').add({
+      at: new Date().toISOString(),
+      week: wk,
+      role: 'packages',
+      by: rundownEditorName(),
+      before: rundownValToStr(existing),
+      after: rundownValToStr(items),
+    });
+    await db.collection('hm_story_plans').doc(id).set({ addedToRundown: true }, { merge: true });
+    trackUsage('writes', 3);
+  } catch(e) { showToast('Could not add to rundown.'); console.error(e); return; }
+  S.rundownData[wk] = { ...(S.rundownData[wk] || {}), packages: items };
+  p.addedToRundown = true;
+  if (_storyPlanDraft && _storyPlanDraft.id === id) _storyPlanDraft.addedToRundown = true;
+  showToast('Added to the show rundown!');
+  render();
+}
+
 async function storyPlanAddSuggestion(id) {
   const text = val('story-suggestion-input');
   if (!text) return;
@@ -3373,6 +3413,11 @@ function renderStoryPlans() {
           ${S.teacherMode
             ? `<button class="btn-sm story-approve-btn ${p.approved ? 'approved' : ''}" data-story-approve="${esc(p.id)}">${p.approved ? '✓ Approved' : 'Approve'}</button>`
             : (p.approved ? `<span class="story-approved-badge">✓ Approved</span>` : '')}
+          ${p.approved && p.airDate
+            ? (p.addedToRundown
+                ? `<span class="story-approved-badge">📅 In Rundown</span>`
+                : `<button class="btn-sm story-approve-btn" data-story-add-rundown="${esc(p.id)}">+ Add to Rundown</button>`)
+            : ''}
           <span class="story-plan-updated">${updated}</span>
           <span class="beat-row-chevron">${editing ? '▾' : '▸'}</span>
         </div>
@@ -5232,6 +5277,12 @@ function attachListeners() {
       const id = btn.dataset.storyApprove;
       const p = (S.storyPlans || []).find(x => x.id === id);
       storyPlanSetApproved(id, !(p && p.approved));
+    }));
+
+  document.querySelectorAll('[data-story-add-rundown]').forEach(btn =>
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      storyPlanAddToRundown(btn.dataset.storyAddRundown);
     }));
 
   document.querySelectorAll('[data-iasb-cat]').forEach(el =>
