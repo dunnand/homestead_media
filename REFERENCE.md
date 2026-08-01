@@ -73,6 +73,7 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_rundown_edits` | Edit log for the In-Depth show rundown: `{at, week, role, by, before, after}` — everyone can edit the rundown; teacher mode shows the last 40 edits via the 📝 Edit Log button. Student names come from `localStorage.hm_student_name` (prompted on first edit) |
 | `hm_indepth_beats` | Beat assignments (doc ID = beat number, fields: student1, student2, met — map of advisor-name keys the pair has checked off as met) |
 | `hm_beat_info` | Beat overrides (doc ID = beat number, fields: name, covers, contacts) — set by teacher Edit Beat; students can also add/edit contacts inline (merge write on contacts only) |
+| `hm_story_plans` | In-Depth "Story Planning Sheet" submissions (📺 In-Depth → Plan a Story): `{reporter, title, whatAbout, whyCare, interviews: [{name,title,questions} x3], standupWhere, broll: {key: true,...}, brollOther, production, createdAt, updatedAt}`. Auto-ID docs, one per story; anyone can create/edit inline in the list, teacher mode adds a Delete button |
 | `hm_yearbook_coverage` | Yearbook event sign-ups (student, event, role) |
 | `hm_yearbook_events` | Custom events added by teacher via dashboard |
 | `hm_config` | App config: `show_schedule` (skipped Fridays), `cal_cache` (calendar event cache) |

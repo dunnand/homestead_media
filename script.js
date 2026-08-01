@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801q';
+const APP_VERSION = '20260801r';
 (function() {
   try {
     const k = 'hm_version';
@@ -222,6 +222,8 @@ const S = {
   beatOverrides: {},
   expandedBeat: null,
   beatAssignments: {},
+  storyPlans: [],
+  expandedStoryPlan: null,
   rundownData: {},
   rundownWeekOffset: 0,
   showSchedule: [],
@@ -331,6 +333,7 @@ function go(view, extra) {
   if (view === 'dashboard') { dashboardLoadPlans(); loadYearbookCoverage(); loadShowSchedule(); }
   if (view === 'yearbook')  loadYearbookCoverage();
   if (view === 'beats')   loadBeatAssignments();
+  if (view === 'storyplans') loadStoryPlans();
   if (view === 'indepth') loadRundownData();
   if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadRundownData(S.broadcastId); }
   if (view === 'icebreaker') loadIcebreakerGame(S.icebreakerGame);
@@ -362,6 +365,7 @@ function render() {
     case 'indepth':       app.innerHTML = renderInDepth();       break;
     case 'intro':         app.innerHTML = renderIntro();         break;
     case 'beats':         app.innerHTML = renderBeats();         break;
+    case 'storyplans':    app.innerHTML = renderStoryPlans();    break;
     case 'iasb':          app.innerHTML = renderIASB();          break;
     case 'iasb-category': app.innerHTML = renderIASBCategory();  break;
     case 'dashboard':     app.innerHTML = renderDashboard();     break;
@@ -2887,6 +2891,12 @@ function renderInDepth() {
             <button class="btn-primary" style="background:var(--indepth)" data-nav="beats">View Beats →</button>
           </section>
           <section class="card action-card">
+            <div class="action-icon">🎥</div>
+            <h3>Story Planning Sheets</h3>
+            <p>Plan your interviews, stand-up, and b-roll before you shoot.</p>
+            <button class="btn-primary" style="background:var(--indepth)" data-nav="storyplans">Plan a Story →</button>
+          </section>
+          <section class="card action-card">
             <div class="action-icon">🏆</div>
             <h3>IASB Competition</h3>
             <p>Track competition entries and checklists.</p>
@@ -3044,6 +3054,261 @@ function renderBeats() {
       </section>
       <section class="card">
         <div class="beat-list">${beatRows}</div>
+      </section>
+    </div>`;
+}
+
+// ── Story Planning Sheets ────────────────────────────────────
+const BROLL_ITEMS = [
+  { key: 'establishing',  label: 'Establishing Shots' },
+  { key: 'wide',          label: 'Wide Shots' },
+  { key: 'medium',        label: 'Medium Shots' },
+  { key: 'closeup',       label: 'Close-Ups' },
+  { key: 'naturalSound',  label: 'Natural Sound Opportunities' },
+  { key: 'action',        label: 'Action Shots' },
+  { key: 'reaction',      label: 'Reaction Shots' },
+  { key: 'interviewEnv',  label: 'Interview Environment' },
+  { key: 'sequence',      label: 'Sequence Shots (wide, medium, close-up)' },
+  { key: 'signage',       label: 'Signage / Logos / Location Identifiers' },
+];
+
+let _storyPlanDraft = null;
+
+function blankStoryPlan() {
+  return {
+    id: null,
+    reporter: '', title: '', whatAbout: '', whyCare: '',
+    interviews: [
+      { name: '', title: '', questions: '' },
+      { name: '', title: '', questions: '' },
+      { name: '', title: '', questions: '' },
+    ],
+    standupWhere: '',
+    broll: {},
+    brollOther: '',
+    production: '',
+  };
+}
+
+async function loadStoryPlans() {
+  const db = getDB();
+  if (!db) return;
+  try {
+    const snap = await db.collection('hm_story_plans').orderBy('updatedAt', 'desc').get();
+    S.storyPlans = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (S.view === 'storyplans') render();
+  } catch(e) { console.error('story plans load failed', e); }
+}
+
+function storyPlanStartNew() {
+  _storyPlanDraft = blankStoryPlan();
+  S.expandedStoryPlan = 'new';
+  render();
+}
+
+function storyPlanStartEdit(id) {
+  const p = (S.storyPlans || []).find(x => x.id === id);
+  if (!p) return;
+  _storyPlanDraft = {
+    id,
+    reporter: p.reporter || '', title: p.title || '',
+    whatAbout: p.whatAbout || '', whyCare: p.whyCare || '',
+    interviews: [0, 1, 2].map(i => ({
+      name:      p.interviews?.[i]?.name      || '',
+      title:     p.interviews?.[i]?.title     || '',
+      questions: p.interviews?.[i]?.questions || '',
+    })),
+    standupWhere: p.standupWhere || '',
+    broll: { ...(p.broll || {}) },
+    brollOther: p.brollOther || '',
+    production: p.production || '',
+  };
+  S.expandedStoryPlan = id;
+  render();
+}
+
+function storyPlanCancelEdit() {
+  _storyPlanDraft = null;
+  S.expandedStoryPlan = null;
+  render();
+}
+
+function storyPlanSyncFromDom() {
+  if (!_storyPlanDraft) return;
+  const d = _storyPlanDraft;
+  d.reporter    = val('story-reporter');
+  d.title       = val('story-title');
+  d.whatAbout   = val('story-whatabout');
+  d.whyCare     = val('story-whycare');
+  d.interviews  = [0, 1, 2].map(i => ({
+    name:      val(`story-iv-${i}-name`),
+    title:     val(`story-iv-${i}-title`),
+    questions: val(`story-iv-${i}-questions`),
+  }));
+  d.standupWhere = val('story-standup');
+  const broll = {};
+  BROLL_ITEMS.forEach(item => {
+    const el = document.getElementById(`story-broll-${item.key}`);
+    if (el && el.checked) broll[item.key] = true;
+  });
+  d.broll = broll;
+  d.brollOther = val('story-broll-other');
+  d.production = val('story-production');
+}
+
+async function storyPlanSave() {
+  storyPlanSyncFromDom();
+  const d = _storyPlanDraft;
+  if (!d) return;
+  if (!d.reporter || !d.title) { showToast('Please add a reporter name and story title.'); return; }
+  const data = {
+    reporter: d.reporter, title: d.title, whatAbout: d.whatAbout, whyCare: d.whyCare,
+    interviews: d.interviews, standupWhere: d.standupWhere,
+    broll: d.broll, brollOther: d.brollOther, production: d.production,
+    updatedAt: new Date().toISOString(),
+  };
+  const db = getDB();
+  if (db) {
+    try {
+      if (d.id) {
+        await db.collection('hm_story_plans').doc(d.id).set(data, { merge: true });
+      } else {
+        data.createdAt = data.updatedAt;
+        await db.collection('hm_story_plans').add(data);
+      }
+      trackUsage('writes');
+    } catch(e) { showToast('Save failed.'); console.error(e); return; }
+  }
+  _storyPlanDraft = null;
+  S.expandedStoryPlan = null;
+  showToast('Story plan saved.');
+  loadStoryPlans();
+}
+
+async function storyPlanDelete(id) {
+  if (!confirm('Delete this story plan? This cannot be undone.')) return;
+  _storyPlanDraft = null;
+  S.expandedStoryPlan = null;
+  const db = getDB();
+  if (db) {
+    try { await db.collection('hm_story_plans').doc(id).delete(); trackUsage('writes'); }
+    catch(e) { showToast('Delete failed.'); console.error(e); return; }
+  }
+  showToast('Story plan deleted.');
+  loadStoryPlans();
+}
+
+function renderStoryPlanForm(d) {
+  d = d || blankStoryPlan();
+  const interviewBlocks = d.interviews.map((iv, i) => `
+    <div class="story-interview-block">
+      <div class="story-interview-head">Person #${i + 1}${i === 2 ? ' <span class="hint">(only if necessary)</span>' : ''}</div>
+      <div class="form-group">
+        <label>Name</label>
+        <input id="story-iv-${i}-name" type="text" value="${esc(iv.name)}" placeholder="Who are you interviewing?">
+      </div>
+      <div class="form-group">
+        <label>Title / Role</label>
+        <input id="story-iv-${i}-title" type="text" value="${esc(iv.title)}" placeholder="e.g. Principal, Team Captain, Coach">
+      </div>
+      <div class="form-group">
+        <label>Questions <span class="hint">(at least 4, one per line)</span></label>
+        <textarea id="story-iv-${i}-questions" rows="4" placeholder="1. ...&#10;2. ...&#10;3. ...&#10;4. ...">${esc(iv.questions)}</textarea>
+      </div>
+    </div>`).join('');
+
+  const brollChecks = BROLL_ITEMS.map(item => `
+    <label class="story-broll-item">
+      <input type="checkbox" id="story-broll-${item.key}" ${d.broll?.[item.key] ? 'checked' : ''}>
+      <span>${item.label}</span>
+    </label>`).join('');
+
+  return `
+    <div class="story-plan-form">
+      <div class="form-group">
+        <label>Reporter</label>
+        <input id="story-reporter" type="text" value="${esc(d.reporter)}" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label>Story Idea / Title</label>
+        <input id="story-title" type="text" value="${esc(d.title)}" placeholder="What's this story called?">
+      </div>
+      <div class="form-group">
+        <label>What is this story about?</label>
+        <textarea id="story-whatabout" rows="3" placeholder="Give a quick summary.">${esc(d.whatAbout)}</textarea>
+      </div>
+      <div class="form-group">
+        <label>Why should our viewers care? What's the impact?</label>
+        <textarea id="story-whycare" rows="3" placeholder="Why does this matter to your audience?">${esc(d.whyCare)}</textarea>
+      </div>
+
+      <h3 class="story-section-title">Interviews <span class="hint">(at least #1–#2 — #3 only if necessary)</span></h3>
+      ${interviewBlocks}
+
+      <h3 class="story-section-title">Stand-Up</h3>
+      <div class="form-group">
+        <label>Where will you stand? Why is this location relevant to the story?</label>
+        <textarea id="story-standup" rows="3" placeholder="Describe your stand-up location and why it fits the story.">${esc(d.standupWhere)}</textarea>
+      </div>
+
+      <h3 class="story-section-title">I Need B-Roll Footage Of…</h3>
+      <p class="hint" style="margin:-6px 0 10px;font-size:0.8rem">Complemental, not supplemental — your visuals should add information your narration can't provide.</p>
+      <div class="story-broll-grid">${brollChecks}</div>
+      <div class="form-group" style="margin-top:12px">
+        <label>Other shots?</label>
+        <input id="story-broll-other" type="text" value="${esc(d.brollOther)}" placeholder="Anything else you need to capture?">
+      </div>
+
+      <h3 class="story-section-title">Other Things?</h3>
+      <div class="form-group">
+        <label>Graphics, music, audio, lower thirds, titles, animations, or other production needs?</label>
+        <textarea id="story-production" rows="3" placeholder="Any other production notes...">${esc(d.production)}</textarea>
+      </div>
+
+      <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
+        <button class="btn-primary" id="story-plan-save-btn" style="background:var(--indepth)">Save Plan</button>
+        <button class="btn-secondary" id="story-plan-cancel-btn">Cancel</button>
+        ${d.id && S.teacherMode ? `<button class="btn-danger" id="story-plan-delete-btn" style="margin-left:auto">Delete</button>` : ''}
+      </div>
+    </div>`;
+}
+
+function renderStoryPlans() {
+  const plans = S.storyPlans || [];
+  const creating = S.expandedStoryPlan === 'new';
+
+  const rows = plans.map(p => {
+    const editing = S.expandedStoryPlan === p.id;
+    const updated = p.updatedAt ? fmtDate(p.updatedAt.slice(0, 10)) : '';
+    return `
+      <div class="story-plan-row ${editing ? 'open' : ''}">
+        <div class="story-plan-row-main" data-story-toggle="${esc(p.id)}">
+          <span class="story-plan-title">${esc(p.title || '(untitled story)')}</span>
+          <span class="story-plan-reporter">${esc(p.reporter || 'Unknown reporter')}</span>
+          <span class="story-plan-updated">${updated}</span>
+          <span class="beat-row-chevron">${editing ? '▾' : '▸'}</span>
+        </div>
+        ${editing ? renderStoryPlanForm(_storyPlanDraft) : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    ${navBar('indepth')}
+    <div class="class-page">
+      <button class="back-btn" data-nav="indepth">← Back to In-Depth</button>
+      <div class="class-header" style="margin-top:16px">
+        <div>
+          <h1>Story Planning Sheets</h1>
+          <p>Plan your interviews, stand-up, and b-roll before you shoot. Fill one out for every package.</p>
+        </div>
+      </div>
+      <section class="card">
+        ${creating
+          ? `<div class="story-plan-row open">${renderStoryPlanForm(_storyPlanDraft)}</div>`
+          : `<button class="btn-primary" id="story-plan-new-btn" style="background:var(--indepth)">+ New Story Plan</button>`}
+        <div class="story-plan-list" style="margin-top:16px">
+          ${rows || (creating ? '' : '<div class="beat-meet-empty">No story plans yet. Click "+ New Story Plan" to start one.</div>')}
+        </div>
       </section>
     </div>`;
 }
@@ -4855,6 +5120,21 @@ function attachListeners() {
       const s2  = row.querySelector('.beat-s2-input')?.value || '';
       saveBeatAssignment(id, s1, s2);
     }));
+
+  document.getElementById('story-plan-new-btn')?.addEventListener('click', () => storyPlanStartNew());
+
+  document.querySelectorAll('[data-story-toggle]').forEach(el =>
+    el.addEventListener('click', () => {
+      const id = el.dataset.storyToggle;
+      if (S.expandedStoryPlan === id) storyPlanCancelEdit();
+      else storyPlanStartEdit(id);
+    }));
+
+  document.getElementById('story-plan-save-btn')?.addEventListener('click', () => storyPlanSave());
+  document.getElementById('story-plan-cancel-btn')?.addEventListener('click', () => storyPlanCancelEdit());
+  document.getElementById('story-plan-delete-btn')?.addEventListener('click', () => {
+    if (_storyPlanDraft?.id) storyPlanDelete(_storyPlanDraft.id);
+  });
 
   document.querySelectorAll('[data-iasb-cat]').forEach(el =>
     el.addEventListener('click', () => {

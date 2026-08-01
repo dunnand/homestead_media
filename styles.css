@@ -1506,6 +1506,54 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   flex: 1; min-width: 130px; font-size: 0.8rem; padding: 5px 10px;
 }
 
+/* ── Story Planning Sheets ───────────────────────────────────── */
+.hint { color: var(--dim); font-weight: 400; }
+
+.story-plan-list { display: flex; flex-direction: column; }
+.story-plan-row { border-bottom: 1px solid var(--border); }
+.story-plan-row:last-child { border-bottom: none; }
+.story-plan-row.open { padding-bottom: 8px; }
+
+.story-plan-row-main {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px; border-radius: 6px; cursor: pointer;
+  transition: background 0.12s;
+}
+.story-plan-row-main:hover,
+.story-plan-row.open .story-plan-row-main { background: var(--surface2); }
+.story-plan-title    { font-size: 0.95rem; font-weight: 600; flex: 1; }
+.story-plan-reporter { font-size: 0.8rem; color: var(--dim); flex-shrink: 0; }
+.story-plan-updated  { font-size: 0.72rem; color: var(--dim); flex-shrink: 0; min-width: 90px; text-align: right; }
+
+.story-plan-form {
+  background: var(--surface2);
+  border-radius: 10px;
+  padding: 16px 16px 4px;
+  margin: 8px 12px 0;
+}
+.story-section-title {
+  font-size: 0.95rem; font-weight: 700; margin: 24px 0 14px;
+  padding-top: 16px; border-top: 1px solid var(--border);
+}
+.story-interview-block {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 14px 2px;
+  margin-bottom: 14px;
+}
+.story-interview-head { font-size: 0.82rem; font-weight: 700; color: var(--dim); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 12px; }
+
+.story-broll-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 6px 18px;
+}
+.story-broll-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 0.85rem; color: var(--text); cursor: pointer; padding: 2px 0;
+}
+.story-broll-item input { accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+
 /* ── Teacher Dashboard ───────────────────────────────────────── */
 .db-header {
   display: flex; align-items: flex-start;
