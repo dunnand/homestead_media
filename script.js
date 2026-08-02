@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802u';
+const APP_VERSION = '20260802v';
 (function() {
   try {
     const k = 'hm_version';
@@ -472,12 +472,13 @@ function normalizeIcebreakerStatements(statements) {
 
 function renderIcebreakerQuiz(e) {
   const statements = normalizeIcebreakerStatements(e.statements);
-  const quiz = S.icebreakerQuiz || { revealed: [], explained: [] };
+  const quiz = S.icebreakerQuiz || { revealed: [], explained: [], questions: [] };
   const allExplained = statements.length > 0 && statements.every((_, i) => quiz.explained[i]);
 
   const rows = statements.map((s, i) => {
     const revealed = !!quiz.revealed[i];
     const explained = !!quiz.explained[i];
+    const questionVal = (quiz.questions && quiz.questions[i]) || '';
     let answerHtml = '';
     if (revealed) {
       if (s.isLie === true) answerHtml = `<span class="ib-quiz-answer is-lie">❌ THE LIE</span>`;
@@ -489,6 +490,11 @@ function renderIcebreakerQuiz(e) {
         <p class="ib-quiz-progress">Question ${i + 1} of ${statements.length}</p>
         <p class="ib-quiz-statement">${esc(s.text)}</p>
         ${answerHtml}
+        ${revealed ? `
+        <div class="ib-quiz-question-box">
+          <label class="ib-quiz-question-label">💬 Ask ${esc(e.name)} about this one</label>
+          <input type="text" class="ib-quiz-question-input" data-idx="${i}" placeholder="Type a question to ask out loud..." value="${esc(questionVal)}">
+        </div>` : ''}
         <div class="ib-quiz-row-actions">
           ${!revealed ? `<button type="button" class="btn-primary ib-quiz-reveal" data-idx="${i}">Reveal</button>` : ''}
           ${revealed && !explained ? `<button type="button" class="btn-secondary ib-quiz-explain" data-idx="${i}">Mark Explained →</button>` : ''}
@@ -5970,7 +5976,7 @@ function attachListeners() {
     if (nameBtn) {
       const id = nameBtn.dataset.ibId;
       S.icebreakerOpenId = S.icebreakerOpenId === id ? null : id;
-      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false] };
+      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false], questions: ['', '', ''] };
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
     }
@@ -5988,9 +5994,16 @@ function attachListeners() {
     }
     if (e.target.closest('.ib-quiz-back')) {
       S.icebreakerOpenId = null;
-      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false] };
+      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false], questions: ['', '', ''] };
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
+    }
+  });
+  if (ibWall) ibWall.addEventListener('input', e => {
+    const qInput = e.target.closest('.ib-quiz-question-input');
+    if (qInput && S.icebreakerQuiz) {
+      if (!S.icebreakerQuiz.questions) S.icebreakerQuiz.questions = ['', '', ''];
+      S.icebreakerQuiz.questions[parseInt(qInput.dataset.idx, 10)] = qInput.value;
     }
   });
 
