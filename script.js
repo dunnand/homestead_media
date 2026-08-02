@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802j';
+const APP_VERSION = '20260802k';
 (function() {
   try {
     const k = 'hm_version';
@@ -430,13 +430,19 @@ function loadIcebreakerWall() {
 
 function renderIcebreakerWallCards(entries) {
   if (!entries.length) return `<p class="dim" style="font-size:0.85rem">Nobody's added themselves yet — be the first!</p>`;
-  return `<div class="ib-wall">` + entries.map(e => `
-    <div class="ib-card">
-      <div class="ib-card-name">${esc(e.name)}</div>
-      <ul class="ib-card-statements">
+  return `<div class="ib-namelist">` + entries.map(e => {
+    const open = S.icebreakerOpenId === e.id;
+    return `
+    <div class="ib-name-row${open ? ' open' : ''}">
+      <button type="button" class="ib-name-btn" data-ib-id="${e.id}">
+        <span>${esc(e.name)}</span>
+        <span class="ib-name-caret">${open ? '▲' : '▼'}</span>
+      </button>
+      ${open ? `<ul class="ib-card-statements ib-name-detail">
         ${(e.statements || []).map((s, i) => `<li><span class="ib-letter">${String.fromCharCode(65 + i)}</span> ${esc(s)}</li>`).join('')}
-      </ul>
-    </div>`).join('') + `</div>`;
+      </ul>` : ''}
+    </div>`;
+  }).join('') + `</div>`;
 }
 
 async function submitIcebreaker() {
@@ -5829,6 +5835,15 @@ function attachListeners() {
 
   const ibClear = document.getElementById('ib-clear');
   if (ibClear) ibClear.addEventListener('click', clearIcebreakerWall);
+
+  const ibWall = document.getElementById('icebreaker-wall');
+  if (ibWall) ibWall.addEventListener('click', e => {
+    const btn = e.target.closest('.ib-name-btn');
+    if (!btn) return;
+    const id = btn.dataset.ibId;
+    S.icebreakerOpenId = S.icebreakerOpenId === id ? null : id;
+    ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+  });
 
   document.querySelectorAll('.ib-menu-card').forEach(btn =>
     btn.addEventListener('click', () => switchIcebreakerGame(btn.dataset.game)));

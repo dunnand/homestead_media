@@ -340,6 +340,43 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .qa-card-answer { font-size: 0.88rem; color: var(--text); }
 
+.ib-namelist {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.ib-name-row {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.ib-name-row.open { border-color: var(--radio); }
+.ib-name-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  padding: 12px 16px;
+  text-align: left;
+}
+.ib-name-caret { color: var(--dim); font-size: 0.75rem; }
+.ib-name-detail {
+  padding: 0 16px 14px;
+  margin: 0;
+}
+.ib-board-wall .ib-name-btn { font-size: 1.4rem; padding: 16px 20px; }
+.ib-board-wall .ib-name-detail { padding: 0 20px 18px; }
+.ib-board-wall .ib-name-detail li { font-size: 1.15rem; gap: 10px; }
+.ib-board-wall .ib-name-detail .ib-letter { font-size: 0.9rem; padding: 2px 7px; border-radius: 6px; }
+
 .ib-menu-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
