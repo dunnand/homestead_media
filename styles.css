@@ -399,47 +399,9 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-radius: 10px;
   padding: 12px 14px;
 }
-.ib-quiz-row.is-explained {
-  opacity: 0.6;
-  border-color: rgba(34, 197, 94, 0.35);
+.ib-quiz-row.is-the-lie {
+  border-color: rgba(239, 68, 68, 0.4);
 }
-.ib-quiz-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 2px;
-}
-.ib-quiz-check {
-  font-weight: 700;
-  font-size: 0.85rem;
-  color: #22c55e;
-}
-.ib-quiz-question-box {
-  width: 100%;
-  box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.ib-quiz-question-label {
-  font-size: 0.78rem;
-  font-weight: 600;
-  color: var(--dim);
-}
-.ib-quiz-question-input {
-  width: 100%;
-  box-sizing: border-box;
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--text);
-  padding: 8px 12px;
-  font-size: 0.9rem;
-  font-family: inherit;
-  outline: none;
-  transition: border-color 0.15s;
-}
-.ib-quiz-question-input:focus { border-color: var(--radio); }
 .ib-quiz-progress {
   margin: 0;
   font-size: 0.78rem;
@@ -453,28 +415,6 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
-  cursor: pointer;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid transparent;
-  transition: background 0.15s, border-color 0.15s;
-}
-.ib-quiz-statement:hover { background: var(--surface2); }
-.ib-quiz-statement.is-highlighted {
-  background: rgba(245, 158, 11, 0.15);
-  border-color: var(--radio);
-}
-.ib-quiz-hint {
-  margin: 0;
-  font-size: 0.75rem;
-  color: var(--dim);
-  font-style: italic;
-}
-.ib-quiz-explain-prompt {
-  margin: 0;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: var(--radio);
 }
 .ib-quiz-answer {
   margin: 0;
@@ -487,6 +427,27 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-quiz-answer.is-lie { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
 .ib-quiz-answer.is-truth { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
 .ib-quiz-answer.is-unknown { background: rgba(148, 163, 184, 0.15); color: var(--dim); }
+.ib-quiz-help-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+.ib-quiz-help-title {
+  margin: 0 0 6px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.ib-quiz-help-list {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 0.85rem;
+  color: var(--dim);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .ib-quiz-done {
   margin: 0;
   font-size: 0.95rem;
@@ -498,11 +459,8 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-quiz-answer { font-size: 1.15rem; padding: 6px 14px; }
 .ib-board-wall .ib-quiz-done { font-size: 1.2rem; }
 .ib-board-wall .ib-quiz-row { padding: 16px 20px; }
-.ib-board-wall .ib-quiz-check { font-size: 1.05rem; }
-.ib-board-wall .ib-quiz-question-label { font-size: 0.95rem; }
-.ib-board-wall .ib-quiz-question-input { font-size: 1.1rem; padding: 10px 14px; }
-.ib-board-wall .ib-quiz-hint { font-size: 0.9rem; }
-.ib-board-wall .ib-quiz-explain-prompt { font-size: 1.1rem; }
+.ib-board-wall .ib-quiz-help-title { font-size: 1.05rem; }
+.ib-board-wall .ib-quiz-help-list { font-size: 1.05rem; }
 
 .ib-menu-grid {
   display: grid;
