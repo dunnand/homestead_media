@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802z';
+const APP_VERSION = '20260802za';
 (function() {
   try {
     const k = 'hm_version';
@@ -288,6 +288,8 @@ const S = {
   rankMyOrder: [],
   rankStateUnsub: null,
   rankAnswersUnsub: null,
+  matchCurrentIndex: 0,
+  matchStateUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -331,6 +333,7 @@ function unsubIcebreakerGames() {
   if (S.commonAnswersUnsub) { S.commonAnswersUnsub(); S.commonAnswersUnsub = null; }
   if (S.rankStateUnsub)   { S.rankStateUnsub();   S.rankStateUnsub = null; }
   if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
+  if (S.matchStateUnsub)  { S.matchStateUnsub();  S.matchStateUnsub = null; }
 }
 
 function loadIcebreakerGame(game) {
@@ -342,7 +345,7 @@ function loadIcebreakerGame(game) {
   if (game === 'speed') return loadSpeedGame();
   if (game === 'common') return loadCommonGame();
   if (game === 'rank') return loadRankGame();
-  if (game === 'match') return;
+  if (game === 'match') return loadMatchGame();
   return loadIcebreakerWall();
 }
 
@@ -352,7 +355,6 @@ function go(view, extra) {
   S.view = view;
   if (extra) Object.assign(S, extra);
   if (view === 'icebreaker' && S.icebreakerGame === 'bingo') loadBingoState();
-  if (view === 'icebreaker' && S.icebreakerGame === 'match') loadMatchState();
   render();
   window.scrollTo(0, 0);
   if (view === 'radio') startPointRecentPolling();
@@ -370,7 +372,6 @@ function switchIcebreakerGame(game) {
   unsubIcebreakerGames();
   S.icebreakerGame = game;
   if (game === 'bingo') loadBingoState();
-  if (game === 'match') loadMatchState();
   render();
   loadIcebreakerGame(game);
 }
@@ -1426,7 +1427,7 @@ async function clearBingoWinners() {
   await batch.commit();
 }
 
-const MATCH_CARD_PROMPTS = [
+const MATCH_QUESTIONS = [
   "What's a hobby or activity you do outside of school?",
   "What's your comfort food — the thing you always crave?",
   "If you could travel anywhere, where would you go and why?",
@@ -1451,28 +1452,103 @@ const MATCH_CARD_PROMPTS = [
   "What's something on your bucket list?",
   "What's the last thing that made you laugh really hard?",
   "What's a talent you have that isn't obvious?",
+  "What's your favorite subject in school and why?",
+  "What's a movie you could quote start to finish?",
+  "What's the first concert or live event you ever went to?",
+  "What's a food you could eat every day and never get tired of?",
+  "What's your favorite thing about the town you grew up in?",
+  "What's a sport you play or love watching?",
+  "What's your dream job, realistically or not?",
+  "What's the last book you actually finished?",
+  "What's a nickname you've had?",
+  "What's your favorite app on your phone?",
+  "What's a chore you actually don't mind doing?",
+  "What's the weirdest food combination you actually enjoy?",
+  "What's a memory from elementary school you still think about?",
+  "What's your favorite thing to do with your family?",
+  "What's a language you'd love to learn?",
+  "What's your favorite type of music?",
+  "What's something you're proud of that isn't school-related?",
+  "What's a habit you're trying to build or break?",
+  "If you won the lottery tomorrow, what's the first thing you'd buy?",
+  "What's your favorite type of weather?",
+  "What's a TV show you think everyone should watch?",
+  "What's the most useless talent you have?",
+  "What's your favorite thing about summer?",
+  "What's a sport or activity you'd want to try if you weren't afraid to fail?",
+  "What's your comfort show — the one you watch when you're stressed?",
+  "What's a food from another culture you love?",
+  "What's the last thing you binge-watched?",
+  "What's your favorite way to relax after a long day?",
+  "What's a class you wish the school offered?",
+  "What's your ideal way to celebrate your birthday?",
+  "What's the best gift you've ever gotten?",
+  "What's a fear you have that other people find funny?",
+  "What's your favorite thing about your family?",
+  "What's a place in your house or room that feels most \"you\"?",
+  "What's a food you loved as a little kid that you still love now?",
+  "What's something you learned recently that stuck with you?",
+  "What's your favorite thing to do with friends on a weekend?",
+  "What's a hobby you'd want to pick up if you had more time?",
+  "What's your favorite kind of movie — action, comedy, horror, something else?",
+  "What's a place you've always wanted to visit but haven't?",
+  "What's your go-to snack?",
+  "What's something you do that always puts you in a good mood?",
+  "What's the best piece of advice someone's given you?",
+  "What's your favorite thing about this school?",
+  "What's a sports team you root for, or one you love to hate?",
+  "What's the last thing you got really excited about?",
+  "What's a song that instantly puts you in a good mood?",
+  "What's something you're better at than you'd expect?",
+  "What's your favorite family tradition?",
+  "What's a video game or app you've spent way too much time on?",
+  "What's something you wish more people knew about you?",
+  "What's your favorite thing to do when it's raining outside?",
+  "What's the most spontaneous thing you've ever done?",
+  "What's a food everyone else seems to love that you just don't get?",
+  "What's your favorite way to spend time outdoors?",
+  "What's something you're looking forward to this year?",
+  "What's a small thing that always makes your day better?",
+  "What's your favorite thing to cook or bake, if you cook at all?",
+  "What's the last show or movie that made you cry, or almost?",
+  "What's a job you'd never want to have?",
+  "What's your favorite thing about where you live?",
+  "What's a hidden talent someone in your family has?",
+  "What's your favorite way to unwind after school?",
+  "What's a place that feels like home to you, besides your house?",
+  "What's the best advice you'd give to a freshman?",
+  "What's your favorite thing to do over summer break?",
+  "What's a food you'd want to eat for your last meal?",
+  "What's something you've gotten better at over the last year?",
+  "What's your favorite thing about weekends?",
+  "What's a movie or show you and your family watch together?",
+  "What's the funniest thing that's happened to you at school?",
+  "What's your favorite thing to listen to on a car ride?",
+  "What's a place you'd love to live someday?",
+  "What's your favorite thing about the current season we're in?",
+  "What's something you always have with you?",
+  "What's a fun fact about your name — how you got it, or what it means?",
 ];
 
-function drawMatchCard(avoid) {
-  let idx = Math.floor(Math.random() * MATCH_CARD_PROMPTS.length);
-  if (MATCH_CARD_PROMPTS.length > 1 && idx === avoid) idx = (idx + 1) % MATCH_CARD_PROMPTS.length;
-  return idx;
+function loadMatchGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.matchStateUnsub) { S.matchStateUnsub(); S.matchStateUnsub = null; }
+  S.matchStateUnsub = db.collection('hm_match_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    S.matchCurrentIndex = Math.max(0, Math.min(idx, MATCH_QUESTIONS.length - 1));
+    document.querySelectorAll('.match-question-text').forEach(el => { el.textContent = MATCH_QUESTIONS[S.matchCurrentIndex]; });
+    const posEl = document.getElementById('match-position');
+    if (posEl) posEl.textContent = `${S.matchCurrentIndex + 1} / ${MATCH_QUESTIONS.length}`;
+  }, err => console.error('match state snapshot error', err));
 }
 
-function loadMatchState() {
-  try {
-    const saved = parseInt(localStorage.getItem('hm_match_card'), 10);
-    S.matchCard = (Number.isInteger(saved) && saved >= 0 && saved < MATCH_CARD_PROMPTS.length) ? saved : drawMatchCard(-1);
-  } catch (e) {
-    S.matchCard = drawMatchCard(-1);
-  }
-  try { localStorage.setItem('hm_match_card', String(S.matchCard)); } catch (e) {}
-}
-
-function newMatchCard() {
-  S.matchCard = drawMatchCard(S.matchCard);
-  try { localStorage.setItem('hm_match_card', String(S.matchCard)); } catch (e) {}
-  render();
+async function advanceMatchQuestion(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.matchCurrentIndex + delta, MATCH_QUESTIONS.length - 1));
+  await db.collection('hm_match_state').doc('current').set({ index: next, updatedAt: Date.now() });
 }
 
 const ICEBREAKER_GAMES = [
@@ -1484,7 +1560,7 @@ const ICEBREAKER_GAMES = [
   { key: 'speed',  icon: '⏱️', title: 'Speed Meet',           sub: "Grab a nearby partner and talk it out before the timer runs out." },
   { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
   { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
-  { key: 'match',  icon: '🎴', title: 'Find Your Match',      sub: "Draw a card, find a partner, trade cards, and repeat until you've met the room." },
+  { key: 'match',  icon: '🎴', title: 'Find Your Match',      sub: "Everyone answers the board's question with a partner — then switch and find someone new." },
 ];
 
 function renderIcebreakerMenu() {
@@ -1759,22 +1835,22 @@ function renderIcebreaker() {
 
   const matchSection = `
       <section class="card">
-        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
-          <h2 style="margin:0">🎴 Your Card</h2>
-          <button class="btn-secondary" id="match-swap" style="font-size:0.78rem;padding:4px 12px">🔄 Swap for a New Card</button>
+        <h2>🎴 Find Your Match</h2>
+        <p class="match-question-text qa-question-text">${esc(MATCH_QUESTIONS[S.matchCurrentIndex])}</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+          <button class="btn-secondary" id="match-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="match-position" style="font-size:0.8rem">${S.matchCurrentIndex + 1} / ${MATCH_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="match-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
         </div>
-        <p class="cal-section-sub">Find a partner, introduce yourselves, and both answer your card's question out loud. Learn their name and answer — then swap cards and find someone new.</p>
-        <div class="match-card">
-          <p class="match-card-label">Your question:</p>
-          <p class="match-card-prompt">${esc(MATCH_CARD_PROMPTS[S.matchCard])}</p>
-        </div>
+        <a href="?board=icebreaker&game=match" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none;display:inline-block;margin-bottom:4px">🖥️ Open Board View</a>` : ''}
         <div class="match-help-box">
           <p class="match-help-title">📋 How to play</p>
           <ol class="match-help-list">
-            <li>Find a partner and introduce yourselves.</li>
-            <li>Both answer your card's question — learn their name and answer.</li>
-            <li>Swap cards with your partner.</li>
-            <li>Find a new partner and repeat until the teacher calls time.</li>
+            <li>Everyone finds a partner and introduces themselves.</li>
+            <li>Both of you answer the question on the board — learn their name and answer.</li>
+            <li>When the teacher switches to a new question, find a new partner.</li>
+            <li>Repeat until everyone's been met.</li>
             <li>Group share: introduce one person you met to the class (their name and fun fact).</li>
           </ol>
           <p class="match-help-title" style="margin-top:10px">💡 Tips</p>
@@ -1880,6 +1956,17 @@ function renderIcebreakerBoard() {
           <p class="common-question-text ib-board-question">${esc(commonCat.q)}</p>
         </div>
         <div class="common-groups common-board-groups">${renderCommonGroups()}</div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'match') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>🎴 Find Your Match</h1>
+          <p>Find a partner, both answer the question below, then switch partners when it changes.</p>
+        </div>
+        <p class="match-question-text ib-board-question">${esc(MATCH_QUESTIONS[S.matchCurrentIndex])}</p>
       </div>`;
   }
   if (S.icebreakerGame === 'rank') {
@@ -6122,8 +6209,11 @@ function attachListeners() {
   const bingoName = document.getElementById('bingo-name');
   if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', bingoName.value.trim()));
 
-  const matchSwap = document.getElementById('match-swap');
-  if (matchSwap) matchSwap.addEventListener('click', newMatchCard);
+  const matchPrev = document.getElementById('match-prev');
+  if (matchPrev) matchPrev.addEventListener('click', () => advanceMatchQuestion(-1));
+
+  const matchNext = document.getElementById('match-next');
+  if (matchNext) matchNext.addEventListener('click', () => advanceMatchQuestion(1));
 
   document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));
@@ -8113,7 +8203,7 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
-    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'rank'];
+    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'rank', 'match'];
     S.icebreakerGame = validGames.includes(gameParam) ? gameParam : 'truths';
     if (S.icebreakerGame === 'bingo') loadBingoState();
     render();

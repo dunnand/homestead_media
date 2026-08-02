@@ -462,28 +462,6 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-quiz-help-title { font-size: 1.05rem; }
 .ib-board-wall .ib-quiz-help-list { font-size: 1.05rem; }
 
-.match-card {
-  background: var(--surface2);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 20px;
-  text-align: center;
-  margin: 14px 0;
-}
-.match-card-label {
-  margin: 0 0 8px;
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-  color: var(--dim);
-}
-.match-card-prompt {
-  margin: 0;
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--text);
-}
 .match-help-box {
   background: var(--surface2);
   border: 1px solid var(--border);
