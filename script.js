@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802n';
+const APP_VERSION = '20260802o';
 (function() {
   try {
     const k = 'hm_version';
@@ -7787,18 +7787,14 @@ function renderBellRingerBanner() {
       </div>
       <p class="br-question">${esc(question)}</p>
       ${alreadySubmitted ? `
-        <p class="dim" style="font-size:0.9rem">✅ You're all set for today — see you tomorrow!</p>
+        <p class="dim br-submitted-msg">✅ You're all set for today — see you tomorrow!</p>
       ` : `
-        <div class="form-group">
-          <label>Your Name</label>
-          <input id="br-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        <div class="br-form-row">
+          <input id="br-name" type="text" placeholder="Your name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+          <input id="br-answer" type="text" placeholder="Type your answer here...">
+          <button class="btn-primary" id="br-submit">Submit</button>
         </div>
-        <div class="form-group">
-          <label>Your Answer</label>
-          <textarea id="br-answer" rows="2" placeholder="Type your answer here..."></textarea>
-        </div>
-        <button class="btn-primary" id="br-submit">Submit</button>
-        <p id="br-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+        <p id="br-msg" class="dim br-msg"></p>
       `}
     </section>`;
 }

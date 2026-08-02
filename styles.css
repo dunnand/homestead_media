@@ -621,9 +621,18 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-winners .bingo-winners { justify-content: center; gap: 18px; }
 .ib-board-winners .bingo-winner-pill { font-size: 1.6rem; padding: 12px 26px; }
 
-.bellringer-wrap { max-width: 700px; margin: 0 auto 24px; }
-.bellringer-card .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
-.br-question { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 4px 0 16px; }
+.bellringer-wrap { max-width: 700px; margin: 0 auto 20px; }
+.bellringer-card { padding: 14px 20px; }
+.bellringer-card .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.bellringer-card .card-header h2 { font-size: 0.95rem; margin-bottom: 0; }
+.br-question { font-size: 0.95rem; font-weight: 700; color: var(--text); margin: 0 0 10px; }
+.br-form-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.br-form-row input { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 12px; font-size: 0.85rem; font-family: inherit; outline: none; box-sizing: border-box; }
+.br-form-row input#br-name { flex: 0 1 150px; }
+.br-form-row input#br-answer { flex: 1 1 220px; }
+.br-form-row .btn-primary { padding: 8px 16px; font-size: 0.85rem; flex-shrink: 0; }
+.br-msg { font-size: 0.8rem; margin: 6px 0 0; }
+.br-submitted-msg { font-size: 0.85rem; margin: 0; }
 .br-q-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
 .br-q-row input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 7px 10px; font-size: 0.85rem; font-family: inherit; outline: none; box-sizing: border-box; }
 
