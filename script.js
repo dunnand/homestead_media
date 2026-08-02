@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802h';
+const APP_VERSION = '20260802i';
 (function() {
   try {
     const k = 'hm_version';
@@ -1966,6 +1966,19 @@ function plannerHasPurpose(p, key) {
   return false;
 }
 
+function plannerTalkChecklist(p) {
+  const theme = p.theme || {};
+  const b1 = ((p.breaks || [])[0]) || {};
+  const b2 = ((p.breaks || [])[1]) || {};
+  const b3 = ((p.breaks || [])[2]) || {};
+  return [
+    { icon: '👋', label: 'Welcomed Listeners',  covered: !!theme.welcome },
+    { icon: '🎯', label: 'Explained Relevance',  covered: !!(theme.description || b1.connection || b2.connection) },
+    { icon: '💬', label: 'Invited Interaction',  covered: !!b2.interaction },
+    { icon: '🎬', label: 'Wrapped Up / Teased',  covered: !!(b3.wrapUp || b2.tease) },
+  ];
+}
+
 function renderPlannerStep0(p) {
   const type = p.showType;
   return `
@@ -2057,12 +2070,14 @@ function plannerFixedPurposeTagsHTML(keys) {
 
 function renderPlannerOpen(p) {
   const o = p.open || {};
+  const isRadio = p.showType === 'radio';
   return `
     <h2>Open the Show</h2>
     <div class="break-purpose">Someone is always tuning in for the first time this break. Welcome them in, reset the station, and give them a reason to stick around.</div>
     <div class="form-group">
       <label>Welcome <span class="hint">(how will you welcome listeners tuning in right now?)</span></label>
-      <textarea id="open-welcome" rows="2" placeholder="e.g. What's up Homestead, you're locked in with...">${esc(o.welcome || '')}</textarea>
+      <textarea id="open-welcome" rows="2" placeholder="${isRadio ? "e.g. What's up Homestead, you're locked in with me and [co-host]..." : "e.g. What's up Homestead, you're locked in with..."}">${esc(o.welcome || '')}</textarea>
+      ${isRadio ? `<div class="coach-hint">Introduce your co-host by name so listeners know who's on with you today.</div>` : ''}
     </div>
     <div class="form-group">
       <label>Station Reset <span class="hint">(mention your station, show name, and/or the time)</span></label>
@@ -2098,11 +2113,13 @@ function renderPlannerClose(p) {
 
 function renderPlannerAirBreaks(p) {
   const breaks = p.breaks || [];
+  const isRadio = p.showType === 'radio';
   const timeHint = PLANNER_SHOW_TIMES[p.showTime] || '';
   return `
     <h2>Your Breaks</h2>
     <div class="break-purpose">Every break should answer one question: <strong>why would someone listening right now care about what you're about to say?</strong></div>
     ${timeHint ? `<div class="break-purpose">🕐 ${esc(timeHint)}</div>` : ''}
+    ${isRadio ? `<div class="break-purpose">🎤 With a co-host, breaks work best as a back-and-forth — trade lines, ask each other questions, and react to what your co-host says instead of both reading notes solo.</div>` : ''}
     ${Array.from({ length: 4 }, (_, i) => {
       const b = breaks[i] || {};
       const purposes = b.purposes || [];
@@ -2129,6 +2146,12 @@ function renderPlannerAirBreaks(p) {
           ${plannerIdeaListHTML()}
           <textarea id="air-talkpoint-${i}" rows="2" placeholder="Write what you'll actually say on mic...">${esc(b.talkPoint || '')}</textarea>
         </div>
+        ${isRadio ? `
+        <div class="form-group">
+          <label>Trade the Mic <span class="hint">(who says what — how will you and your co-host go back and forth?)</span></label>
+          <textarea id="air-cohost-${i}" rows="2" placeholder="e.g. I'll ask [co-host] what they think about..., then they respond before we move on...">${esc(b.coHostMoment || '')}</textarea>
+          <div class="coach-hint">Ask your co-host a question · React before moving on · Don't read the same info solo — hand it off</div>
+        </div>` : ''}
         <div class="form-group">
           <label>Keep Them Listening <span class="hint">(what's coming up that keeps them tuned in?)</span></label>
           <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
@@ -2151,7 +2174,7 @@ function renderPlannerAirReview(p) {
 
   const breakRows = breaks.map((b, i) => {
     const purposeTags = (b.purposes || []).map(k => PLANNER_PURPOSES.find(pu => pu.key === k)).filter(Boolean);
-    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction && !purposeTags.length)) return '';
+    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction && !b.coHostMoment && !purposeTags.length)) return '';
     return `
       <div class="review-section">
         <div class="review-label">Break ${i + 1}</div>
@@ -2160,6 +2183,7 @@ function renderPlannerAirReview(p) {
           ${b.whyRelevant ? `<em>Why:</em> ${esc(b.whyRelevant)}<br>` : ''}
           ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
           ${esc(b.talkPoint || '')}
+          ${b.coHostMoment ? `<br><em>Trade Mic:</em> ${esc(b.coHostMoment)}` : ''}
           ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
           ${b.interaction ? `<br><em>Invite:</em> ${esc(b.interaction)}` : ''}
         </div>
@@ -2223,7 +2247,9 @@ function renderPlannerAirReview(p) {
       <div class="criterion">✦ <strong>Relevance</strong> — Explained why listeners right now would care, not just what you'll say</div>
       <div class="criterion">✦ <strong>Variety</strong> — Breaks serve different purposes, not the same one every time</div>
       <div class="criterion">✦ <strong>Listener Connection</strong> — Welcome, reconnect, and interaction show up naturally</div>
-      <div class="criterion">✦ <strong>Flow</strong> — Sounds natural on mic, not read off a form</div>
+      ${p.showType === 'radio'
+        ? `<div class="criterion">✦ <strong>Chemistry</strong> — Co-hosts trade the mic and react to each other, not just take turns reading</div>`
+        : `<div class="criterion">✦ <strong>Flow</strong> — Sounds natural on mic, not read off a form</div>`}
     </div>`;
 }
 
@@ -2260,6 +2286,11 @@ function renderPlanner() {
           <div class="form-group">
             <label>Why this theme? <span class="hint">(2–3 sentences)</span></label>
             <textarea id="p-theme-desc" rows="4" placeholder="Why did you pick this theme for this week? What's happening right now that makes it relevant to your audience?">${esc((p.theme || {}).description || '')}</textarea>
+            <div class="coach-hint">${PLANNER_RELEVANCE_PROMPTS.map(q => esc(q)).join(' · ')}</div>
+          </div>
+          <div class="form-group">
+            <label>Welcome <span class="hint">(how will you open the show and welcome listeners in?)</span></label>
+            <textarea id="p-theme-welcome" rows="2" placeholder="e.g. What's up Homestead, welcome back to...">${esc((p.theme || {}).welcome || '')}</textarea>
           </div>`;
         break;
       case 2: {
@@ -2278,6 +2309,7 @@ function renderPlanner() {
           <div class="form-group">
             <label>Connection to Your Theme</label>
             <input id="b1-connection" type="text" value="${esc(b.connection || '')}" placeholder="How does this news tie into your show's theme?">
+            <div class="coach-hint">Why would someone listening right now care about this?</div>
           </div>
           <div class="form-group">
             <label>Transition Line into Music or Next Segment <span class="hint">(hook them — tease your main topic!)</span></label>
@@ -2301,6 +2333,11 @@ function renderPlanner() {
           <div class="form-group">
             <label>How It Connects to Your Theme</label>
             <input id="b2-connection" type="text" value="${esc(b.connection || '')}" placeholder="Why does this activity fit your show's theme?">
+          </div>
+          <div class="form-group">
+            <label>Invite Listener Interaction <span class="hint">(try to use one every show)</span></label>
+            ${plannerChipButtonsHTML(PLANNER_INTERACTION_CHIPS, 'b2-interaction', 'chip-promo')}
+            <textarea id="b2-interaction" rows="2" placeholder="How will you invite listener interaction?">${esc(b.interaction || '')}</textarea>
           </div>
           <div class="form-group">
             <label>Closing / Tease into Break 3</label>
@@ -2331,6 +2368,7 @@ function renderPlanner() {
           <div class="form-group">
             <label>Wrap-Up Line / Call to Action</label>
             <input id="b3-wrapup" type="text" value="${esc(b.wrapUp || '')}" placeholder="e.g. Tune in next week for... or Let us know what you think!">
+            <div class="coach-hint">Give listeners a reason to tune in again — tease next week, say thanks, or invite them to keep listening.</div>
           </div>`;
         break;
       }
@@ -2338,9 +2376,16 @@ function renderPlanner() {
         const b1 = ((p.breaks || [])[0]) || {};
         const b2 = ((p.breaks || [])[1]) || {};
         const b3 = ((p.breaks || [])[2]) || {};
+        const checklist = plannerTalkChecklist(p);
         content = `
           <h2>Review Your Show Plan</h2>
           <p>Make sure everything looks right before you submit.</p>
+          <div class="purpose-coverage-grid">
+            ${checklist.map(c => `
+              <div class="purpose-coverage-item ${c.covered ? 'covered' : 'uncovered'}">
+                <span>${c.covered ? '✓' : '○'}</span> ${c.icon} ${esc(c.label)}
+              </div>`).join('')}
+          </div>
           <div class="review-block">
             <div class="review-section">
               <div class="review-label">Show</div>
@@ -2355,12 +2400,19 @@ function renderPlanner() {
               <div class="review-value"><strong>${esc((p.theme || {}).title || '—')}</strong><br>${esc((p.theme || {}).description || '')}</div>
             </div>
             <div class="review-section">
+              <div class="review-label">Welcome</div>
+              <div class="review-value">${esc((p.theme || {}).welcome || '—')}</div>
+            </div>
+            <div class="review-section">
               <div class="review-label">Break 1 — ${esc(b1.title || 'News')}</div>
               <div class="review-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
             </div>
             <div class="review-section">
               <div class="review-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
-              <div class="review-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
+              <div class="review-value">
+                ${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em>
+                ${b2.interaction ? `<br><em>Invite: ${esc(b2.interaction)}</em>` : ''}
+              </div>
             </div>
             <div class="review-section">
               <div class="review-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
@@ -4996,12 +5048,13 @@ function savePlannerStep() {
     } else if (S.plannerStep === 2) {
       const prevBreaks = p.breaks || [];
       p.breaks = Array.from({ length: 4 }, (_, i) => ({
-        purposes:    (prevBreaks[i] || {}).purposes || [],
-        whyRelevant: val(`air-why-${i}`),
-        backsell:    val(`air-backsell-${i}`),
-        talkPoint:   val(`air-talkpoint-${i}`),
-        presell:     val(`air-presell-${i}`),
-        interaction: val(`air-interact-${i}`),
+        purposes:     (prevBreaks[i] || {}).purposes || [],
+        whyRelevant:  val(`air-why-${i}`),
+        backsell:     val(`air-backsell-${i}`),
+        talkPoint:    val(`air-talkpoint-${i}`),
+        coHostMoment: val(`air-cohost-${i}`),
+        presell:      val(`air-presell-${i}`),
+        interaction:  val(`air-interact-${i}`),
       }));
     } else if (S.plannerStep === 3) {
       p.close = { recap: val('close-recap'), tease: val('close-tease'), signoff: val('close-signoff') };
@@ -5009,7 +5062,7 @@ function savePlannerStep() {
   } else {
     switch (S.plannerStep) {
       case 1:
-        p.theme = { title: val('p-theme-title'), description: val('p-theme-desc') };
+        p.theme = { title: val('p-theme-title'), description: val('p-theme-desc'), welcome: val('p-theme-welcome') };
         break;
       case 2:
         if (!p.breaks) p.breaks = [{}, {}, {}];
@@ -5017,7 +5070,7 @@ function savePlannerStep() {
         break;
       case 3:
         if (!p.breaks) p.breaks = [{}, {}, {}];
-        p.breaks[1] = { title: val('b2-title'), activityHook: val('b2-activity'), connection: val('b2-connection'), tease: val('b2-tease') };
+        p.breaks[1] = { title: val('b2-title'), activityHook: val('b2-activity'), connection: val('b2-connection'), interaction: val('b2-interaction'), tease: val('b2-tease') };
         break;
       case 4:
         if (!p.breaks) p.breaks = [{}, {}, {}];
@@ -5102,6 +5155,8 @@ function buildPlanText(p) {
     `EPISODE THEME: ${(p.theme || {}).title || ''}`,
     (p.theme || {}).description || '',
     '',
+    (p.theme || {}).welcome ? `WELCOME: ${(p.theme || {}).welcome}` : null,
+    (p.theme || {}).welcome ? '' : null,
     `-- BREAK 1: ${b1.title || 'News / Relevant Tie-In'} --`,
     `News/Update:  ${b1.newsUpdate || ''}`,
     `Connection:   ${b1.connection || ''}`,
@@ -5110,6 +5165,7 @@ function buildPlanText(p) {
     `-- BREAK 2: ${b2.title || 'Fun Activity / Preview'} --`,
     `Activity:     ${b2.activityHook || ''}`,
     `Connection:   ${b2.connection || ''}`,
+    b2.interaction ? `Invite:       ${b2.interaction}` : null,
     `Tease:        ${b2.tease || ''}`,
     '',
     `-- BREAK 3: ${b3.title || 'Main Topic'} --`,
@@ -5148,13 +5204,14 @@ function buildAirPlanText(p) {
   }
 
   breaks.forEach((b, i) => {
-    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction)) return;
+    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction && !b.coHostMoment)) return;
     lines.push(`-- BREAK ${i + 1} ${(b.purposes || []).length ? '(' + b.purposes.map(purposeLabel).join(', ') + ')' : ''} --`);
-    if (b.whyRelevant) lines.push(`Why:        ${b.whyRelevant}`);
-    if (b.backsell)    lines.push(`Back-sell:  ${b.backsell}`);
+    if (b.whyRelevant)    lines.push(`Why:        ${b.whyRelevant}`);
+    if (b.backsell)       lines.push(`Back-sell:  ${b.backsell}`);
     lines.push(`Talk Point: ${b.talkPoint || ''}`);
-    if (b.presell)     lines.push(`Pre-sell:   ${b.presell}`);
-    if (b.interaction) lines.push(`Invite:     ${b.interaction}`);
+    if (b.coHostMoment)   lines.push(`Trade Mic:  ${b.coHostMoment}`);
+    if (b.presell)        lines.push(`Pre-sell:   ${b.presell}`);
+    if (b.interaction)    lines.push(`Invite:     ${b.interaction}`);
     lines.push('');
   });
 
@@ -5403,7 +5460,7 @@ function showSubmissionDetail(sub, parentModal) {
   if (showType === 'air' || showType === 'radio') {
     const o = sub.open || {};
     const c = sub.close || {};
-    const breaks = (sub.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint || b.whyRelevant || b.interaction));
+    const breaks = (sub.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint || b.whyRelevant || b.interaction || b.coHostMoment));
     const purposeLabel = key => { const pu = PLANNER_PURPOSES.find(x => x.key === key); return pu ? `${pu.icon} ${esc(pu.label)}` : esc(key); };
     bodyHTML = `
       <div class="submission-detail">
@@ -5428,6 +5485,7 @@ function showSubmissionDetail(sub, parentModal) {
             ${b.whyRelevant ? `<em>Why:</em> ${esc(b.whyRelevant)}<br>` : ''}
             ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
             ${esc(b.talkPoint || '')}
+            ${b.coHostMoment ? `<br><em>Trade Mic:</em> ${esc(b.coHostMoment)}` : ''}
             ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
             ${b.interaction ? `<br><em>Invite:</em> ${esc(b.interaction)}` : ''}
           </div>
@@ -5456,13 +5514,21 @@ function showSubmissionDetail(sub, parentModal) {
           <div class="submission-field-label">Theme</div>
           <div class="submission-field-value"><strong>${esc((sub.theme || {}).title || '—')}</strong><br>${esc((sub.theme || {}).description || '')}</div>
         </div>
+        ${(sub.theme || {}).welcome ? `
+        <div class="submission-field">
+          <div class="submission-field-label">Welcome</div>
+          <div class="submission-field-value">${esc((sub.theme || {}).welcome)}</div>
+        </div>` : ''}
         <div class="submission-field">
           <div class="submission-field-label">Break 1 — ${esc(b1.title || 'News')}</div>
           <div class="submission-field-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
         </div>
         <div class="submission-field">
           <div class="submission-field-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
-          <div class="submission-field-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
+          <div class="submission-field-value">
+            ${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em>
+            ${b2.interaction ? `<br><em>Invite: ${esc(b2.interaction)}</em>` : ''}
+          </div>
         </div>
         <div class="submission-field">
           <div class="submission-field-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
