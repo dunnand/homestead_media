@@ -911,6 +911,16 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .wyr-board-poll .wyr-bar-track { height: 36px; border-radius: 10px; }
 .wyr-board-poll .wyr-bar-count { font-size: 1.3rem; }
 .wyr-board-poll p { font-size: 1.1rem !important; text-align: center; }
+.wyr-msg { font-size: 0.85rem; margin-top: 10px; color: var(--dim); }
+.wyr-msg.wyr-move-active {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px 16px;
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
 
 /* ── Speed Meet ──────────────────────────────────────────────── */
 .speed-question-text { font-size: 1.3rem; font-weight: 700; margin: 14px 0; }

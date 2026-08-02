@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802ze';
+const APP_VERSION = '20260802zf';
 (function() {
   try {
     const k = 'hm_version';
@@ -1110,14 +1110,21 @@ function loadWyrGame() {
     const data = doc.exists ? doc.data() : { index: 0 };
     const idx = Number.isInteger(data.index) ? data.index : 0;
     const newIdx = Math.max(0, Math.min(idx, WYR_QUESTIONS.length - 1));
-    if (newIdx !== S.wyrCurrentIndex) S.wyrMyChoice = null;
+    const questionChanged = newIdx !== S.wyrCurrentIndex;
+    if (questionChanged) S.wyrMyChoice = null;
     S.wyrCurrentIndex = newIdx;
     const q = WYR_QUESTIONS[S.wyrCurrentIndex];
     document.querySelectorAll('.wyr-question-a').forEach(el => { el.textContent = q.a; });
     document.querySelectorAll('.wyr-question-b').forEach(el => { el.textContent = q.b; });
     document.querySelectorAll('.wyr-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === S.wyrMyChoice));
+    if (questionChanged) {
+      const msgEl = document.getElementById('wyr-msg');
+      if (msgEl) { msgEl.textContent = ''; msgEl.classList.remove('wyr-move-active'); msgEl.style.color = ''; }
+    }
     const posEl = document.getElementById('wyr-position');
     if (posEl) posEl.textContent = `${S.wyrCurrentIndex + 1} / ${WYR_QUESTIONS.length}`;
+    const boardPosEl = document.getElementById('wyr-board-position');
+    if (boardPosEl) boardPosEl.textContent = `${S.wyrCurrentIndex + 1} / ${WYR_QUESTIONS.length}`;
     loadWyrVotes();
   }, err => console.error('wyr state snapshot error', err));
 }
@@ -1161,6 +1168,7 @@ async function submitWyrVote(choice) {
   const nameEl = document.getElementById('wyr-name');
   const msg    = document.getElementById('wyr-msg');
   const name = nameEl.value.trim();
+  msg.classList.remove('wyr-move-active');
   if (!name) {
     msg.textContent = 'Enter your name first.';
     msg.style.color = 'var(--danger)';
@@ -1174,8 +1182,11 @@ async function submitWyrVote(choice) {
     await db.collection('hm_wyr_votes').doc(voteId).set({ name, choice, questionIndex: S.wyrCurrentIndex, createdAt: Date.now() });
     S.wyrMyChoice = choice;
     document.querySelectorAll('.wyr-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === choice));
-    msg.textContent = '✅ Vote counted! Change your mind? Just tap the other option.';
-    msg.style.color = 'var(--success)';
+    const q = WYR_QUESTIONS[S.wyrCurrentIndex];
+    const chosenText = choice === 'a' ? q.a : q.b;
+    msg.style.color = '';
+    msg.innerHTML = `🚶 <strong>Get up and move!</strong> Head to the side of the room for “${esc(chosenText)},” find someone who picked the other answer, and ask them to explain why.`;
+    msg.classList.add('wyr-move-active');
   } catch (e) {
     msg.textContent = 'Could not save: ' + e.message;
     msg.style.color = 'var(--danger)';
@@ -2083,7 +2094,7 @@ function renderIcebreaker() {
           <div class="wyr-vs">or</div>
           <button class="wyr-choice-btn ${S.wyrMyChoice === 'b' ? 'active' : ''}" data-choice="b"><span class="wyr-question-b">${esc(wyrQ.b)}</span></button>
         </div>
-        <p id="wyr-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+        <p id="wyr-msg" class="wyr-msg"></p>
       </section>
 
       <section class="card">
@@ -2302,6 +2313,11 @@ function renderIcebreakerBoard() {
           <div class="wyr-board-choice"><span class="wyr-question-b">${esc(wyrQ.b)}</span></div>
         </div>
         <div class="wyr-poll wyr-board-poll">${renderWyrPoll()}</div>
+        <div class="ib-board-controls">
+          <button class="btn-secondary" id="wyr-board-prev">← Prev</button>
+          <span class="dim" id="wyr-board-position">${S.wyrCurrentIndex + 1} / ${WYR_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="wyr-board-next">Next →</button>
+        </div>
       </div>`;
   }
   if (S.icebreakerGame === 'speed') {
@@ -6672,6 +6688,12 @@ function attachListeners() {
 
   const wyrNext = document.getElementById('wyr-next');
   if (wyrNext) wyrNext.addEventListener('click', () => advanceWyrQuestion(1));
+
+  const wyrBoardPrev = document.getElementById('wyr-board-prev');
+  if (wyrBoardPrev) wyrBoardPrev.addEventListener('click', () => advanceWyrQuestion(-1));
+
+  const wyrBoardNext = document.getElementById('wyr-board-next');
+  if (wyrBoardNext) wyrBoardNext.addEventListener('click', () => advanceWyrQuestion(1));
 
   const speedNew = document.getElementById('speed-new');
   if (speedNew) speedNew.addEventListener('click', newSpeedQuestion);
