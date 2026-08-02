@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802b';
+const APP_VERSION = '20260802c';
 (function() {
   try {
     const k = 'hm_version';
@@ -3116,12 +3116,17 @@ function storyPlanCanEdit(p) {
   return S.teacherMode || storyPlanIsOwner(p);
 }
 
-async function loadStoryPlans() {
+const LIST_CACHE_MS = 5 * 60 * 1000; // reuse fetched lists for 5 min unless a save forces a refresh
+
+async function loadStoryPlans(force = false) {
   const db = getDB();
   if (!db) return;
+  if (!force && S.storyPlansLoadedAt && Date.now() - S.storyPlansLoadedAt < LIST_CACHE_MS) return;
   try {
     const snap = await db.collection('hm_story_plans').orderBy('updatedAt', 'desc').get();
+    trackUsage('reads', snap.size || 1);
     S.storyPlans = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    S.storyPlansLoadedAt = Date.now();
     if (S.view === 'storyplans') render();
   } catch(e) { console.error('story plans load failed', e); }
 }
@@ -3219,7 +3224,7 @@ async function storyPlanSave() {
   _storyPlanDraft = null;
   S.expandedStoryPlan = null;
   showToast('Story plan saved.');
-  loadStoryPlans();
+  loadStoryPlans(true);
 }
 
 async function storyPlanDelete(id) {
@@ -3232,7 +3237,7 @@ async function storyPlanDelete(id) {
     catch(e) { showToast('Delete failed.'); console.error(e); return; }
   }
   showToast('Story plan deleted.');
-  loadStoryPlans();
+  loadStoryPlans(true);
 }
 
 async function storyPlanSetApproved(id, approved) {
@@ -3543,14 +3548,17 @@ async function toggleShowDate(dateStr) {
   }
 }
 
-async function loadBeatAssignments() {
+async function loadBeatAssignments(force = false) {
   const db = getDB();
   if (!db) return;
+  if (!force && S.beatsLoadedAt && Date.now() - S.beatsLoadedAt < LIST_CACHE_MS) return;
   try {
     const snap = await db.collection('hm_indepth_beats').get();
+    trackUsage('reads', snap.size || 1);
     const map = {};
     snap.forEach(doc => { map[parseInt(doc.id)] = doc.data(); });
     S.beatAssignments = map;
+    S.beatsLoadedAt = Date.now();
     if (S.view === 'indepth' || S.view === 'beat') render();
   } catch(e) { console.error('beat load failed', e); }
 }
