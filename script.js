@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802a';
+const APP_VERSION = '20260802b';
 (function() {
   try {
     const k = 'hm_version';
@@ -1904,6 +1904,10 @@ function renderPlanner() {
         <div class="form-group">
           <label>Other DJ(s) on your show <span class="hint">(optional)</span></label>
           <input id="p-partners" type="text" value="${esc(p.partners || '')}" placeholder="Names separated by commas">
+        </div>
+        <div class="form-group">
+          <label>Co-Host Email(s) <span class="hint">(optional — so they can get a copy too)</span></label>
+          <input id="p-partner-emails" type="text" value="${esc(p.partnerEmails || '')}" placeholder="Emails separated by commas">
         </div>`;
       break;
     case 1:
@@ -2056,7 +2060,7 @@ function renderPlanner() {
           ${!isLast
             ? `<button class="btn-primary" id="planner-next">Continue →</button>`
             : `<div class="planner-submit-row">
-                <button class="btn-secondary" id="planner-print">🖨️ Print</button>
+                <button class="btn-secondary" id="planner-download">⬇️ Download</button>
                 <button class="btn-primary" id="planner-submit">Submit Plan ✓</button>
                </div>`}
         </div>
@@ -4545,9 +4549,10 @@ function savePlannerStep() {
   const p = S.plannerData || {};
   switch (S.plannerStep) {
     case 0:
-      p.studentName = val('p-name');
-      p.showName    = val('p-show');
-      p.partners    = val('p-partners');
+      p.studentName    = val('p-name');
+      p.showName       = val('p-show');
+      p.partners       = val('p-partners');
+      p.partnerEmails  = val('p-partner-emails');
       break;
     case 1:
       p.theme = { title: val('p-theme-title'), description: val('p-theme-desc') };
@@ -4581,20 +4586,30 @@ async function submitPlan() {
   }
   localStorage.setItem('hm_plan_' + p.studentName, JSON.stringify(submission));
 
-  const mailtoLink = buildPlanMailto(p);
+  const mailtoLink  = buildPlanMailto(p);
+  const coHostNote  = (p.partnerEmails || '').trim()
+    ? `It'll also be addressed to your co-host${(p.partnerEmails.split(',').filter(Boolean).length > 1) ? 's' : ''} so everyone's on the same page.`
+    : 'You can also download a copy to share with your co-hosts.';
   const m = modal(`
     <div style="text-align:center;padding:8px 0 4px">
       <div style="font-size:2.5rem;margin-bottom:12px">✓</div>
       <h2 style="margin-bottom:8px">Plan Submitted!</h2>
       <p style="color:var(--dim);font-size:0.875rem;line-height:1.6;margin-bottom:24px">
         Your talk show plan for <strong>${esc(p.showName || 'your show')}</strong> has been turned in.
-        Send yourself a copy so you have it ready on show day.
+        ${esc(coHostNote)}
       </p>
-      <a href="${mailtoLink}"
-         style="display:inline-block;text-decoration:none;padding:10px 20px;background:var(--radio);color:#000;border-radius:8px;font-weight:600;font-size:0.875rem">
-        📧 Email yourself a copy
-      </a>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <a href="${mailtoLink}"
+           style="display:inline-block;text-decoration:none;padding:10px 20px;background:var(--radio);color:#000;border-radius:8px;font-weight:600;font-size:0.875rem">
+          📧 Email a Copy
+        </a>
+        <button class="btn-secondary" id="planner-confirm-download" style="padding:10px 20px;font-weight:600;font-size:0.875rem">
+          ⬇️ Download a Copy
+        </button>
+      </div>
     </div>`, null, false);
+
+  m.querySelector('#planner-confirm-download')?.addEventListener('click', () => downloadPlanFile(p));
 
   const doneBtn = m.querySelector('#modal-cancel');
   doneBtn.textContent = 'Done';
@@ -4606,15 +4621,18 @@ async function submitPlan() {
   });
 }
 
-function buildPlanMailto(p) {
+function buildPlanSubject(p) {
+  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return `Talk Show Plan — ${p.showName || 'My Show'} — ${date}`;
+}
+
+function buildPlanText(p) {
   const b1   = ((p.breaks || [])[0]) || {};
   const b2   = ((p.breaks || [])[1]) || {};
   const b3   = ((p.breaks || [])[2]) || {};
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 
-  const subject = `Talk Show Plan — ${p.showName || 'My Show'} — ${date}`;
-
-  const lines = [
+  return [
     'TALK SHOW PLAN',
     '==============',
     `Student:  ${p.studentName || ''}`,
@@ -4642,8 +4660,25 @@ function buildPlanMailto(p) {
     `Format:   ${b3.format || ''}`,
     `Wrap-up:  ${b3.wrapUp || ''}`,
   ].filter(l => l !== null).join('\n');
+}
 
-  return `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(lines)}`;
+function buildPlanMailto(p) {
+  const to = (p.partnerEmails || '')
+    .split(',').map(s => s.trim()).filter(Boolean).join(',');
+  return `mailto:${encodeURIComponent(to).replace(/%2C/g, ',')}?subject=${encodeURIComponent(buildPlanSubject(p))}&body=${encodeURIComponent(buildPlanText(p))}`;
+}
+
+function downloadPlanFile(p) {
+  const blob = new Blob([buildPlanText(p)], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const safeShow = (p.showName || 'talk-show-plan').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  a.href = url;
+  a.download = `${safeShow}-plan.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ── Teacher: Station Schedule ──────────────────────────────────
@@ -4859,6 +4894,7 @@ function showSubmissionDetail(sub, parentModal) {
   const b3 = ((sub.breaks || [])[2]) || {};
   const m = modal(`
     <h2>${esc(sub.studentName)} — ${esc(sub.showName || 'Untitled')}</h2>
+    <button class="btn-secondary" id="submission-download-btn" style="margin-bottom:14px">⬇️ Download</button>
     <div class="submission-detail">
       <div class="submission-field">
         <div class="submission-field-label">Theme</div>
@@ -4880,6 +4916,7 @@ function showSubmissionDetail(sub, parentModal) {
         </div>
       </div>
     </div>`);
+  m.querySelector('#submission-download-btn')?.addEventListener('click', () => downloadPlanFile(sub));
 }
 
 // ── Firebase Usage Tracking ───────────────────────────────────
@@ -5023,8 +5060,8 @@ function attachListeners() {
   const ps = document.getElementById('planner-submit');
   if (ps) ps.addEventListener('click', submitPlan);
 
-  const pp = document.getElementById('planner-print');
-  if (pp) pp.addEventListener('click', () => window.print());
+  const pd = document.getElementById('planner-download');
+  if (pd) pd.addEventListener('click', () => downloadPlanFile(S.plannerData || {}));
 
   const ab = document.getElementById('add-broadcast');
   if (ab) ab.addEventListener('click', showAddBroadcastModal);
