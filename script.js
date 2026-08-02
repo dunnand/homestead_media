@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zf';
+const APP_VERSION = '20260802zg';
 (function() {
   try {
     const k = 'hm_version';
@@ -300,6 +300,8 @@ const S = {
   matchStateUnsub: null,
   matchTimerStartedAt: null,
   matchTickHandle: null,
+  rapidIndex: 0,
+  rapidStateUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -346,6 +348,7 @@ function unsubIcebreakerGames() {
   if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
   if (S.matchStateUnsub)  { S.matchStateUnsub();  S.matchStateUnsub = null; }
   if (S.matchTickHandle)  { clearInterval(S.matchTickHandle); S.matchTickHandle = null; }
+  if (S.rapidStateUnsub)  { S.rapidStateUnsub();  S.rapidStateUnsub = null; }
 }
 
 function loadIcebreakerGame(game) {
@@ -358,6 +361,7 @@ function loadIcebreakerGame(game) {
   if (game === 'common') return loadCommonGame();
   if (game === 'rank') return loadRankGame();
   if (game === 'match') return loadMatchGame();
+  if (game === 'rapid') return loadRapidGame();
   return loadIcebreakerWall();
 }
 
@@ -1895,6 +1899,111 @@ async function startMatchTimer() {
   await db.collection('hm_match_state').doc('current').set({ index: S.matchCurrentIndex, timerStartedAt: Date.now(), updatedAt: Date.now() });
 }
 
+// ── ICEBREAKER: Rapid Fire Questions ─────────────────────────────
+const RAPID_TOPICS = [
+  'food','snack','dessert','ice cream flavor','candy','fast food restaurant','pizza topping','breakfast food','cereal','fruit',
+  'vegetable','soda','juice flavor','milkshake flavor','donut flavor','cookie','cake flavor','pie flavor','smoothie flavor','chip flavor',
+  'candy bar','gum flavor','popsicle flavor','slushie flavor','coffee drink','tea flavor','energy drink','sandwich','burger topping','taco filling',
+  'soup','salad dressing','condiment','pasta dish','Mexican food','Italian food','Chinese food','Japanese food','Indian food','brunch food',
+  'movie','TV show','song','artist or band','book','video game','mobile game','board game','card game','superhero',
+  'superpower','Disney movie','cartoon','anime','YouTuber','podcast','app','social media platform','streaming service','video game genre',
+  'movie genre','book genre','music genre','decade of music','game show','reality show','cooking show','talent show','holiday movie','Halloween costume idea',
+  'meme format','emoji','GIF reaction','text abbreviation','video game character','movie villain','movie hero','cartoon from when you were little','arcade game','karaoke song',
+  'school subject','elective','extracurricular activity','club','day of the week','month','season','holiday','way to spend a Saturday','way to relax',
+  'hobby','class period','school lunch','class this semester','school supply','way to take notes','way to study','place to study','background noise while studying','subject to talk about',
+  'sport to play','sport to watch','sports team','Olympic event','way to exercise','workout','dance style','instrument','language to learn','country to visit',
+  'city to visit','vacation spot','mode of transportation','season for a birthday','holiday tradition','thing to do on a snow day','summer activity','winter activity','way to spend a rainy day','road trip snack',
+  'animal','pet','farm animal','ocean animal','bird','zoo animal','dinosaur','mythical creature','flower','tree',
+  'color','color combo','season for clothes','type of shoes','type of jacket','accessory','phone case color','backpack color','notebook color','pen color',
+  'car','car color','gaming console','phone brand','laptop brand','word','number','letter of the alphabet','punctuation mark','day of the school week',
+  'holiday scent','candle scent','ice cream topping','sundae topping','milkshake topping','pizza style','way to eat pizza','drink at a restaurant','coffee shop order','fast food side',
+  'drive-thru order','movie theater snack','popcorn topping','candy at the movies','arcade prize','carnival game','fair food','amusement park ride','roller coaster','water park ride',
+  'pool game','beach activity','lake activity','camping activity','hiking snack','sleepover snack','sleepover movie','comfort food','comfort show','guilty pleasure song',
+  'throwback song','car ride song','alarm sound','thing to eat with peanut butter','lunch food','dinner food','midnight snack','way to wake up','way to fall asleep','sound to fall asleep to',
+  'holiday for gifts','holiday for food','holiday for costumes','way to celebrate a birthday','birthday cake flavor','gift to receive','gift to give','way to spend a day off school','thing to binge-watch','thing to collect',
+  'way to spend free time after school','thing to do with friends','thing to do alone','weekend breakfast','weekend activity','Friday night activity','Sunday activity','thing about fall','thing about summer','thing about winter',
+  'thing about spring','way to decorate for the holidays','Thanksgiving side dish','Christmas song','Halloween candy','4th of July activity',"New Year's tradition",'Valentine\'s Day treat','spring break activity','dream summer job',
+  'subject to daydream about','thing to do during a free period','way to procrastinate','hype song','song for getting ready in the morning','song to sing in the shower','thing to do on a road trip','road trip game','way to pass time on a long car ride','app notification sound',
+  'way to greet someone','handshake style','way to say goodbye','nickname style','way to celebrate a win','pump-up move before a game','warm-up song','thing to yell during a game','mascot','school color',
+  'thing about your room','poster you\'d hang up','sticker to put on a laptop','font to use when texting','app you\'d delete if you had to pick one','thing you always have in your bag','thing you always have in your pocket','snack for game night','drink for a hot day','drink for a cold day',
+];
+const RAPID_EXTRA = [
+  'Say the first word that comes to mind right now.',
+  'Name a song stuck in your head today.',
+  "What's the last thing you searched on your phone?",
+  "Say your phone's battery percentage right now.",
+  "Name a food you've never tried but want to.",
+  "What's the wallpaper on your phone right now?",
+  "Name a show you're currently watching.",
+  'Say the last thing you ate.',
+  "What's a hidden talent you have?",
+  'Name a place that feels like home to you.',
+  'Say your lucky number, if you have one.',
+  "What's your zodiac sign?",
+  'Name a food combo people think is weird but you love.',
+  "What's the last thing you binge-watched?",
+  'Say a word you use way too much.',
+  "What's your ringtone or alarm sound?",
+  "Name a nickname you've had.",
+  'Say your dream job in one word.',
+  "What's a talent you have that's basically useless?",
+  "Name a place you've never been but want to visit.",
+  'Say the app you spend the most time on.',
+  "What's the last thing you Googled?",
+  'Name a random fact you know.',
+  'Say your go-to emoji when texting.',
+  "What's a song you know every word to?",
+  "Name something you're weirdly good at.",
+  'Say the last show or movie you rewatched.',
+  "What's your comfort food when you're stressed?",
+  "Name a class you'd invent if you could.",
+  'Say the last concert or show you went to (or wish you did).',
+  "What's a fear you have that sounds silly out loud?",
+  'Name a smell that reminds you of home.',
+  "Say a skill you'd want to learn instantly.",
+  "What's the weirdest thing in your backpack right now?",
+  'Name a food you could eat every single day.',
+  'Say your go-to excuse for being late.',
+  "What's a show everyone loves that you just don't get?",
+  'Name your go-to karaoke song.',
+  'Say the last thing that made you laugh.',
+  "What's a small thing that instantly makes your day better?",
+  'Name a place you go to think or relax.',
+  'Say the first app you check in the morning.',
+  "What's your go-to order at a coffee shop?",
+  'Name something on your bucket list.',
+  'Say a movie you could rewatch forever.',
+  "What's the best gift you've ever gotten?",
+  "Name a subject you wish you were better at.",
+  'Say the last new food you tried.',
+  "What's your go-to study snack?",
+  'Name a song that instantly puts you in a good mood.',
+];
+const RAPID_QUESTIONS = RAPID_TOPICS.map(t => `What's your favorite ${t}?`).concat(RAPID_EXTRA);
+
+function loadRapidGame() {
+  const db = getDB();
+  if (!db) return;
+  if (S.rapidStateUnsub) { S.rapidStateUnsub(); S.rapidStateUnsub = null; }
+  S.rapidStateUnsub = db.collection('hm_rapid_state').doc('current').onSnapshot(doc => {
+    const data = doc.exists ? doc.data() : { index: 0 };
+    const idx = Number.isInteger(data.index) ? data.index : 0;
+    S.rapidIndex = Math.max(0, Math.min(idx, RAPID_QUESTIONS.length - 1));
+    document.querySelectorAll('.rapid-question-text').forEach(el => { el.textContent = RAPID_QUESTIONS[S.rapidIndex]; });
+    const posEl = document.getElementById('rapid-position');
+    if (posEl) posEl.textContent = `${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}`;
+    const boardPosEl = document.getElementById('rapid-board-position');
+    if (boardPosEl) boardPosEl.textContent = `${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}`;
+  }, err => console.error('rapid state snapshot error', err));
+}
+
+async function advanceRapidQuestion(delta) {
+  const db = getDB();
+  if (!db) return;
+  const next = Math.max(0, Math.min(S.rapidIndex + delta, RAPID_QUESTIONS.length - 1));
+  await db.collection('hm_rapid_state').doc('current').set({ index: next, updatedAt: Date.now() });
+}
+
 const ICEBREAKER_GAMES = [
   { key: 'truths', icon: '🧊', title: 'Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person." },
   { key: 'qa',     icon: '🙋', title: 'Get to Know You',      sub: "Answer today's question, then compare with classmates in person." },
@@ -1905,6 +2014,7 @@ const ICEBREAKER_GAMES = [
   { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
   { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
   { key: 'match',  icon: '🎴', title: 'Find Your Match',      sub: "Everyone answers the board's question with a partner — then switch and find someone new." },
+  { key: 'rapid',  icon: '⚡', title: 'Rapid Fire Questions', sub: "300 quick, simple questions — go around the room and get an instant answer from each student." },
 ];
 
 function renderIcebreakerMenu() {
@@ -2217,7 +2327,29 @@ function renderIcebreaker() {
         </div>
       </section>`;
 
-  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection, match: matchSection };
+  const rapidSection = `
+      <section class="card">
+        <h2>⚡ Rapid Fire Questions</h2>
+        <p class="cal-section-sub">Quick, simple questions — answer fast, then it's the next person's turn.</p>
+        ${S.teacherMode ? `
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap">
+          <button class="btn-secondary" id="rapid-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
+          <span class="dim" id="rapid-position" style="font-size:0.8rem">${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="rapid-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        </div>
+        <a href="?board=icebreaker&game=rapid" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none;display:inline-block;margin-bottom:4px">🖥️ Open Board View</a>` : ''}
+        <p class="rapid-question-text qa-question-text">${esc(RAPID_QUESTIONS[S.rapidIndex])}</p>
+        <div class="match-help-box">
+          <p class="match-help-title">📋 How to play</p>
+          <ol class="match-help-list">
+            <li>Go around the room — one question per student.</li>
+            <li>Answer fast with whatever comes to mind first, no overthinking.</li>
+            <li>Teacher taps Next, question changes, it's the next person's turn.</li>
+          </ol>
+        </div>
+      </section>`;
+
+  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection, match: matchSection, rapid: rapidSection };
   const gameMeta = ICEBREAKER_GAMES.find(g => g.key === game);
 
   return `
@@ -2356,6 +2488,22 @@ function renderIcebreakerBoard() {
         <div class="ib-board-controls">
           <button class="btn-primary" id="match-board-timer" style="font-size:1rem;padding:10px 20px">▶️ Start 1:30 Timer</button>
           <button class="btn-secondary" id="match-board-next" style="font-size:1rem;padding:10px 20px">Next Question →</button>
+        </div>
+      </div>`;
+  }
+  if (S.icebreakerGame === 'rapid') {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>⚡ Rapid Fire Questions</h1>
+          <p>One question, one student, quick answer — then Next for the next person.</p>
+        </div>
+        <p class="rapid-question-text ib-board-question">${esc(RAPID_QUESTIONS[S.rapidIndex])}</p>
+        <div class="ib-board-controls">
+          <button class="btn-secondary" id="rapid-board-prev">← Prev</button>
+          <span class="dim" id="rapid-board-position">${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="rapid-board-next">Next →</button>
         </div>
       </div>`;
   }
@@ -6677,6 +6825,18 @@ function attachListeners() {
   const matchBoardTimer = document.getElementById('match-board-timer');
   if (matchBoardTimer) matchBoardTimer.addEventListener('click', startMatchTimer);
 
+  const rapidPrev = document.getElementById('rapid-prev');
+  if (rapidPrev) rapidPrev.addEventListener('click', () => advanceRapidQuestion(-1));
+
+  const rapidNext = document.getElementById('rapid-next');
+  if (rapidNext) rapidNext.addEventListener('click', () => advanceRapidQuestion(1));
+
+  const rapidBoardPrev = document.getElementById('rapid-board-prev');
+  if (rapidBoardPrev) rapidBoardPrev.addEventListener('click', () => advanceRapidQuestion(-1));
+
+  const rapidBoardNext = document.getElementById('rapid-board-next');
+  if (rapidBoardNext) rapidBoardNext.addEventListener('click', () => advanceRapidQuestion(1));
+
   document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));
 
@@ -8671,7 +8831,7 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
     S.view = 'icebreaker-board';
     const gameParam = new URLSearchParams(location.search).get('game');
-    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'rank', 'match'];
+    const validGames = ['qa', 'tot', 'bingo', 'wyr', 'speed', 'common', 'rank', 'match', 'rapid'];
     S.icebreakerGame = validGames.includes(gameParam) ? gameParam : 'truths';
     if (S.icebreakerGame === 'bingo') loadBingoState();
     render();
