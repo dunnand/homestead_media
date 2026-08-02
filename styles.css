@@ -101,7 +101,10 @@ body {
 .teacher-pin-btns { display: flex; gap: 8px; }
 
 /* ── Home ────────────────────────────────────────────────── */
+.home-teacher-corner { position: absolute; top: 16px; right: 20px; display: flex; align-items: center; z-index: 10; }
+.home-teacher-corner .teacher-btn { margin-left: 0; text-decoration: none; display: inline-block; }
 .home-page {
+  position: relative;
   min-height: 100vh;
   display: flex;
   flex-direction: column;

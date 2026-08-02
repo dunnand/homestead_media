@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802s';
+const APP_VERSION = '20260802t';
 (function() {
   try {
     const k = 'hm_version';
@@ -1810,6 +1810,23 @@ function renderIcebreakerBoard() {
 function renderHome() {
   return `
     <div class="home-page">
+      <div class="home-teacher-corner">
+        ${S.teacherMode ? `<a class="teacher-btn" data-nav="dashboard" style="margin-right:6px">📊 Dashboard</a>` : ''}
+        <button class="teacher-btn ${S.teacherMode ? 'active' : ''}" id="teacher-toggle">
+          ${S.teacherMode ? '🔓 Teacher' : '🔑'}
+        </button>
+      </div>
+      ${S.showTeacherPin ? `
+      <div class="teacher-pin-overlay" id="teacher-pin-overlay">
+        <div class="teacher-pin-box">
+          <div class="teacher-pin-title">🔑 Teacher Mode</div>
+          <input type="password" id="teacher-pin-input" class="form-input" placeholder="Enter PIN" autocomplete="off">
+          <div class="teacher-pin-btns">
+            <button class="btn-primary" id="teacher-pin-submit">Unlock</button>
+            <button class="btn-secondary" id="teacher-pin-cancel">Cancel</button>
+          </div>
+        </div>
+      </div>` : ''}
       <header class="home-header">
         <img src="images/logo-homestead-media.png" alt="Homestead Media" class="home-logo-img">
       </header>
