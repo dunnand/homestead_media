@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802i';
+const APP_VERSION = '20260802j';
 (function() {
   try {
     const k = 'hm_version';
@@ -1883,6 +1883,12 @@ function renderRadio() {
             <button class="btn-primary" id="start-planner">Start Planning →</button>
           </section>
           <section class="card action-card radio-action">
+            <div class="action-icon">🎛️</div>
+            <h3>Broadcast Planner</h3>
+            <p>Build a full broadcast hour — pick songs from the station library, slot by slot, with DJ breaks.</p>
+            <a class="btn-primary" href="https://wcyt.org/planner.html" target="_blank" rel="noopener">Open Broadcast Planner ↗</a>
+          </section>
+          <section class="card action-card radio-action">
             <div class="action-icon">🏆</div>
             <h3>IASB Competition</h3>
             <p>Track entries, checklists, and file uploads for IASB.</p>
@@ -2139,6 +2145,7 @@ function renderPlannerAirBreaks(p) {
         </div>
         <div class="form-group">
           <label>Reconnect the Listener <span class="hint">(one song you just played new listeners should know about)</span></label>
+          <div class="talkpoint-chips"><button type="button" class="chip chip-promo song-pick-btn" data-song-target="air-backsell-${i}">🎵 Pick from station library</button></div>
           <input id="air-backsell-${i}" type="text" value="${esc(b.backsell || '')}" placeholder="e.g. That was Taylor Swift with Anti-Hero">
         </div>
         <div class="form-group">
@@ -2154,6 +2161,7 @@ function renderPlannerAirBreaks(p) {
         </div>` : ''}
         <div class="form-group">
           <label>Keep Them Listening <span class="hint">(what's coming up that keeps them tuned in?)</span></label>
+          <div class="talkpoint-chips"><button type="button" class="chip chip-promo song-pick-btn" data-song-target="air-presell-${i}">🎵 Pick from station library</button></div>
           <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
         </div>
         <div class="form-group">
@@ -5245,6 +5253,77 @@ function downloadPlanFile(p) {
   URL.revokeObjectURL(url);
 }
 
+// ── Song Library Picker ───────────────────────────────────────
+// Pulls the same song library the Broadcast Planner (wcyt.org/planner.html)
+// uses, published as planner-songs.json on the main site (same-origin on
+// wcyt.org). Fetched lazily on first use, then cached for the session.
+let SONG_LIB = null;
+
+async function loadSongLibrary() {
+  if (SONG_LIB) return SONG_LIB;
+  const res = await fetch('https://wcyt.org/planner-songs.json');
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  SONG_LIB = await res.json();
+  return SONG_LIB;
+}
+
+function showSongPicker(targetId) {
+  const p = S.plannerData || {};
+  const stationKey = p.station === 'two' ? 'pt20' : 'wcyt';
+  const stationLabel = stationKey === 'pt20' ? '2.0' : 'The Point 91FM';
+  const m = modal(`
+    <h2>🎵 Pick a Song</h2>
+    <p class="hint" style="margin-bottom:12px">From the ${stationLabel} library — tap a song to add it to your plan.</p>
+    <input id="song-picker-search" type="text" placeholder="Search title or artist...">
+    <div id="song-picker-list" class="song-picker-list"><div class="song-picker-status">Loading the station library…</div></div>`, null, false);
+
+  const listEl   = m.querySelector('#song-picker-list');
+  const searchEl = m.querySelector('#song-picker-search');
+  let songs = [];
+  let cats  = {};
+
+  function renderList() {
+    const q = (searchEl.value || '').toLowerCase().trim();
+    const matches = q
+      ? songs.filter(s => s.t.toLowerCase().includes(q) || s.a.toLowerCase().includes(q))
+      : songs;
+    const shown = matches.slice(0, 60);
+    listEl.innerHTML = shown.map((s, i) => {
+      const cat = cats[s.c];
+      return `
+      <button type="button" class="song-picker-item" data-i="${i}">
+        <span class="spi-title">${esc(s.t)}</span>
+        <span class="spi-sub">${cat ? `<span class="spi-cat" style="color:${cat.color}">${esc(cat.label)}</span>` : ''}${esc(s.a)}${s.y ? ' · ' + s.y : ''}${s.d ? ' · ' + s.d : ''}</span>
+      </button>`;
+    }).join('') + (matches.length > 60
+      ? `<div class="song-picker-status">Showing 60 of ${matches.length} — keep typing to narrow it down.</div>`
+      : (matches.length ? '' : '<div class="song-picker-status">No songs match your search.</div>'));
+    listEl.querySelectorAll('.song-picker-item').forEach(btn =>
+      btn.addEventListener('click', () => {
+        const s = shown[parseInt(btn.dataset.i)];
+        const target = document.getElementById(targetId);
+        if (target && s) {
+          const text = `${s.t} — ${s.a}`;
+          target.value = target.value ? target.value.trim() + ' ' + text : text;
+          target.focus();
+        }
+        m.remove();
+      }));
+  }
+
+  searchEl.addEventListener('input', renderList);
+
+  loadSongLibrary().then(lib => {
+    const stn = lib.stations[stationKey] || lib.stations.wcyt;
+    songs = stn.songs || [];
+    cats  = stn.cats || {};
+    renderList();
+    searchEl.focus();
+  }).catch(() => {
+    listEl.innerHTML = `<div class="song-picker-status">Couldn't load the song library — check your connection and try again.</div>`;
+  });
+}
+
 // ── Teacher: Station Schedule ──────────────────────────────────
 function showEditStationSlot(stationId, dayIdx) {
   const station = STATIONS.find(s => s.id === stationId);
@@ -5705,6 +5784,9 @@ function attachListeners() {
       target.value = target.value ? target.value.trim() + ' ' + chip.dataset.chipText : chip.dataset.chipText;
       target.focus();
     }));
+
+  document.querySelectorAll('.song-pick-btn').forEach(btn =>
+    btn.addEventListener('click', () => showSongPicker(btn.dataset.songTarget)));
 
   document.querySelectorAll('.purpose-chip').forEach(chip =>
     chip.addEventListener('click', () => {

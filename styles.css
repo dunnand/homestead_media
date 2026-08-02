@@ -985,6 +985,32 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 
 .review-purpose-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 
+/* ── Planner: Song Library Picker ────────────────────────── */
+#song-picker-search {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); padding: 10px 14px;
+  font-size: 1rem; font-family: inherit; outline: none; margin-bottom: 10px;
+}
+#song-picker-search:focus { border-color: var(--radio); }
+.song-picker-list {
+  max-height: 320px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px;
+}
+.song-picker-item {
+  display: block; width: 100%; text-align: left; cursor: pointer;
+  background: none; border: none; border-bottom: 1px solid var(--border);
+  padding: 10px 12px; font-family: inherit; color: var(--text);
+}
+.song-picker-item:last-child { border-bottom: none; }
+.song-picker-item:hover { background: var(--surface2); }
+.spi-title { display: block; font-weight: 600; font-size: 0.95rem; }
+.spi-sub { display: block; color: var(--dim); font-size: 0.85rem; margin-top: 2px; }
+.spi-cat {
+  font-size: 0.7rem; font-weight: 700; padding: 1px 7px; border-radius: 999px;
+  border: 1px solid currentColor; margin-right: 6px;
+}
+.song-picker-status { padding: 14px; color: var(--dim); font-size: 0.9rem; text-align: center; }
+
 /* ── Homestead Live ──────────────────────────────────────── */
 .next-broadcast-card { text-align: center; padding: 32px; }
 .next-label {

@@ -141,6 +141,14 @@ const IASB_DROPBOX_URL = 'https://drive.google.com/drive/folders/1Kg4UYcKzOLNYYq
 // 36 IASB_DRIVE_FOLDERS entries (R1-R9, N1-N8, S1-S9, V1-V9, M1-M9)
 // DJ Panel: https://wcyt.org/dj  (Password: Spartans — changed July 2026)
 // Walsworth: https://login.walsworthyearbooks.com/login
+// Broadcast Planner: https://wcyt.org/planner.html (hour-clock planner, lives in dunnand.github.io repo;
+//   Radio page has an action card linking to it — added Aug 2 2026)
+// Song library JSON: https://wcyt.org/planner-songs.json (slim export of the Broadcast Planner's embedded
+//   libraries — WCYT 5,698 + 2.0 6,347 music songs as {t,a,c,d,y} + per-station cats {label,color}.
+//   Fetched lazily by the Show Planner's "🎵 Pick from station library" song picker (loadSongLibrary()/
+//   showSongPicker() in script.js) on the Air/Radio back-sell + pre-sell fields; picker filters to the
+//   station chosen on step 0. Regenerate by re-running the extraction against planner.html's embedded
+//   SONGS/META data if the library is updated.)
 ```
 
 ---
