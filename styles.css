@@ -377,6 +377,48 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-name-detail li { font-size: 1.15rem; gap: 10px; }
 .ib-board-wall .ib-name-detail .ib-letter { font-size: 0.9rem; padding: 2px 7px; border-radius: 6px; }
 
+.ib-quiz {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+.ib-quiz-progress {
+  margin: 0;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+.ib-quiz-statement {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.ib-quiz-answer {
+  margin: 0;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 4px 10px;
+  border-radius: 8px;
+  display: inline-block;
+}
+.ib-quiz-answer.is-lie { background: rgba(239, 68, 68, 0.15); color: #ef4444; }
+.ib-quiz-answer.is-truth { background: rgba(34, 197, 94, 0.15); color: #22c55e; }
+.ib-quiz-answer.is-unknown { background: rgba(148, 163, 184, 0.15); color: var(--dim); }
+.ib-quiz-done {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+.ib-board-wall .ib-quiz-statement { font-size: 1.3rem; }
+.ib-board-wall .ib-quiz-progress { font-size: 0.95rem; }
+.ib-board-wall .ib-quiz-answer { font-size: 1.15rem; padding: 6px 14px; }
+.ib-board-wall .ib-quiz-done { font-size: 1.2rem; }
+
 .ib-menu-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));

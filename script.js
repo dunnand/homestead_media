@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802k';
+const APP_VERSION = '20260802l';
 (function() {
   try {
     const k = 'hm_version';
@@ -438,21 +438,54 @@ function renderIcebreakerWallCards(entries) {
         <span>${esc(e.name)}</span>
         <span class="ib-name-caret">${open ? '▲' : '▼'}</span>
       </button>
-      ${open ? `<ul class="ib-card-statements ib-name-detail">
-        ${(e.statements || []).map((s, i) => `<li><span class="ib-letter">${String.fromCharCode(65 + i)}</span> ${esc(s)}</li>`).join('')}
-      </ul>` : ''}
+      ${open ? renderIcebreakerQuiz(e) : ''}
     </div>`;
   }).join('') + `</div>`;
 }
 
+function normalizeIcebreakerStatements(statements) {
+  return (statements || []).map(s => typeof s === 'string' ? { text: s, isLie: null } : s);
+}
+
+function renderIcebreakerQuiz(e) {
+  const statements = normalizeIcebreakerStatements(e.statements);
+  const quiz = S.icebreakerQuiz || { index: 0, revealed: false, done: false };
+
+  if (quiz.done || !statements.length) {
+    return `<div class="ib-quiz ib-name-detail">
+      <p class="ib-quiz-done">🎉 That's all three from ${esc(e.name)} — hope you learned something!</p>
+      <button type="button" class="btn-secondary ib-quiz-back">← Back to List</button>
+    </div>`;
+  }
+
+  const idx = Math.min(quiz.index, statements.length - 1);
+  const current = statements[idx];
+  const isLast = idx === statements.length - 1;
+  let answerHtml = '';
+  if (quiz.revealed) {
+    if (current.isLie === true) answerHtml = `<p class="ib-quiz-answer is-lie">❌ THE LIE</p>`;
+    else if (current.isLie === false) answerHtml = `<p class="ib-quiz-answer is-truth">✅ TRUE</p>`;
+    else answerHtml = `<p class="ib-quiz-answer is-unknown">❓ Answer not recorded</p>`;
+  }
+
+  return `<div class="ib-quiz ib-name-detail">
+    <p class="ib-quiz-progress">Question ${idx + 1} of ${statements.length}</p>
+    <p class="ib-quiz-statement">${esc(current.text)}</p>
+    ${answerHtml}
+    ${quiz.revealed
+      ? `<button type="button" class="btn-primary ib-quiz-explain">${isLast ? 'Finish →' : 'Mark Explained →'}</button>`
+      : `<button type="button" class="btn-primary ib-quiz-reveal">Reveal</button>`}
+  </div>`;
+}
+
 async function submitIcebreaker() {
   const nameEl = document.getElementById('ib-name');
-  const s1El   = document.getElementById('ib-s1');
-  const s2El   = document.getElementById('ib-s2');
-  const s3El   = document.getElementById('ib-s3');
+  const t1El   = document.getElementById('ib-truth1');
+  const t2El   = document.getElementById('ib-truth2');
+  const lieEl  = document.getElementById('ib-lie');
   const msg    = document.getElementById('ib-msg');
-  const name = nameEl.value.trim(), s1 = s1El.value.trim(), s2 = s2El.value.trim(), s3 = s3El.value.trim();
-  if (!name || !s1 || !s2 || !s3) {
+  const name = nameEl.value.trim(), t1 = t1El.value.trim(), t2 = t2El.value.trim(), lie = lieEl.value.trim();
+  if (!name || !t1 || !t2 || !lie) {
     msg.textContent = 'Fill in your name and all three statements first.';
     msg.style.color = 'var(--danger)';
     return;
@@ -460,7 +493,11 @@ async function submitIcebreaker() {
   const db = getDB();
   if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
 
-  const statements = [s1, s2, s3];
+  const statements = [
+    { text: t1, isLie: false },
+    { text: t2, isLie: false },
+    { text: lie, isLie: true }
+  ];
   for (let i = statements.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [statements[i], statements[j]] = [statements[j], statements[i]];
@@ -471,7 +508,7 @@ async function submitIcebreaker() {
   try {
     localStorage.setItem('hm_student_name', name);
     await db.collection('hm_icebreaker').add({ name, statements, createdAt: Date.now() });
-    s1El.value = ''; s2El.value = ''; s3El.value = '';
+    t1El.value = ''; t2El.value = ''; lieEl.value = '';
     msg.textContent = "✅ You're on the wall! Go find your match's card and guess their lie.";
     msg.style.color = 'var(--success)';
   } catch (e) {
@@ -1388,22 +1425,22 @@ function renderIcebreaker() {
   const truthsSection = `
       <section class="card" style="margin-bottom:20px">
         <h2>✏️ Add Yourself to the Wall</h2>
-        <p class="cal-section-sub">Write two true statements about yourself and one lie, in any order — don't say which is which.</p>
+        <p class="cal-section-sub">Write two true statements about yourself and one lie. The wall will shuffle the order so it's not always listed last.</p>
         <div class="form-group">
           <label>Your Name</label>
           <input id="ib-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="form-group">
-          <label>Statement 1</label>
-          <input id="ib-s1" type="text" placeholder="e.g. I've met a professional athlete">
+          <label>Truth 1</label>
+          <input id="ib-truth1" type="text" placeholder="e.g. I've met a professional athlete">
         </div>
         <div class="form-group">
-          <label>Statement 2</label>
-          <input id="ib-s2" type="text" placeholder="e.g. I've broken a bone">
+          <label>Truth 2</label>
+          <input id="ib-truth2" type="text" placeholder="e.g. I've broken a bone">
         </div>
         <div class="form-group">
-          <label>Statement 3</label>
-          <input id="ib-s3" type="text" placeholder="e.g. I can't swim">
+          <label>The Lie</label>
+          <input id="ib-lie" type="text" placeholder="e.g. I can't swim">
         </div>
         <button class="btn-primary" id="ib-submit">🧊 Add Me to the Wall</button>
         <p id="ib-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
@@ -5838,11 +5875,37 @@ function attachListeners() {
 
   const ibWall = document.getElementById('icebreaker-wall');
   if (ibWall) ibWall.addEventListener('click', e => {
-    const btn = e.target.closest('.ib-name-btn');
-    if (!btn) return;
-    const id = btn.dataset.ibId;
-    S.icebreakerOpenId = S.icebreakerOpenId === id ? null : id;
-    ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+    const nameBtn = e.target.closest('.ib-name-btn');
+    if (nameBtn) {
+      const id = nameBtn.dataset.ibId;
+      S.icebreakerOpenId = S.icebreakerOpenId === id ? null : id;
+      S.icebreakerQuiz = { index: 0, revealed: false, done: false };
+      ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+      return;
+    }
+    if (e.target.closest('.ib-quiz-reveal')) {
+      S.icebreakerQuiz.revealed = true;
+      ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+      return;
+    }
+    if (e.target.closest('.ib-quiz-explain')) {
+      const entry = S.icebreakerEntries.find(x => x.id === S.icebreakerOpenId);
+      const total = entry ? normalizeIcebreakerStatements(entry.statements).length : 3;
+      if (S.icebreakerQuiz.index >= total - 1) {
+        S.icebreakerQuiz.done = true;
+      } else {
+        S.icebreakerQuiz.index += 1;
+        S.icebreakerQuiz.revealed = false;
+      }
+      ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+      return;
+    }
+    if (e.target.closest('.ib-quiz-back')) {
+      S.icebreakerOpenId = null;
+      S.icebreakerQuiz = { index: 0, revealed: false, done: false };
+      ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
+      return;
+    }
   });
 
   document.querySelectorAll('.ib-menu-card').forEach(btn =>
