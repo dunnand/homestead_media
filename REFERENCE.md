@@ -67,7 +67,7 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_availability` | Student sign-ups for broadcasts (name, email, role preferences) |
 | `hm_radio` | Radio station schedules (doc: `station_schedule`) |
 | `hm_iasb_entries` | IASB competition entries per category |
-| `hm_radio_plans` | Talk show planning submissions from students |
+| `hm_radio_plans` | Show planning submissions from students — Talk Show, Air Personality, or Radio Show (`showType: 'talk'\|'air'\|'radio'`, legacy docs without it are Talk Show). Talk: `{showType,studentName,showName,partners,partnerEmails,theme:{title,description},breaks:[{title,newsUpdate,connection,transition},{title,activityHook,connection,tease},{title,talkingPoints:[3],format,wrapUp}],submittedAt}`. Air/Radio: `{showType,studentName,showName,station:'point'\|'two',partners,partnerEmails,breaks:[{backsell,presell,talkPoint} x5],submittedAt}` |
 | `hm_indepth_rundown` | TV show rundown data, keyed by week (YYYY-MM-DD of Monday) |
 | `hm_lesson_edits` | Teacher text overrides for built-in lessons, doc id = lesson id: `{title?, summary?, duration?, sections: {"<index>": partial}}` — merged over data.js LESSONS by `mergedLesson()`; edited via the ✏️ Edit Slide button in teacher mode; per-slide "Reset to original" removes the override |
 | `hm_rundown_edits` | Edit log for the In-Depth show rundown: `{at, week, role, by, before, after}` — everyone can edit the rundown; teacher mode shows the last 40 edits via the 📝 Edit Log button. Student names come from `localStorage.hm_student_name` (prompted on first edit) |

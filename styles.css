@@ -896,6 +896,46 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   padding: 8px 12px; background: var(--surface2); border-radius: 8px;
 }
 
+/* ── Planner: Show Type Picker ──────────────────────────────── */
+.showtype-picker {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+  margin-bottom: 24px;
+}
+.showtype-btn {
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  gap: 4px; padding: 18px 12px;
+  background: var(--surface2); border: 2px solid var(--border); border-radius: var(--radius);
+  cursor: pointer; transition: border-color 0.15s, background 0.15s;
+  font-family: inherit; color: var(--text);
+}
+.showtype-btn:hover { border-color: var(--radio); }
+.showtype-btn.active { border-color: var(--radio); background: rgba(255,255,255,0.04); }
+.showtype-icon { font-size: 1.6rem; }
+.showtype-name { font-weight: 700; font-size: 0.9rem; }
+.showtype-desc { font-size: 0.72rem; color: var(--dim); line-height: 1.4; }
+
+@media (max-width: 640px) {
+  .showtype-picker { grid-template-columns: 1fr; }
+}
+
+/* ── Planner: Air Personality / Radio Show Breaks ───────────── */
+.air-break-card {
+  border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 16px; background: var(--surface2);
+}
+.air-break-header {
+  font-size: 0.78rem; font-weight: 700; color: var(--radio);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
+}
+.talkpoint-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.chip {
+  font-family: inherit; font-size: 0.72rem; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
+  padding: 5px 12px; color: var(--dim); transition: border-color 0.15s, color 0.15s;
+}
+.chip:hover { border-color: var(--radio); color: var(--text); }
+.chip-promo { border-color: var(--radio); color: var(--radio); font-weight: 600; }
+
 /* ── Homestead Live ──────────────────────────────────────── */
 .next-broadcast-card { text-align: center; padding: 32px; }
 .next-label {

@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802d';
+const APP_VERSION = '20260802e';
 (function() {
   try {
     const k = 'hm_version';
@@ -1878,8 +1878,8 @@ function renderRadio() {
           </section>
           <section class="card action-card radio-action">
             <div class="action-icon">✍️</div>
-            <h3>Talk Show Planner</h3>
-            <p>Plan your show's theme and on-air breaks — step by step.</p>
+            <h3>Show Planner</h3>
+            <p>Plan your talk show, air personality breaks, or radio show — step by step.</p>
             <button class="btn-primary" id="start-planner">Start Planning →</button>
           </section>
           <section class="card action-card radio-action">
@@ -1902,10 +1902,168 @@ function renderRadio() {
 }
 
 // ── TALK SHOW PLANNER ─────────────────────────────────────────
+const PLANNER_TYPES = {
+  talk:  { label: 'Talk Show',        icon: '🎙️', desc: 'A themed episode with segments, a topic, and talking points.' },
+  air:   { label: 'Air Personality',  icon: '🎧', desc: 'Solo on-air breaks between songs — back-sell, pre-sell, and talk points.' },
+  radio: { label: 'Radio Show',       icon: '🎤', desc: 'Same as Air Personality, but with a co-host.' },
+};
+
+const PLANNER_PROMO_CHIPS = [
+  { label: '📱 Text Line', text: 'Text us at 260-702-9118!' },
+  { label: '🎧 Invite Interaction', text: "Call in, text your song request, or let us know what you think!" },
+];
+
+const PLANNER_TALK_POINT_IDEAS = [
+  'New Releases', "Musicians' Birthdays", 'Trending News', 'Artist Bio Deep-Dive',
+  'Albums Released On This Day', 'Local Headlines', 'AccuWeather', 'This Day in Music',
+  'National Holiday "Day"', 'Homestead Sports Scores/Schedule', 'Throwback Thursday Pick',
+  'New Music Friday Spotlight', 'Listener Poll / This-or-That', 'Concert/Tour Announcement',
+];
+
+function plannerStepLabels(type) {
+  if (type === 'talk') return ['Your Info', 'This Week', 'Break 1', 'Break 2', 'Break 3', 'Review'];
+  if (type === 'air' || type === 'radio') return ['Your Info', 'Your Breaks', 'Review'];
+  return ['Your Info', 'Your Breaks', 'Review'];
+}
+
+function renderPlannerStep0(p) {
+  const type = p.showType;
+  return `
+    <h2>Let's Plan Your Show</h2>
+    <p>What kind of show are you planning?</p>
+    <div class="showtype-picker">
+      ${Object.entries(PLANNER_TYPES).map(([key, t]) => `
+        <button type="button" class="showtype-btn${type === key ? ' active' : ''}" data-showtype="${key}">
+          <div class="showtype-icon">${t.icon}</div>
+          <div class="showtype-name">${t.label}</div>
+          <div class="showtype-desc">${esc(t.desc)}</div>
+        </button>`).join('')}
+    </div>
+    ${type ? `
+      <div class="form-group">
+        <label>Your Name</label>
+        <input id="p-name" type="text" value="${esc(p.studentName || '')}" placeholder="Your name">
+      </div>
+      <div class="form-group">
+        <label>Show Name</label>
+        <input id="p-show" type="text" value="${esc(p.showName || '')}" placeholder="e.g. Morning Vibes, Sports Corner">
+      </div>
+      ${type !== 'talk' ? `
+      <div class="form-group">
+        <label>Station</label>
+        <select id="p-station">
+          <option value="point" ${p.station !== 'two' ? 'selected' : ''}>The Point 91FM</option>
+          <option value="two" ${p.station === 'two' ? 'selected' : ''}>2.0</option>
+        </select>
+      </div>` : ''}
+      ${type === 'radio' ? `
+      <div class="form-group">
+        <label>Co-Host(s)</label>
+        <input id="p-partners" type="text" value="${esc(p.partners || '')}" placeholder="Names separated by commas">
+      </div>
+      <div class="form-group">
+        <label>Co-Host Email(s) <span class="hint">(optional — so they can get a copy too)</span></label>
+        <input id="p-partner-emails" type="text" value="${esc(p.partnerEmails || '')}" placeholder="Emails separated by commas">
+      </div>` : ''}
+      ${type === 'talk' ? `
+      <div class="form-group">
+        <label>Other DJ(s) on your show <span class="hint">(optional)</span></label>
+        <input id="p-partners" type="text" value="${esc(p.partners || '')}" placeholder="Names separated by commas">
+      </div>
+      <div class="form-group">
+        <label>Co-Host Email(s) <span class="hint">(optional — so they can get a copy too)</span></label>
+        <input id="p-partner-emails" type="text" value="${esc(p.partnerEmails || '')}" placeholder="Emails separated by commas">
+      </div>` : ''}
+    ` : ''}`;
+}
+
+function plannerChipsHTML(idx) {
+  return `
+    <div class="talkpoint-chips">
+      ${PLANNER_PROMO_CHIPS.map(c => `<button type="button" class="chip chip-promo" data-chip-target="air-talkpoint-${idx}" data-chip-text="${esc(c.text)}">${c.label}</button>`).join('')}
+      ${PLANNER_TALK_POINT_IDEAS.map(t => `<button type="button" class="chip" data-chip-target="air-talkpoint-${idx}" data-chip-text="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+}
+
+function renderPlannerAirBreaks(p) {
+  const breaks = p.breaks || [];
+  return `
+    <h2>Your Breaks</h2>
+    <div class="break-purpose">Suggested pacing: about 20–30 seconds per break — that's just a guide, not a rule.</div>
+    <div class="break-purpose">📱 Text line: <strong>260-702-9118</strong> · 📻 <strong>91.1 FM</strong> — try to work this into at least one break.</div>
+    ${Array.from({ length: 5 }, (_, i) => {
+      const b = breaks[i] || {};
+      return `
+      <div class="air-break-card">
+        <div class="air-break-header">Break ${i + 1}</div>
+        <div class="form-group">
+          <label>Back-sell <span class="hint">(song that just ended)</span></label>
+          <input id="air-backsell-${i}" type="text" value="${esc(b.backsell || '')}" placeholder="e.g. That was Taylor Swift with Anti-Hero">
+        </div>
+        <div class="form-group">
+          <label>Pre-sell <span class="hint">(song coming up)</span></label>
+          <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
+        </div>
+        <div class="form-group">
+          <label>Talk Point(s)</label>
+          ${plannerChipsHTML(i)}
+          <textarea id="air-talkpoint-${i}" rows="2" placeholder="Tap an idea above or write your own...">${esc(b.talkPoint || '')}</textarea>
+        </div>
+      </div>`;
+    }).join('')}`;
+}
+
+function renderPlannerAirReview(p) {
+  const typeLabel = PLANNER_TYPES[p.showType]?.label || 'Show';
+  const breaks = (p.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint));
+  return `
+    <h2>Review Your Show Plan</h2>
+    <p>Make sure everything looks right before you submit.</p>
+    <div class="review-block">
+      <div class="review-section">
+        <div class="review-label">Type</div>
+        <div class="review-value">${esc(typeLabel)}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">Show</div>
+        <div class="review-value">${esc(p.showName || '—')}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">DJ(s)</div>
+        <div class="review-value">${esc([p.studentName, p.partners].filter(Boolean).join(', ') || '—')}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">Station</div>
+        <div class="review-value">${p.station === 'two' ? '2.0' : 'The Point 91FM'}</div>
+      </div>
+      ${breaks.length ? breaks.map((b, i) => `
+      <div class="review-section">
+        <div class="review-label">Break ${i + 1}</div>
+        <div class="review-value">
+          ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
+          ${b.presell ? `<em>Pre-sell:</em> ${esc(b.presell)}<br>` : ''}
+          ${esc(b.talkPoint || '')}
+        </div>
+      </div>`).join('') : `
+      <div class="review-section">
+        <div class="review-label">Breaks</div>
+        <div class="review-value">—</div>
+      </div>`}
+    </div>
+    <div style="margin-bottom:8px"><strong>Grading Criteria</strong></div>
+    <div class="criteria-grid">
+      <div class="criterion">✦ <strong>Flow</strong> — Back-sell/pre-sell feel natural, not scripted</div>
+      <div class="criterion">✦ <strong>Clarity</strong> — Talk points are easy to follow</div>
+      <div class="criterion">✦ <strong>Promotion</strong> — Mentioned the text line, frequency, or invited interaction at least once</div>
+      <div class="criterion">✦ <strong>Pacing</strong> — Breaks are tight and don't ramble</div>
+    </div>`;
+}
+
 function renderPlanner() {
   const p = S.plannerData || {};
   const step = S.plannerStep;
-  const stepLabels = ['Your Info', 'This Week', 'Break 1', 'Break 2', 'Break 3', 'Review'];
+  const type = p.showType;
+  const stepLabels = plannerStepLabels(type);
   const total = stepLabels.length;
 
   const progress = `
@@ -1919,169 +2077,158 @@ function renderPlanner() {
     </div>`;
 
   let content = '';
-  switch (step) {
-    case 0:
-      content = `
-        <h2>Let's Plan Your Show</h2>
-        <p>Fill in your info to get started.</p>
-        <div class="form-group">
-          <label>Your Name</label>
-          <input id="p-name" type="text" value="${esc(p.studentName || '')}" placeholder="Your name">
-        </div>
-        <div class="form-group">
-          <label>Show Name</label>
-          <input id="p-show" type="text" value="${esc(p.showName || '')}" placeholder="e.g. Morning Vibes, Sports Corner">
-        </div>
-        <div class="form-group">
-          <label>Other DJ(s) on your show <span class="hint">(optional)</span></label>
-          <input id="p-partners" type="text" value="${esc(p.partners || '')}" placeholder="Names separated by commas">
-        </div>
-        <div class="form-group">
-          <label>Co-Host Email(s) <span class="hint">(optional — so they can get a copy too)</span></label>
-          <input id="p-partner-emails" type="text" value="${esc(p.partnerEmails || '')}" placeholder="Emails separated by commas">
-        </div>`;
-      break;
-    case 1:
-      content = `
-        <h2>Part 1 — This Week's Episode Theme</h2>
-        <p>What is this specific episode about? Pick a theme that's timely, interesting, and gives your breaks a direction.</p>
-        <div class="form-group">
-          <label>Episode Theme</label>
-          <input id="p-theme-title" type="text" value="${esc((p.theme || {}).title || '')}" placeholder="e.g. Valentine's Day, Spring Break Plans, March Madness, Senior Week">
-        </div>
-        <div class="form-group">
-          <label>Why this theme? <span class="hint">(2–3 sentences)</span></label>
-          <textarea id="p-theme-desc" rows="4" placeholder="Why did you pick this theme for this week? What's happening right now that makes it relevant to your audience?">${esc((p.theme || {}).description || '')}</textarea>
-        </div>`;
-      break;
-    case 2: {
-      const b = ((p.breaks || [])[0]) || {};
-      content = `
-        <h2>Break 1 — News / Relevant Tie-In</h2>
-        <div class="break-purpose">Purpose: connect your theme to something happening right now in the world or at school.</div>
-        <div class="form-group">
-          <label>Segment Title</label>
-          <input id="b1-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. This Week in School News">
-        </div>
-        <div class="form-group">
-          <label>News or Update <span class="hint">(1–2 sentences)</span></label>
-          <textarea id="b1-news" rows="3" placeholder="What's happening right now that you'll mention?">${esc(b.newsUpdate || '')}</textarea>
-        </div>
-        <div class="form-group">
-          <label>Connection to Your Theme</label>
-          <input id="b1-connection" type="text" value="${esc(b.connection || '')}" placeholder="How does this news tie into your show's theme?">
-        </div>
-        <div class="form-group">
-          <label>Transition Line into Music or Next Segment <span class="hint">(hook them — tease your main topic!)</span></label>
-          <input id="b1-transition" type="text" value="${esc(b.transition || '')}" placeholder="e.g. That's the news — but stick around, because coming up we're getting into [your main topic], and you do NOT want to miss it...">
-        </div>`;
-      break;
-    }
-    case 3: {
-      const b = ((p.breaks || [])[1]) || {};
-      content = `
-        <h2>Break 2 — Fun Activity / Preview</h2>
-        <div class="break-purpose">Purpose: engage your audience and build anticipation for your main topic.</div>
-        <div class="form-group">
-          <label>Segment Title</label>
-          <input id="b2-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. Top 5 List, This or That, Quick Poll">
-        </div>
-        <div class="form-group">
-          <label>Activity or Hook</label>
-          <textarea id="b2-activity" rows="3" placeholder="Describe the game, poll, top 5 list, or teaser you'll use.">${esc(b.activityHook || '')}</textarea>
-        </div>
-        <div class="form-group">
-          <label>How It Connects to Your Theme</label>
-          <input id="b2-connection" type="text" value="${esc(b.connection || '')}" placeholder="Why does this activity fit your show's theme?">
-        </div>
-        <div class="form-group">
-          <label>Closing / Tease into Break 3</label>
-          <input id="b2-tease" type="text" value="${esc(b.tease || '')}" placeholder="e.g. We're about to get into our main topic — but first...">
-        </div>`;
-      break;
-    }
-    case 4: {
-      const b = ((p.breaks || [])[2]) || {};
-      const tp = b.talkingPoints || ['', '', ''];
-      content = `
-        <h2>Break 3 — Main Topic of the Day</h2>
-        <div class="break-purpose">Purpose: deliver the big discussion or feature that ties everything together.</div>
-        <div class="form-group">
-          <label>Segment Title</label>
-          <input id="b3-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. The Big Debate, Our Main Story">
-        </div>
-        <div class="form-group">
-          <label>Main Talking Points</label>
-          <input id="b3-tp1" type="text" value="${esc(tp[0])}" placeholder="Talking point 1" class="mt8" style="margin-bottom:8px">
-          <input id="b3-tp2" type="text" value="${esc(tp[1])}" placeholder="Talking point 2" style="margin-bottom:8px">
-          <input id="b3-tp3" type="text" value="${esc(tp[2])}" placeholder="Talking point 3">
-        </div>
-        <div class="form-group">
-          <label>Format</label>
-          <input id="b3-format" type="text" value="${esc(b.format || '')}" placeholder="e.g. discussion, review, debate, interview">
-        </div>
-        <div class="form-group">
-          <label>Wrap-Up Line / Call to Action</label>
-          <input id="b3-wrapup" type="text" value="${esc(b.wrapUp || '')}" placeholder="e.g. Tune in next week for... or Let us know what you think!">
-        </div>`;
-      break;
-    }
-    case 5: {
-      const b1 = ((p.breaks || [])[0]) || {};
-      const b2 = ((p.breaks || [])[1]) || {};
-      const b3 = ((p.breaks || [])[2]) || {};
-      content = `
-        <h2>Review Your Show Plan</h2>
-        <p>Make sure everything looks right before you submit.</p>
-        <div class="review-block">
-          <div class="review-section">
-            <div class="review-label">Show</div>
-            <div class="review-value">${esc(p.showName || '—')}</div>
+  if (step === 0) {
+    content = renderPlannerStep0(p);
+  } else if (type === 'talk') {
+    switch (step) {
+      case 1:
+        content = `
+          <h2>Part 1 — This Week's Episode Theme</h2>
+          <p>What is this specific episode about? Pick a theme that's timely, interesting, and gives your breaks a direction.</p>
+          <div class="form-group">
+            <label>Episode Theme</label>
+            <input id="p-theme-title" type="text" value="${esc((p.theme || {}).title || '')}" placeholder="e.g. Valentine's Day, Spring Break Plans, March Madness, Senior Week">
           </div>
-          <div class="review-section">
-            <div class="review-label">DJ(s)</div>
-            <div class="review-value">${esc([p.studentName, p.partners].filter(Boolean).join(', ') || '—')}</div>
+          <div class="form-group">
+            <label>Why this theme? <span class="hint">(2–3 sentences)</span></label>
+            <textarea id="p-theme-desc" rows="4" placeholder="Why did you pick this theme for this week? What's happening right now that makes it relevant to your audience?">${esc((p.theme || {}).description || '')}</textarea>
+          </div>`;
+        break;
+      case 2: {
+        const b = ((p.breaks || [])[0]) || {};
+        content = `
+          <h2>Break 1 — News / Relevant Tie-In</h2>
+          <div class="break-purpose">Purpose: connect your theme to something happening right now in the world or at school.</div>
+          <div class="form-group">
+            <label>Segment Title</label>
+            <input id="b1-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. This Week in School News">
           </div>
-          <div class="review-section">
-            <div class="review-label">Episode Theme</div>
-            <div class="review-value"><strong>${esc((p.theme || {}).title || '—')}</strong><br>${esc((p.theme || {}).description || '')}</div>
+          <div class="form-group">
+            <label>News or Update <span class="hint">(1–2 sentences)</span></label>
+            <textarea id="b1-news" rows="3" placeholder="What's happening right now that you'll mention?">${esc(b.newsUpdate || '')}</textarea>
           </div>
-          <div class="review-section">
-            <div class="review-label">Break 1 — ${esc(b1.title || 'News')}</div>
-            <div class="review-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
+          <div class="form-group">
+            <label>Connection to Your Theme</label>
+            <input id="b1-connection" type="text" value="${esc(b.connection || '')}" placeholder="How does this news tie into your show's theme?">
           </div>
-          <div class="review-section">
-            <div class="review-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
-            <div class="review-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
+          <div class="form-group">
+            <label>Transition Line into Music or Next Segment <span class="hint">(hook them — tease your main topic!)</span></label>
+            <input id="b1-transition" type="text" value="${esc(b.transition || '')}" placeholder="e.g. That's the news — but stick around, because coming up we're getting into [your main topic], and you do NOT want to miss it...">
+          </div>`;
+        break;
+      }
+      case 3: {
+        const b = ((p.breaks || [])[1]) || {};
+        content = `
+          <h2>Break 2 — Fun Activity / Preview</h2>
+          <div class="break-purpose">Purpose: engage your audience and build anticipation for your main topic.</div>
+          <div class="form-group">
+            <label>Segment Title</label>
+            <input id="b2-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. Top 5 List, This or That, Quick Poll">
           </div>
-          <div class="review-section">
-            <div class="review-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
-            <div class="review-value">
-              ${(b3.talkingPoints || []).filter(Boolean).map((t, i) => `${i + 1}. ${esc(t)}`).join('<br>') || '—'}
-              <br><em>Format: ${esc(b3.format || '—')}</em>
+          <div class="form-group">
+            <label>Activity or Hook</label>
+            <textarea id="b2-activity" rows="3" placeholder="Describe the game, poll, top 5 list, or teaser you'll use.">${esc(b.activityHook || '')}</textarea>
+          </div>
+          <div class="form-group">
+            <label>How It Connects to Your Theme</label>
+            <input id="b2-connection" type="text" value="${esc(b.connection || '')}" placeholder="Why does this activity fit your show's theme?">
+          </div>
+          <div class="form-group">
+            <label>Closing / Tease into Break 3</label>
+            <input id="b2-tease" type="text" value="${esc(b.tease || '')}" placeholder="e.g. We're about to get into our main topic — but first...">
+          </div>`;
+        break;
+      }
+      case 4: {
+        const b = ((p.breaks || [])[2]) || {};
+        const tp = b.talkingPoints || ['', '', ''];
+        content = `
+          <h2>Break 3 — Main Topic of the Day</h2>
+          <div class="break-purpose">Purpose: deliver the big discussion or feature that ties everything together.</div>
+          <div class="form-group">
+            <label>Segment Title</label>
+            <input id="b3-title" type="text" value="${esc(b.title || '')}" placeholder="e.g. The Big Debate, Our Main Story">
+          </div>
+          <div class="form-group">
+            <label>Main Talking Points</label>
+            <input id="b3-tp1" type="text" value="${esc(tp[0])}" placeholder="Talking point 1" class="mt8" style="margin-bottom:8px">
+            <input id="b3-tp2" type="text" value="${esc(tp[1])}" placeholder="Talking point 2" style="margin-bottom:8px">
+            <input id="b3-tp3" type="text" value="${esc(tp[2])}" placeholder="Talking point 3">
+          </div>
+          <div class="form-group">
+            <label>Format</label>
+            <input id="b3-format" type="text" value="${esc(b.format || '')}" placeholder="e.g. discussion, review, debate, interview">
+          </div>
+          <div class="form-group">
+            <label>Wrap-Up Line / Call to Action</label>
+            <input id="b3-wrapup" type="text" value="${esc(b.wrapUp || '')}" placeholder="e.g. Tune in next week for... or Let us know what you think!">
+          </div>`;
+        break;
+      }
+      case 5: {
+        const b1 = ((p.breaks || [])[0]) || {};
+        const b2 = ((p.breaks || [])[1]) || {};
+        const b3 = ((p.breaks || [])[2]) || {};
+        content = `
+          <h2>Review Your Show Plan</h2>
+          <p>Make sure everything looks right before you submit.</p>
+          <div class="review-block">
+            <div class="review-section">
+              <div class="review-label">Show</div>
+              <div class="review-value">${esc(p.showName || '—')}</div>
+            </div>
+            <div class="review-section">
+              <div class="review-label">DJ(s)</div>
+              <div class="review-value">${esc([p.studentName, p.partners].filter(Boolean).join(', ') || '—')}</div>
+            </div>
+            <div class="review-section">
+              <div class="review-label">Episode Theme</div>
+              <div class="review-value"><strong>${esc((p.theme || {}).title || '—')}</strong><br>${esc((p.theme || {}).description || '')}</div>
+            </div>
+            <div class="review-section">
+              <div class="review-label">Break 1 — ${esc(b1.title || 'News')}</div>
+              <div class="review-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
+            </div>
+            <div class="review-section">
+              <div class="review-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
+              <div class="review-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
+            </div>
+            <div class="review-section">
+              <div class="review-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
+              <div class="review-value">
+                ${(b3.talkingPoints || []).filter(Boolean).map((t, i) => `${i + 1}. ${esc(t)}`).join('<br>') || '—'}
+                <br><em>Format: ${esc(b3.format || '—')}</em>
+              </div>
             </div>
           </div>
-        </div>
-        <div style="margin-bottom:8px"><strong>Grading Criteria</strong></div>
-        <div class="criteria-grid">
-          <div class="criterion">✦ <strong>Creativity</strong> — Original and interesting ideas</div>
-          <div class="criterion">✦ <strong>Relevance</strong> — Fits your audience and talk show style</div>
-          <div class="criterion">✦ <strong>Clarity</strong> — Ideas are easy to understand</div>
-          <div class="criterion">✦ <strong>Consistency</strong> — All breaks connect to your theme</div>
-        </div>`;
-      break;
+          <div style="margin-bottom:8px"><strong>Grading Criteria</strong></div>
+          <div class="criteria-grid">
+            <div class="criterion">✦ <strong>Creativity</strong> — Original and interesting ideas</div>
+            <div class="criterion">✦ <strong>Relevance</strong> — Fits your audience and talk show style</div>
+            <div class="criterion">✦ <strong>Clarity</strong> — Ideas are easy to understand</div>
+            <div class="criterion">✦ <strong>Consistency</strong> — All breaks connect to your theme</div>
+          </div>`;
+        break;
+      }
+    }
+  } else if (type === 'air' || type === 'radio') {
+    switch (step) {
+      case 1: content = renderPlannerAirBreaks(p); break;
+      case 2: content = renderPlannerAirReview(p); break;
     }
   }
 
   const isFirst = step === 0;
   const isLast  = step === total - 1;
+  const headerLabel = type ? `${PLANNER_TYPES[type]?.label || 'Show'} Planner` : 'Show Planner';
 
   return `
     ${navBar('radio')}
     <div class="class-page">
       <div class="planner-header">
         <button class="back-btn" data-nav="radio">← Back to Radio</button>
-        <h1>Talk Show Planner</h1>
+        <h1>${esc(headerLabel)}</h1>
       </div>
       ${progress}
       <div class="planner-card card">
@@ -4661,28 +4808,41 @@ function renderAvailabilityPageLegacy() {
 // ── Planner Logic ─────────────────────────────────────────────
 function savePlannerStep() {
   const p = S.plannerData || {};
-  switch (S.plannerStep) {
-    case 0:
-      p.studentName    = val('p-name');
-      p.showName       = val('p-show');
-      p.partners       = val('p-partners');
-      p.partnerEmails  = val('p-partner-emails');
-      break;
-    case 1:
-      p.theme = { title: val('p-theme-title'), description: val('p-theme-desc') };
-      break;
-    case 2:
-      if (!p.breaks) p.breaks = [{}, {}, {}];
-      p.breaks[0] = { title: val('b1-title'), newsUpdate: val('b1-news'), connection: val('b1-connection'), transition: val('b1-transition') };
-      break;
-    case 3:
-      if (!p.breaks) p.breaks = [{}, {}, {}];
-      p.breaks[1] = { title: val('b2-title'), activityHook: val('b2-activity'), connection: val('b2-connection'), tease: val('b2-tease') };
-      break;
-    case 4:
-      if (!p.breaks) p.breaks = [{}, {}, {}];
-      p.breaks[2] = { title: val('b3-title'), talkingPoints: [val('b3-tp1'), val('b3-tp2'), val('b3-tp3')], format: val('b3-format'), wrapUp: val('b3-wrapup') };
-      break;
+  if (S.plannerStep === 0) {
+    if (!p.showType) { showToast('Pick a show type first.'); return; }
+    p.studentName    = val('p-name');
+    p.showName       = val('p-show');
+    if (p.showType !== 'talk') p.station = val('p-station');
+    if (p.showType === 'radio' || p.showType === 'talk') {
+      p.partners      = val('p-partners');
+      p.partnerEmails = val('p-partner-emails');
+    }
+  } else if (p.showType === 'air' || p.showType === 'radio') {
+    if (S.plannerStep === 1) {
+      p.breaks = Array.from({ length: 5 }, (_, i) => ({
+        backsell:  val(`air-backsell-${i}`),
+        presell:   val(`air-presell-${i}`),
+        talkPoint: val(`air-talkpoint-${i}`),
+      }));
+    }
+  } else {
+    switch (S.plannerStep) {
+      case 1:
+        p.theme = { title: val('p-theme-title'), description: val('p-theme-desc') };
+        break;
+      case 2:
+        if (!p.breaks) p.breaks = [{}, {}, {}];
+        p.breaks[0] = { title: val('b1-title'), newsUpdate: val('b1-news'), connection: val('b1-connection'), transition: val('b1-transition') };
+        break;
+      case 3:
+        if (!p.breaks) p.breaks = [{}, {}, {}];
+        p.breaks[1] = { title: val('b2-title'), activityHook: val('b2-activity'), connection: val('b2-connection'), tease: val('b2-tease') };
+        break;
+      case 4:
+        if (!p.breaks) p.breaks = [{}, {}, {}];
+        p.breaks[2] = { title: val('b3-title'), talkingPoints: [val('b3-tp1'), val('b3-tp2'), val('b3-tp3')], format: val('b3-format'), wrapUp: val('b3-wrapup') };
+        break;
+    }
   }
   S.plannerData = p;
   S.plannerStep++;
@@ -4700,6 +4860,7 @@ async function submitPlan() {
   }
   localStorage.setItem('hm_plan_' + p.studentName, JSON.stringify(submission));
 
+  const typeLabel   = (PLANNER_TYPES[p.showType] || {}).label || 'show';
   const mailtoLink  = buildPlanMailto(p);
   const coHostNote  = (p.partnerEmails || '').trim()
     ? `It'll also be addressed to your co-host${(p.partnerEmails.split(',').filter(Boolean).length > 1) ? 's' : ''} so everyone's on the same page.`
@@ -4709,7 +4870,7 @@ async function submitPlan() {
       <div style="font-size:2.5rem;margin-bottom:12px">✓</div>
       <h2 style="margin-bottom:8px">Plan Submitted!</h2>
       <p style="color:var(--dim);font-size:0.875rem;line-height:1.6;margin-bottom:24px">
-        Your talk show plan for <strong>${esc(p.showName || 'your show')}</strong> has been turned in.
+        Your ${esc(typeLabel)} plan for <strong>${esc(p.showName || 'your show')}</strong> has been turned in.
         ${esc(coHostNote)}
       </p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
@@ -4737,10 +4898,13 @@ async function submitPlan() {
 
 function buildPlanSubject(p) {
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
-  return `Talk Show Plan — ${p.showName || 'My Show'} — ${date}`;
+  const typeLabel = (PLANNER_TYPES[p.showType] || {}).label || 'Talk Show';
+  return `${typeLabel} Plan — ${p.showName || 'My Show'} — ${date}`;
 }
 
 function buildPlanText(p) {
+  if (p.showType === 'air' || p.showType === 'radio') return buildAirPlanText(p);
+
   const b1   = ((p.breaks || [])[0]) || {};
   const b2   = ((p.breaks || [])[1]) || {};
   const b3   = ((p.breaks || [])[2]) || {};
@@ -4774,6 +4938,33 @@ function buildPlanText(p) {
     `Format:   ${b3.format || ''}`,
     `Wrap-up:  ${b3.wrapUp || ''}`,
   ].filter(l => l !== null).join('\n');
+}
+
+function buildAirPlanText(p) {
+  const typeLabel = (PLANNER_TYPES[p.showType] || {}).label || 'Air Personality';
+  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const breaks = p.breaks || [];
+  const lines = [
+    typeLabel.toUpperCase() + ' PLAN',
+    '='.repeat(typeLabel.length + 5),
+    `Student:  ${p.studentName || ''}`,
+    `Show:     ${p.showName || ''}`,
+    p.partners ? `Co-Host:  ${p.partners}` : null,
+    `Station:  ${p.station === 'two' ? '2.0' : 'The Point 91FM'}`,
+    `Date:     ${date}`,
+    '',
+  ].filter(l => l !== null);
+
+  breaks.forEach((b, i) => {
+    if (!b || (!b.backsell && !b.presell && !b.talkPoint)) return;
+    lines.push(`-- BREAK ${i + 1} --`);
+    lines.push(`Back-sell:  ${b.backsell || ''}`);
+    lines.push(`Pre-sell:   ${b.presell || ''}`);
+    lines.push(`Talk Point: ${b.talkPoint || ''}`);
+    lines.push('');
+  });
+
+  return lines.join('\n');
 }
 
 function buildPlanMailto(p) {
@@ -4987,7 +5178,7 @@ async function showSubmissions() {
       ${subs.map(s => `
         <div class="submission-item" data-sub-id="${s.id}">
           <div class="submission-student">${esc(s.studentName || 'Unknown')}</div>
-          <div class="submission-show">${esc(s.showName || '—')}</div>
+          <div class="submission-show">${esc(s.showName || '—')} <span class="hint">(${esc((PLANNER_TYPES[s.showType] || PLANNER_TYPES.talk).label)})</span></div>
           <div class="submission-date">${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : ''}</div>
         </div>`).join('')}
     </div>`, null, false);
@@ -5003,34 +5194,65 @@ async function showSubmissions() {
 
 function showSubmissionDetail(sub, parentModal) {
   if (parentModal) parentModal.remove();
-  const b1 = ((sub.breaks || [])[0]) || {};
-  const b2 = ((sub.breaks || [])[1]) || {};
-  const b3 = ((sub.breaks || [])[2]) || {};
-  const m = modal(`
-    <h2>${esc(sub.studentName)} — ${esc(sub.showName || 'Untitled')}</h2>
-    <button class="btn-secondary" id="submission-download-btn" style="margin-bottom:14px">⬇️ Download</button>
-    <div class="submission-detail">
-      <div class="submission-field">
-        <div class="submission-field-label">Theme</div>
-        <div class="submission-field-value"><strong>${esc((sub.theme || {}).title || '—')}</strong><br>${esc((sub.theme || {}).description || '')}</div>
-      </div>
-      <div class="submission-field">
-        <div class="submission-field-label">Break 1 — ${esc(b1.title || 'News')}</div>
-        <div class="submission-field-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
-      </div>
-      <div class="submission-field">
-        <div class="submission-field-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
-        <div class="submission-field-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
-      </div>
-      <div class="submission-field">
-        <div class="submission-field-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
-        <div class="submission-field-value">
-          ${(b3.talkingPoints || []).filter(Boolean).map((t, i) => `${i + 1}. ${esc(t)}`).join('<br>') || '—'}<br>
-          <em>Format: ${esc(b3.format || '—')}</em>
+  const showType = sub.showType || 'talk';
+  const typeLabel = (PLANNER_TYPES[showType] || PLANNER_TYPES.talk).label;
+
+  let bodyHTML;
+  if (showType === 'air' || showType === 'radio') {
+    const breaks = (sub.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint));
+    bodyHTML = `
+      <div class="submission-detail">
+        <div class="submission-field">
+          <div class="submission-field-label">Station</div>
+          <div class="submission-field-value">${sub.station === 'two' ? '2.0' : 'The Point 91FM'}</div>
         </div>
-      </div>
-    </div>`);
-  m.querySelector('#submission-download-btn')?.addEventListener('click', () => downloadPlanFile(sub));
+        ${breaks.length ? breaks.map((b, i) => `
+        <div class="submission-field">
+          <div class="submission-field-label">Break ${i + 1}</div>
+          <div class="submission-field-value">
+            ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
+            ${b.presell ? `<em>Pre-sell:</em> ${esc(b.presell)}<br>` : ''}
+            ${esc(b.talkPoint || '')}
+          </div>
+        </div>`).join('') : `
+        <div class="submission-field">
+          <div class="submission-field-label">Breaks</div>
+          <div class="submission-field-value">—</div>
+        </div>`}
+      </div>`;
+  } else {
+    const b1 = ((sub.breaks || [])[0]) || {};
+    const b2 = ((sub.breaks || [])[1]) || {};
+    const b3 = ((sub.breaks || [])[2]) || {};
+    bodyHTML = `
+      <div class="submission-detail">
+        <div class="submission-field">
+          <div class="submission-field-label">Theme</div>
+          <div class="submission-field-value"><strong>${esc((sub.theme || {}).title || '—')}</strong><br>${esc((sub.theme || {}).description || '')}</div>
+        </div>
+        <div class="submission-field">
+          <div class="submission-field-label">Break 1 — ${esc(b1.title || 'News')}</div>
+          <div class="submission-field-value">${esc(b1.newsUpdate || '—')}<br><em>Connection: ${esc(b1.connection || '—')}</em></div>
+        </div>
+        <div class="submission-field">
+          <div class="submission-field-label">Break 2 — ${esc(b2.title || 'Activity')}</div>
+          <div class="submission-field-value">${esc(b2.activityHook || '—')}<br><em>Connection: ${esc(b2.connection || '—')}</em></div>
+        </div>
+        <div class="submission-field">
+          <div class="submission-field-label">Break 3 — ${esc(b3.title || 'Main Topic')}</div>
+          <div class="submission-field-value">
+            ${(b3.talkingPoints || []).filter(Boolean).map((t, i) => `${i + 1}. ${esc(t)}`).join('<br>') || '—'}<br>
+            <em>Format: ${esc(b3.format || '—')}</em>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  const m = modal(`
+    <h2>${esc(sub.studentName)} — ${esc(sub.showName || 'Untitled')} <span class="hint">(${esc(typeLabel)})</span></h2>
+    <button class="btn-secondary" id="submission-download-btn" style="margin-bottom:14px">⬇️ Download</button>
+    ${bodyHTML}`);
+  m.querySelector('#submission-download-btn')?.addEventListener('click', () => downloadPlanFile({ ...sub, showType }));
 }
 
 // ── Firebase Usage Tracking ───────────────────────────────────
@@ -5176,6 +5398,21 @@ function attachListeners() {
 
   const pd = document.getElementById('planner-download');
   if (pd) pd.addEventListener('click', () => downloadPlanFile(S.plannerData || {}));
+
+  document.querySelectorAll('.showtype-btn').forEach(btn =>
+    btn.addEventListener('click', () => {
+      S.plannerData = S.plannerData || {};
+      S.plannerData.showType = btn.dataset.showtype;
+      render();
+    }));
+
+  document.querySelectorAll('.chip').forEach(chip =>
+    chip.addEventListener('click', () => {
+      const target = document.getElementById(chip.dataset.chipTarget);
+      if (!target) return;
+      target.value = target.value ? target.value.trim() + ' ' + chip.dataset.chipText : chip.dataset.chipText;
+      target.focus();
+    }));
 
   const ab = document.getElementById('add-broadcast');
   if (ab) ab.addEventListener('click', showAddBroadcastModal);
