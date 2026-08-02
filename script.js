@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802t';
+const APP_VERSION = '20260802u';
 (function() {
   try {
     const k = 'hm_version';
@@ -472,32 +472,35 @@ function normalizeIcebreakerStatements(statements) {
 
 function renderIcebreakerQuiz(e) {
   const statements = normalizeIcebreakerStatements(e.statements);
-  const quiz = S.icebreakerQuiz || { index: 0, revealed: false, done: false };
+  const quiz = S.icebreakerQuiz || { revealed: [], explained: [] };
+  const allExplained = statements.length > 0 && statements.every((_, i) => quiz.explained[i]);
 
-  if (quiz.done || !statements.length) {
-    return `<div class="ib-quiz ib-name-detail">
-      <p class="ib-quiz-done">🎉 That's all three from ${esc(e.name)} — hope you learned something!</p>
-      <button type="button" class="btn-secondary ib-quiz-back">← Back to List</button>
-    </div>`;
-  }
-
-  const idx = Math.min(quiz.index, statements.length - 1);
-  const current = statements[idx];
-  const isLast = idx === statements.length - 1;
-  let answerHtml = '';
-  if (quiz.revealed) {
-    if (current.isLie === true) answerHtml = `<p class="ib-quiz-answer is-lie">❌ THE LIE</p>`;
-    else if (current.isLie === false) answerHtml = `<p class="ib-quiz-answer is-truth">✅ TRUE</p>`;
-    else answerHtml = `<p class="ib-quiz-answer is-unknown">❓ Answer not recorded</p>`;
-  }
+  const rows = statements.map((s, i) => {
+    const revealed = !!quiz.revealed[i];
+    const explained = !!quiz.explained[i];
+    let answerHtml = '';
+    if (revealed) {
+      if (s.isLie === true) answerHtml = `<span class="ib-quiz-answer is-lie">❌ THE LIE</span>`;
+      else if (s.isLie === false) answerHtml = `<span class="ib-quiz-answer is-truth">✅ TRUE</span>`;
+      else answerHtml = `<span class="ib-quiz-answer is-unknown">❓ Answer not recorded</span>`;
+    }
+    return `
+      <div class="ib-quiz-row${explained ? ' is-explained' : ''}">
+        <p class="ib-quiz-progress">Question ${i + 1} of ${statements.length}</p>
+        <p class="ib-quiz-statement">${esc(s.text)}</p>
+        ${answerHtml}
+        <div class="ib-quiz-row-actions">
+          ${!revealed ? `<button type="button" class="btn-primary ib-quiz-reveal" data-idx="${i}">Reveal</button>` : ''}
+          ${revealed && !explained ? `<button type="button" class="btn-secondary ib-quiz-explain" data-idx="${i}">Mark Explained →</button>` : ''}
+          ${explained ? `<span class="ib-quiz-check">✓ Explained</span>` : ''}
+        </div>
+      </div>`;
+  }).join('');
 
   return `<div class="ib-quiz ib-name-detail">
-    <p class="ib-quiz-progress">Question ${idx + 1} of ${statements.length}</p>
-    <p class="ib-quiz-statement">${esc(current.text)}</p>
-    ${answerHtml}
-    ${quiz.revealed
-      ? `<button type="button" class="btn-primary ib-quiz-explain">${isLast ? 'Finish →' : 'Mark Explained →'}</button>`
-      : `<button type="button" class="btn-primary ib-quiz-reveal">Reveal</button>`}
+    ${rows}
+    ${allExplained ? `<p class="ib-quiz-done">🎉 That's all three from ${esc(e.name)} — hope the class learned something!</p>` : ''}
+    <button type="button" class="btn-secondary ib-quiz-back">← Back to List</button>
   </div>`;
 }
 
@@ -1448,37 +1451,40 @@ function renderIcebreaker() {
   const truthsSection = `
       <section class="card" style="margin-bottom:20px">
         <h2>✏️ Add Yourself to the Wall</h2>
-        <p class="cal-section-sub">Write two true statements about yourself and one lie. The wall will shuffle the order so it's not always listed last.</p>
+        <p class="cal-section-sub">Write two true statements about yourself and one lie — the more specific and surprising, the better. Skip generic stuff like "I like pizza"; go for a real story with details (who, where, when) so people have to actually guess. The wall shuffles the order so the lie isn't always listed last.</p>
         <div class="form-group">
           <label>Your Name</label>
           <input id="ib-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="form-group">
           <label>Truth 1</label>
-          <input id="ib-truth1" type="text" placeholder="e.g. I've met a professional athlete">
+          <input id="ib-truth1" type="text" placeholder="e.g. I met Patrick Mahomes at an airport in Dallas">
         </div>
         <div class="form-group">
           <label>Truth 2</label>
-          <input id="ib-truth2" type="text" placeholder="e.g. I've broken a bone">
+          <input id="ib-truth2" type="text" placeholder="e.g. I broke my wrist falling off a trampoline at age 9">
         </div>
         <div class="form-group">
           <label>The Lie</label>
-          <input id="ib-lie" type="text" placeholder="e.g. I can't swim">
+          <input id="ib-lie" type="text" placeholder="e.g. I once swam across a lake to win a $50 bet">
         </div>
         <button class="btn-primary" id="ib-submit">🧊 Add Me to the Wall</button>
         <p id="ib-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
       </section>
 
       <section class="card">
+        ${S.teacherMode ? `
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
           <h2 style="margin:0">🧑‍🤝‍🧑 The Wall (<span id="icebreaker-count">${S.icebreakerEntries.length}</span>)</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="?board=icebreaker&game=truths" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
-            ${S.teacherMode ? `<button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>` : ''}
+            <button class="btn-secondary" id="ib-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>
           </div>
         </div>
-        <p class="cal-section-sub">Find each person and guess which statement is their lie — then have them explain the true ones. Open the board view on the classroom TV so everyone can browse it while they mingle.</p>
-        <div id="icebreaker-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>
+        <p class="cal-section-sub">Click a name to bring up all three statements. Reveal each one, then mark it explained once the class has heard the story. Open the board view on the classroom TV to run this from the front of the room.</p>
+        <div id="icebreaker-wall">${renderIcebreakerWallCards(S.icebreakerEntries)}</div>` : `
+        <h2 style="margin:0 0 4px">🔒 The Wall</h2>
+        <p class="cal-section-sub" style="margin:0">Your teacher will reveal everyone's truths and lies on the board up front — no peeking here.</p>`}
       </section>`;
 
   const qaSection = `
@@ -5964,30 +5970,25 @@ function attachListeners() {
     if (nameBtn) {
       const id = nameBtn.dataset.ibId;
       S.icebreakerOpenId = S.icebreakerOpenId === id ? null : id;
-      S.icebreakerQuiz = { index: 0, revealed: false, done: false };
+      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false] };
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
     }
-    if (e.target.closest('.ib-quiz-reveal')) {
-      S.icebreakerQuiz.revealed = true;
+    const revealBtn = e.target.closest('.ib-quiz-reveal');
+    if (revealBtn) {
+      S.icebreakerQuiz.revealed[parseInt(revealBtn.dataset.idx, 10)] = true;
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
     }
-    if (e.target.closest('.ib-quiz-explain')) {
-      const entry = S.icebreakerEntries.find(x => x.id === S.icebreakerOpenId);
-      const total = entry ? normalizeIcebreakerStatements(entry.statements).length : 3;
-      if (S.icebreakerQuiz.index >= total - 1) {
-        S.icebreakerQuiz.done = true;
-      } else {
-        S.icebreakerQuiz.index += 1;
-        S.icebreakerQuiz.revealed = false;
-      }
+    const explainBtn = e.target.closest('.ib-quiz-explain');
+    if (explainBtn) {
+      S.icebreakerQuiz.explained[parseInt(explainBtn.dataset.idx, 10)] = true;
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
     }
     if (e.target.closest('.ib-quiz-back')) {
       S.icebreakerOpenId = null;
-      S.icebreakerQuiz = { index: 0, revealed: false, done: false };
+      S.icebreakerQuiz = { revealed: [false, false, false], explained: [false, false, false] };
       ibWall.innerHTML = renderIcebreakerWallCards(S.icebreakerEntries);
       return;
     }
