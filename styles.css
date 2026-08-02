@@ -757,6 +757,36 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   .station-grid { grid-template-columns: 1fr; }
 }
 
+/* ── Recently Played (The Point) ────────────────────────── */
+.point-recent-card { margin-top: 16px; padding: 16px; }
+.point-recent-loading { font-size: 0.85rem; color: var(--dim); }
+.point-recent-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.point-recent-header h3 { font-size: 0.95rem; margin: 0; }
+.point-recent-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;
+  box-shadow: 0 0 6px #f59e0b; flex-shrink: 0;
+}
+.point-recent-list { display: flex; flex-direction: column; }
+.point-recent-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-top: 1px solid var(--border);
+}
+.point-recent-item:first-child { border-top: none; }
+.point-recent-art {
+  width: 36px; height: 36px; border-radius: 5px; object-fit: cover;
+  background: #1e1e1e; flex-shrink: 0;
+}
+.point-recent-art-fallback {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 1rem;
+}
+.point-recent-info { flex: 1; min-width: 0; }
+.point-recent-title { font-weight: 600; font-size: 0.85rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.point-recent-artist { font-size: 0.78rem; color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.point-recent-time { font-size: 0.72rem; color: var(--dim); flex-shrink: 0; }
+.point-recent-now { color: #f59e0b; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; }
+.point-recent-item-live .point-recent-title { color: #f59e0b; }
+
 /* ── Action Cards ────────────────────────────────────────── */
 .action-card { text-align: center; }
 .action-icon { font-size: 2rem; margin-bottom: 12px; }

@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802c';
+const APP_VERSION = '20260802d';
 (function() {
   try {
     const k = 'hm_version';
@@ -325,11 +325,13 @@ function loadIcebreakerGame(game) {
 
 function go(view, extra) {
   if (S.view === 'icebreaker' && view !== 'icebreaker') unsubIcebreakerGames();
+  if (S.view === 'radio' && view !== 'radio') stopPointRecentPolling();
   S.view = view;
   if (extra) Object.assign(S, extra);
   if (view === 'icebreaker' && S.icebreakerGame === 'bingo') loadBingoState();
   render();
   window.scrollTo(0, 0);
+  if (view === 'radio') startPointRecentPolling();
   if (view === 'dashboard') { dashboardLoadPlans(); loadYearbookCoverage(); loadShowSchedule(); }
   if (view === 'yearbook')  loadYearbookCoverage();
   if (view === 'beats')   loadBeatAssignments();
@@ -1817,6 +1819,34 @@ function renderStationCard(station) {
     </section>`;
 }
 
+function renderPointRecent() {
+  const songs = S.pointRecentSongs;
+  if (!songs) return `<section class="card point-recent-card"><div class="point-recent-loading">Loading recently played…</div></section>`;
+  if (!songs.length) return '';
+  return `
+    <section class="card point-recent-card">
+      <div class="point-recent-header">
+        <span class="point-recent-dot"></span>
+        <h3>On The Point Right Now</h3>
+      </div>
+      <ul class="point-recent-list">
+        ${songs.map(s => `
+          <li class="point-recent-item${s.live ? ' point-recent-item-live' : ''}">
+            ${s.art
+              ? `<img class="point-recent-art" src="${esc(s.art)}" alt="" loading="lazy" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'point-recent-art point-recent-art-fallback',textContent:'♪'}))">`
+              : `<div class="point-recent-art point-recent-art-fallback">♪</div>`}
+            <div class="point-recent-info">
+              <div class="point-recent-title">${esc(s.title || '')}</div>
+              <div class="point-recent-artist">${esc(s.artist || '')}</div>
+            </div>
+            ${s.live
+              ? `<div class="point-recent-time point-recent-now">Now Playing</div>`
+              : `<div class="point-recent-time">${esc(s.time || '')}</div>`}
+          </li>`).join('')}
+      </ul>
+    </section>`;
+}
+
 function renderRadio() {
   const stationCards = STATIONS.map(renderStationCard).join('');
 
@@ -1836,6 +1866,7 @@ function renderRadio() {
       <div class="page-grid">
         <div class="main-col">
           <div class="station-grid">${stationCards}</div>
+          ${renderPointRecent()}
         </div>
         <div class="side-col">
           <section class="card action-card radio-action">
@@ -3546,6 +3577,81 @@ async function toggleShowDate(dateStr) {
       await db.collection('hm_config').doc('show_schedule').set({ skipped });
     } catch(e) { console.error('show schedule save failed', e); }
   }
+}
+
+// ── Recently Played on The Point ─────────────────────────────
+// Lightweight, standalone — reuses wcyt.org's public BSI feed + curated art
+// overrides directly (no Firebase, no CORS proxy, none of playlist-widget.js's
+// audio/Last.fm/DJ-panel overhead). Only polls while the Radio page is open.
+const POINT_RECENT_URL  = 'https://raw.githubusercontent.com/dunnand/WCYT-NowPlaying/main/point_recent.json';
+const POINT_ART_URL     = '/images/art_overrides.json';
+const POINT_POLL_MS     = 60 * 1000;
+const POINT_BLOCKED     = ['liner', 'legal id', 'btyb', 'sponsor'];
+let pointArtOverrides   = null;
+
+function pointIsBlocked(artist, title) {
+  const s = ((artist || '') + ' ' + (title || '')).toLowerCase();
+  return POINT_BLOCKED.some(term => s.includes(term));
+}
+
+async function loadPointArtOverrides() {
+  if (pointArtOverrides) return pointArtOverrides;
+  try {
+    const res = await fetch(POINT_ART_URL, { cache: 'no-cache' });
+    const data = await res.json();
+    pointArtOverrides = data.overrides || {};
+  } catch { pointArtOverrides = {}; }
+  return pointArtOverrides;
+}
+
+function pointArtFor(artist, title, album) {
+  const overrides = pointArtOverrides || {};
+  const songKey = (artist + '|' + title).toLowerCase();
+  if (overrides[songKey]) return overrides[songKey];
+  if (album) {
+    const m = album.match(/^(.+?)\s*[•·]\s*\d{4}\s*$/);
+    const albumKey = (artist + '|' + (m ? m[1].trim() : album)).toLowerCase();
+    if (overrides[albumKey]) return overrides[albumKey];
+  }
+  return null;
+}
+
+async function loadPointRecentSongs() {
+  try {
+    await loadPointArtOverrides();
+    const res = await fetch(POINT_RECENT_URL + '?t=' + Date.now(), { cache: 'no-store' });
+    const data = await res.json();
+    const now    = data.now || {};
+    const nowKey = ((now.artist || '') + '|' + (now.title || '')).toLowerCase();
+
+    const recent = (data.recent || [])
+      .filter(s => !pointIsBlocked(s.artist, s.title))
+      .filter(s => ((s.artist || '') + '|' + (s.title || '')).toLowerCase() !== nowKey)
+      .slice(0, 5)
+      .map(s => ({
+        artist: s.artist,
+        title:  s.title,
+        time:   s.time,
+        art:    pointArtFor(s.artist, s.title, s.album || ''),
+      }));
+
+    const nowItem = (now.title && !pointIsBlocked(now.artist, now.title))
+      ? { artist: now.artist, title: now.title, live: true, art: pointArtFor(now.artist, now.title, now.album || '') }
+      : null;
+
+    S.pointRecentSongs = nowItem ? [nowItem, ...recent] : recent;
+    if (S.view === 'radio') render();
+  } catch(e) { console.error('recently played load failed', e); }
+}
+
+function startPointRecentPolling() {
+  if (S.pointRecentTimer) return;
+  loadPointRecentSongs();
+  S.pointRecentTimer = setInterval(loadPointRecentSongs, POINT_POLL_MS);
+}
+
+function stopPointRecentPolling() {
+  if (S.pointRecentTimer) { clearInterval(S.pointRecentTimer); S.pointRecentTimer = null; }
 }
 
 async function loadBeatAssignments(force = false) {
