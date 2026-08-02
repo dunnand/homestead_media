@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802m';
+const APP_VERSION = '20260802n';
 (function() {
   try {
     const k = 'hm_version';
@@ -33,7 +33,6 @@ const FIREBASE_CONFIG = {
 
 // ── Bell Ringer ───────────────────────────────────────────────
 const WCYT_STREAM_URL = 'https://securestreams2.autopo.st:1069/WCYT.mp3';
-const BELLRINGER_ERASE_MS = 20 * 60 * 1000; // 20 minutes
 const DEFAULT_BELLRINGER_QUESTIONS = [
   "What TV show have you watched this week?",
   "What movie have you watched most recently?",
@@ -5898,6 +5897,9 @@ function attachListeners() {
   const brManage = document.getElementById('br-manage-questions');
   if (brManage) brManage.addEventListener('click', brQStartEdit);
 
+  const brClear = document.getElementById('br-clear');
+  if (brClear) brClear.addEventListener('click', clearBellRingerWall);
+
   const ibSubmit = document.getElementById('ib-submit');
   if (ibSubmit) ibSubmit.addEventListener('click', submitIcebreaker);
 
@@ -7777,9 +7779,10 @@ function renderBellRingerBanner() {
       <div class="card-header">
         <h2>🔔 Bell Ringer</h2>
         ${S.teacherMode ? `
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
             <a href="?board=bellringer" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
             <button class="btn-secondary" id="br-manage-questions" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
+            <button class="btn-secondary" id="br-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>
           </div>` : ''}
       </div>
       <p class="br-question">${esc(question)}</p>
@@ -7894,23 +7897,22 @@ function loadBellRingerBoard() {
   if (!db) return;
   if (S.bellringerAnswersUnsub) { S.bellringerAnswersUnsub(); S.bellringerAnswersUnsub = null; }
   S.bellringerAnswersUnsub = db.collection('hm_bellringer_answers').onSnapshot(snap => {
-    const cutoff = Date.now() - BELLRINGER_ERASE_MS;
-    const stale = [];
     S.bellringerAnswers = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
-      .filter(e => {
-        if ((e.createdAt || 0) < cutoff) { stale.push(e.id); return false; }
-        return true;
-      })
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-    if (stale.length) {
-      const batch = db.batch();
-      stale.forEach(id => batch.delete(db.collection('hm_bellringer_answers').doc(id)));
-      batch.commit().catch(() => {});
-    }
     const wall = document.getElementById('br-answers-wall');
     if (wall) wall.innerHTML = renderBellRingerAnswers(S.bellringerAnswers);
   }, err => console.error('bellringer snapshot error', err));
+}
+
+async function clearBellRingerWall() {
+  if (!confirm('Clear all bell ringer answers? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_bellringer_answers').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
 }
 
 function renderBellRingerAnswers(entries) {
