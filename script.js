@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802q';
+const APP_VERSION = '20260802r';
 (function() {
   try {
     const k = 'hm_version';
@@ -5899,6 +5899,9 @@ function attachListeners() {
   const brClear = document.getElementById('br-clear');
   if (brClear) brClear.addEventListener('click', clearBellRingerWall);
 
+  const dbBrManage = document.getElementById('db-br-manage');
+  if (dbBrManage) dbBrManage.addEventListener('click', dbManageBellRingerQuestions);
+
   const ibSubmit = document.getElementById('ib-submit');
   if (ibSubmit) ibSubmit.addEventListener('click', submitIcebreaker);
 
@@ -7832,6 +7835,11 @@ async function submitBellRinger() {
 // ── Bell Ringer: teacher question editor ────────────────────────
 let _brQDraft = null;
 
+function dbManageBellRingerQuestions() {
+  S.view = 'home';
+  brQStartEdit();
+}
+
 function brQStartEdit() {
   _brQDraft = (S.bellringerQuestions.length ? S.bellringerQuestions : DEFAULT_BELLRINGER_QUESTIONS).slice();
   render();
@@ -8423,6 +8431,14 @@ function renderDashboard() {
         </div>
         ${readPct >= 80 || writePct >= 80 ? `<p style="margin:10px 0 0;font-size:0.8rem;color:var(--error)">⚠️ Approaching daily limit — consider upgrading to Firebase Blaze plan.</p>` : ''}
       </section>
+
+      ${dbSec('bellringer',
+        `<h2>🔔 Bell Ringer</h2>`,
+        `<a href="?board=bellringer" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+         <button class="btn-secondary" id="db-br-manage" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
+         <button class="btn-secondary" id="br-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>`,
+        `<p class="dim" style="font-size:0.85rem;margin:0">Today's question: <strong style="color:var(--text)">${esc(bellringerQuestion())}</strong></p>`
+      )}
 
       ${(() => {
         const { fridays, startYear } = getSchoolYearFridays();
