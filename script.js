@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zg';
+const APP_VERSION = '20260802zh';
 (function() {
   try {
     const k = 'hm_version';
@@ -300,8 +300,13 @@ const S = {
   matchStateUnsub: null,
   matchTimerStartedAt: null,
   matchTickHandle: null,
-  rapidIndex: 0,
+  rapidStage: 'idle',
+  rapidCurrentName: '',
+  rapidQuestionIndex: null,
+  rapidUsedNames: [],
   rapidStateUnsub: null,
+  rapidSignups: [],
+  rapidSignupsUnsub: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -349,6 +354,7 @@ function unsubIcebreakerGames() {
   if (S.matchStateUnsub)  { S.matchStateUnsub();  S.matchStateUnsub = null; }
   if (S.matchTickHandle)  { clearInterval(S.matchTickHandle); S.matchTickHandle = null; }
   if (S.rapidStateUnsub)  { S.rapidStateUnsub();  S.rapidStateUnsub = null; }
+  if (S.rapidSignupsUnsub) { S.rapidSignupsUnsub(); S.rapidSignupsUnsub = null; }
 }
 
 function loadIcebreakerGame(game) {
@@ -1986,22 +1992,110 @@ function loadRapidGame() {
   if (!db) return;
   if (S.rapidStateUnsub) { S.rapidStateUnsub(); S.rapidStateUnsub = null; }
   S.rapidStateUnsub = db.collection('hm_rapid_state').doc('current').onSnapshot(doc => {
-    const data = doc.exists ? doc.data() : { index: 0 };
-    const idx = Number.isInteger(data.index) ? data.index : 0;
-    S.rapidIndex = Math.max(0, Math.min(idx, RAPID_QUESTIONS.length - 1));
-    document.querySelectorAll('.rapid-question-text').forEach(el => { el.textContent = RAPID_QUESTIONS[S.rapidIndex]; });
-    const posEl = document.getElementById('rapid-position');
-    if (posEl) posEl.textContent = `${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}`;
-    const boardPosEl = document.getElementById('rapid-board-position');
-    if (boardPosEl) boardPosEl.textContent = `${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}`;
+    const data = doc.exists ? doc.data() : {};
+    S.rapidStage = ['idle', 'name', 'question'].includes(data.stage) ? data.stage : 'idle';
+    S.rapidCurrentName = data.currentName || '';
+    S.rapidQuestionIndex = Number.isInteger(data.questionIndex) ? data.questionIndex : null;
+    S.rapidUsedNames = Array.isArray(data.usedNames) ? data.usedNames : [];
+    render();
   }, err => console.error('rapid state snapshot error', err));
+  loadRapidSignups();
 }
 
-async function advanceRapidQuestion(delta) {
+function loadRapidSignups() {
   const db = getDB();
   if (!db) return;
-  const next = Math.max(0, Math.min(S.rapidIndex + delta, RAPID_QUESTIONS.length - 1));
-  await db.collection('hm_rapid_state').doc('current').set({ index: next, updatedAt: Date.now() });
+  if (S.rapidSignupsUnsub) { S.rapidSignupsUnsub(); S.rapidSignupsUnsub = null; }
+  S.rapidSignupsUnsub = db.collection('hm_rapid_signups').onSnapshot(snap => {
+    S.rapidSignups = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+    document.querySelectorAll('.rapid-signup-count').forEach(el => { el.textContent = S.rapidSignups.length; });
+    const list = document.getElementById('rapid-signup-list');
+    if (list) list.innerHTML = renderRapidSignupList();
+  }, err => console.error('rapid signups snapshot error', err));
+}
+
+function renderRapidSignupList() {
+  if (!S.rapidSignups.length) return `<p class="dim" style="font-size:0.85rem">No one's signed up yet.</p>`;
+  return `<div class="bingo-winners">` + S.rapidSignups.map(s =>
+    `<span class="bingo-winner-pill ${S.rapidUsedNames.includes(s.name) ? 'rapid-pill-used' : ''}">${esc(s.name)}</span>`
+  ).join('') + `</div>`;
+}
+
+async function submitRapidSignup() {
+  const nameEl = document.getElementById('rapid-name');
+  const msg    = document.getElementById('rapid-signup-msg');
+  const name = nameEl.value.trim();
+  if (!name) { msg.textContent = 'Enter your name first.'; msg.style.color = 'var(--danger)'; return; }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_rapid_signups').doc(slugifyName(name)).set({ name, createdAt: Date.now() });
+    msg.textContent = "✅ You're signed up! Wait for your name to come up on the board.";
+    msg.style.color = 'var(--success)';
+  } catch (e) {
+    msg.textContent = 'Could not save: ' + e.message;
+    msg.style.color = 'var(--danger)';
+  }
+}
+
+async function pickRapidName() {
+  const db = getDB();
+  if (!db) return;
+  ['rapid-msg', 'rapid-board-msg'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '';
+  });
+  if (!S.rapidSignups.length) {
+    ['rapid-msg', 'rapid-board-msg'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) { el.textContent = 'No one has signed up yet — have students add their names first.'; el.style.color = 'var(--danger)'; }
+    });
+    return;
+  }
+  let remaining = S.rapidSignups.filter(s => !S.rapidUsedNames.includes(s.name));
+  let usedNames = S.rapidUsedNames;
+  if (!remaining.length) { remaining = S.rapidSignups; usedNames = []; }
+  const picked = remaining[Math.floor(Math.random() * remaining.length)];
+  await db.collection('hm_rapid_state').doc('current').set({
+    stage: 'name',
+    currentName: picked.name,
+    questionIndex: null,
+    usedNames: [...usedNames, picked.name],
+    updatedAt: Date.now(),
+  });
+}
+
+async function pickRapidQuestion() {
+  const db = getDB();
+  if (!db) return;
+  const idx = Math.floor(Math.random() * RAPID_QUESTIONS.length);
+  await db.collection('hm_rapid_state').doc('current').set({
+    stage: 'question',
+    currentName: S.rapidCurrentName,
+    questionIndex: idx,
+    usedNames: S.rapidUsedNames,
+    updatedAt: Date.now(),
+  });
+}
+
+async function resetRapidRound() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_rapid_state').doc('current').set({ stage: 'idle', currentName: '', questionIndex: null, usedNames: [], updatedAt: Date.now() });
+}
+
+async function clearRapidSignups() {
+  if (!confirm('Clear the Rapid Fire sign-up list and reset the round? Do this between class periods.')) return;
+  const db = getDB();
+  if (!db) return;
+  const snap = await db.collection('hm_rapid_signups').get();
+  const batch = db.batch();
+  snap.docs.forEach(d => batch.delete(d.ref));
+  await batch.commit();
+  await db.collection('hm_rapid_state').doc('current').set({ stage: 'idle', currentName: '', questionIndex: null, usedNames: [], updatedAt: Date.now() });
 }
 
 const ICEBREAKER_GAMES = [
@@ -2014,7 +2108,7 @@ const ICEBREAKER_GAMES = [
   { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
   { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
   { key: 'match',  icon: '🎴', title: 'Find Your Match',      sub: "Everyone answers the board's question with a partner — then switch and find someone new." },
-  { key: 'rapid',  icon: '⚡', title: 'Rapid Fire Questions', sub: "300 quick, simple questions — go around the room and get an instant answer from each student." },
+  { key: 'rapid',  icon: '⚡', title: 'Rapid Fire Questions', sub: "Sign up, then the board randomly picks a name and a quick question — 300 to choose from." },
 ];
 
 function renderIcebreakerMenu() {
@@ -2327,26 +2421,40 @@ function renderIcebreaker() {
         </div>
       </section>`;
 
+  const rapidActionLabel = S.rapidStage === 'name' ? '❓ Pick a Question' : (S.rapidStage === 'question' ? '🎲 Pick Next Name' : '🎲 Pick a Name');
   const rapidSection = `
-      <section class="card">
+      <section class="card" style="margin-bottom:20px">
         <h2>⚡ Rapid Fire Questions</h2>
-        <p class="cal-section-sub">Quick, simple questions — answer fast, then it's the next person's turn.</p>
+        <p class="cal-section-sub">Sign up below, then wait for your name to come up on the board for a random quick question.</p>
+        <div class="form-group">
+          <label>First and Last Name</label>
+          <input id="rapid-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <button class="btn-primary" id="rapid-signup">🙋 Sign Me Up</button>
+        <p id="rapid-signup-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      </section>
+
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🎤 Who's Up</h2>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            <a href="?board=icebreaker&game=rapid" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            ${S.teacherMode ? `<button class="btn-secondary" id="rapid-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Sign-ups</button>` : ''}
+          </div>
+        </div>
         ${S.teacherMode ? `
-        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap">
-          <button class="btn-secondary" id="rapid-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
-          <span class="dim" id="rapid-position" style="font-size:0.8rem">${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}</span>
-          <button class="btn-secondary" id="rapid-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 14px;flex-wrap:wrap">
+          <button class="btn-primary" id="rapid-action" style="font-size:0.9rem;padding:8px 18px">${rapidActionLabel}</button>
+          <button class="btn-secondary" id="rapid-reset" style="font-size:0.78rem;padding:4px 12px">↺ Reset Round</button>
+          <span class="dim" style="font-size:0.8rem"><span class="rapid-signup-count">${S.rapidSignups.length}</span> signed up</span>
+        </div>` : ''}
+        <div class="rapid-reveal">
+          ${S.rapidStage === 'idle' ? `<p class="dim" style="font-size:0.95rem">Waiting for the teacher to pick who's up first.</p>` : ''}
+          ${S.rapidStage !== 'idle' ? `<p class="rapid-name-text">🎤 ${esc(S.rapidCurrentName)}</p>` : ''}
+          ${S.rapidStage === 'question' ? `<p class="rapid-question-text qa-question-text">${esc(RAPID_QUESTIONS[S.rapidQuestionIndex])}</p>` : ''}
         </div>
-        <a href="?board=icebreaker&game=rapid" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none;display:inline-block;margin-bottom:4px">🖥️ Open Board View</a>` : ''}
-        <p class="rapid-question-text qa-question-text">${esc(RAPID_QUESTIONS[S.rapidIndex])}</p>
-        <div class="match-help-box">
-          <p class="match-help-title">📋 How to play</p>
-          <ol class="match-help-list">
-            <li>Go around the room — one question per student.</li>
-            <li>Answer fast with whatever comes to mind first, no overthinking.</li>
-            <li>Teacher taps Next, question changes, it's the next person's turn.</li>
-          </ol>
-        </div>
+        <p id="rapid-msg" class="dim" style="font-size:0.85rem"></p>
+        <div id="rapid-signup-list" class="rapid-signup-list">${renderRapidSignupList()}</div>
       </section>`;
 
   const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection, match: matchSection, rapid: rapidSection };
@@ -2492,19 +2600,24 @@ function renderIcebreakerBoard() {
       </div>`;
   }
   if (S.icebreakerGame === 'rapid') {
+    const rapidActionLabel = S.rapidStage === 'name' ? '❓ Pick a Question' : (S.rapidStage === 'question' ? '🎲 Pick Next Name' : '🎲 Pick a Name');
     return `
       <div class="ib-board">
         <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
         <div class="ib-board-header">
           <h1>⚡ Rapid Fire Questions</h1>
-          <p>One question, one student, quick answer — then Next for the next person.</p>
+          <p><span class="rapid-signup-count">${S.rapidSignups.length}</span> signed up</p>
         </div>
-        <p class="rapid-question-text ib-board-question">${esc(RAPID_QUESTIONS[S.rapidIndex])}</p>
+        <div class="rapid-board-reveal">
+          ${S.rapidStage === 'idle' ? `<p class="dim" style="font-size:1.3rem">Tap below to pick who's up first.</p>` : ''}
+          ${S.rapidStage !== 'idle' ? `<p class="rapid-name-board">🎤 ${esc(S.rapidCurrentName)}</p>` : ''}
+          ${S.rapidStage === 'question' ? `<p class="rapid-question-text ib-board-question">${esc(RAPID_QUESTIONS[S.rapidQuestionIndex])}</p>` : ''}
+        </div>
         <div class="ib-board-controls">
-          <button class="btn-secondary" id="rapid-board-prev">← Prev</button>
-          <span class="dim" id="rapid-board-position">${S.rapidIndex + 1} / ${RAPID_QUESTIONS.length}</span>
-          <button class="btn-secondary" id="rapid-board-next">Next →</button>
+          <button class="btn-primary" id="rapid-board-action" style="font-size:1.1rem;padding:12px 28px">${rapidActionLabel}</button>
+          <button class="btn-secondary" id="rapid-board-reset">↺ Reset Round</button>
         </div>
+        <p id="rapid-board-msg" class="dim" style="font-size:0.9rem;text-align:center"></p>
       </div>`;
   }
   if (S.icebreakerGame === 'rank') {
@@ -2668,6 +2781,7 @@ function renderRadio() {
         <div>
           <h1>Radio Broadcasting</h1>
           <p>Your show, your voice, your audience.</p>
+          <a class="class-header-lessons-link" data-lesson-course="radio">📚 Go to Lessons</a>
         </div>
       </div>
       <div class="page-grid">
@@ -3414,6 +3528,7 @@ function renderLive() {
         <div>
           <h1>Homestead Live</h1>
           <p>Broadcasting Homestead sports and events live.</p>
+          <a class="class-header-lessons-link" data-lesson-course="live">📚 Go to Lessons</a>
         </div>
       </div>
       <div class="page-grid">
@@ -3815,6 +3930,7 @@ function renderSports() {
         <div>
           <h1>Sports Broadcasting</h1>
           <p>Play-by-play, color commentary, and live crew for Homestead athletics.</p>
+          <a class="class-header-lessons-link" data-lesson-course="sports">📚 Go to Lessons</a>
         </div>
       </div>
       <div class="page-grid">
@@ -3992,6 +4108,7 @@ function renderIntro() {
         <div>
           <h1>Intro to Media</h1>
           <p>First-year orientation to the Homestead Media program.</p>
+          <a class="class-header-lessons-link" data-lesson-course="intro">📚 Go to Lessons</a>
         </div>
       </div>
       <div class="page-grid">
@@ -4078,6 +4195,7 @@ function renderInDepth() {
         <div>
           <h1>HHS In-Depth</h1>
           <p>TV news production — anchoring, reporting, packages, and live shots.</p>
+          <a class="class-header-lessons-link" data-lesson-course="indepth">📚 Go to Lessons</a>
         </div>
       </div>
 
@@ -5120,6 +5238,7 @@ function renderYearbook() {
         <div>
           <h1>Yearbook</h1>
           <p>Documenting the story of Homestead.</p>
+          <a class="class-header-lessons-link" data-lesson-course="yearbook">📚 Go to Lessons</a>
         </div>
       </div>
       <div class="page-grid">
@@ -6825,17 +6944,26 @@ function attachListeners() {
   const matchBoardTimer = document.getElementById('match-board-timer');
   if (matchBoardTimer) matchBoardTimer.addEventListener('click', startMatchTimer);
 
-  const rapidPrev = document.getElementById('rapid-prev');
-  if (rapidPrev) rapidPrev.addEventListener('click', () => advanceRapidQuestion(-1));
+  const rapidSignup = document.getElementById('rapid-signup');
+  if (rapidSignup) rapidSignup.addEventListener('click', submitRapidSignup);
 
-  const rapidNext = document.getElementById('rapid-next');
-  if (rapidNext) rapidNext.addEventListener('click', () => advanceRapidQuestion(1));
+  const rapidNameInput = document.getElementById('rapid-name');
+  if (rapidNameInput) rapidNameInput.addEventListener('keydown', e => { if (e.key === 'Enter') submitRapidSignup(); });
 
-  const rapidBoardPrev = document.getElementById('rapid-board-prev');
-  if (rapidBoardPrev) rapidBoardPrev.addEventListener('click', () => advanceRapidQuestion(-1));
+  const rapidAction = document.getElementById('rapid-action');
+  if (rapidAction) rapidAction.addEventListener('click', () => S.rapidStage === 'name' ? pickRapidQuestion() : pickRapidName());
 
-  const rapidBoardNext = document.getElementById('rapid-board-next');
-  if (rapidBoardNext) rapidBoardNext.addEventListener('click', () => advanceRapidQuestion(1));
+  const rapidReset = document.getElementById('rapid-reset');
+  if (rapidReset) rapidReset.addEventListener('click', resetRapidRound);
+
+  const rapidClear = document.getElementById('rapid-clear');
+  if (rapidClear) rapidClear.addEventListener('click', clearRapidSignups);
+
+  const rapidBoardAction = document.getElementById('rapid-board-action');
+  if (rapidBoardAction) rapidBoardAction.addEventListener('click', () => S.rapidStage === 'name' ? pickRapidQuestion() : pickRapidName());
+
+  const rapidBoardReset = document.getElementById('rapid-board-reset');
+  if (rapidBoardReset) rapidBoardReset.addEventListener('click', resetRapidRound);
 
   document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));

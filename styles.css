@@ -279,6 +279,16 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .radio-header-logos { display: flex; gap: 12px; align-items: center; }
 .class-header h1   { font-size: 1.75rem; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 4px; }
 .class-header p    { color: var(--dim); font-size: 0.9rem; }
+.class-header-lessons-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--accent, #6366f1);
+  cursor: pointer;
+  text-decoration: none;
+}
+.class-header-lessons-link:hover { text-decoration: underline; }
 
 .back-btn {
   background: none; border: none;
@@ -921,6 +931,12 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   font-size: 0.95rem;
   font-weight: 600;
 }
+.rapid-reveal { min-height: 40px; margin: 6px 0 14px; }
+.rapid-name-text { font-size: 1.4rem; font-weight: 800; margin: 0 0 8px; }
+.rapid-signup-list { margin-top: 14px; }
+.rapid-pill-used { opacity: 0.4; text-decoration: line-through; }
+.rapid-board-reveal { text-align: center; margin: 30px 0; }
+.rapid-name-board { font-size: 2.6rem; font-weight: 800; margin: 0 0 16px; }
 
 /* ── Speed Meet ──────────────────────────────────────────────── */
 .speed-question-text { font-size: 1.3rem; font-weight: 700; margin: 14px 0; }
