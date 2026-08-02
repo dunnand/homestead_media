@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802za';
+const APP_VERSION = '20260802zb';
 (function() {
   try {
     const k = 'hm_version';
@@ -290,6 +290,8 @@ const S = {
   rankAnswersUnsub: null,
   matchCurrentIndex: 0,
   matchStateUnsub: null,
+  matchTimerStartedAt: null,
+  matchTickHandle: null,
 };
 
 // ── Timing Helpers ────────────────────────────────────────────
@@ -334,6 +336,7 @@ function unsubIcebreakerGames() {
   if (S.rankStateUnsub)   { S.rankStateUnsub();   S.rankStateUnsub = null; }
   if (S.rankAnswersUnsub) { S.rankAnswersUnsub(); S.rankAnswersUnsub = null; }
   if (S.matchStateUnsub)  { S.matchStateUnsub();  S.matchStateUnsub = null; }
+  if (S.matchTickHandle)  { clearInterval(S.matchTickHandle); S.matchTickHandle = null; }
 }
 
 function loadIcebreakerGame(game) {
@@ -1530,25 +1533,58 @@ const MATCH_QUESTIONS = [
   "What's a fun fact about your name — how you got it, or what it means?",
 ];
 
+const MATCH_TIMER_SECONDS = 90;
+
 function loadMatchGame() {
   const db = getDB();
   if (!db) return;
   if (S.matchStateUnsub) { S.matchStateUnsub(); S.matchStateUnsub = null; }
   S.matchStateUnsub = db.collection('hm_match_state').doc('current').onSnapshot(doc => {
-    const data = doc.exists ? doc.data() : { index: 0 };
+    const data = doc.exists ? doc.data() : { index: 0, timerStartedAt: null };
     const idx = Number.isInteger(data.index) ? data.index : 0;
     S.matchCurrentIndex = Math.max(0, Math.min(idx, MATCH_QUESTIONS.length - 1));
+    S.matchTimerStartedAt = data.timerStartedAt || null;
     document.querySelectorAll('.match-question-text').forEach(el => { el.textContent = MATCH_QUESTIONS[S.matchCurrentIndex]; });
     const posEl = document.getElementById('match-position');
     if (posEl) posEl.textContent = `${S.matchCurrentIndex + 1} / ${MATCH_QUESTIONS.length}`;
+    startMatchTick();
   }, err => console.error('match state snapshot error', err));
+}
+
+function formatMatchTime(secs) {
+  const m = Math.floor(secs / 60);
+  const s = (secs % 60).toString().padStart(2, '0');
+  return `⏱️ ${m}:${s}`;
+}
+
+function startMatchTick() {
+  if (S.matchTickHandle) { clearInterval(S.matchTickHandle); S.matchTickHandle = null; }
+  updateMatchTimerDisplay();
+  S.matchTickHandle = setInterval(updateMatchTimerDisplay, 1000);
+}
+
+function updateMatchTimerDisplay() {
+  const els = document.querySelectorAll('.match-timer');
+  if (!els.length) return;
+  let text = formatMatchTime(MATCH_TIMER_SECONDS);
+  if (S.matchTimerStartedAt) {
+    const remaining = Math.max(0, MATCH_TIMER_SECONDS - Math.floor((Date.now() - S.matchTimerStartedAt) / 1000));
+    text = remaining > 0 ? formatMatchTime(remaining) : '⏰ Time! Switch partners';
+  }
+  els.forEach(el => { el.textContent = text; });
 }
 
 async function advanceMatchQuestion(delta) {
   const db = getDB();
   if (!db) return;
   const next = Math.max(0, Math.min(S.matchCurrentIndex + delta, MATCH_QUESTIONS.length - 1));
-  await db.collection('hm_match_state').doc('current').set({ index: next, updatedAt: Date.now() });
+  await db.collection('hm_match_state').doc('current').set({ index: next, timerStartedAt: null, updatedAt: Date.now() });
+}
+
+async function startMatchTimer() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_match_state').doc('current').set({ index: S.matchCurrentIndex, timerStartedAt: Date.now(), updatedAt: Date.now() });
 }
 
 const ICEBREAKER_GAMES = [
@@ -1837,11 +1873,13 @@ function renderIcebreaker() {
       <section class="card">
         <h2>🎴 Find Your Match</h2>
         <p class="match-question-text qa-question-text">${esc(MATCH_QUESTIONS[S.matchCurrentIndex])}</p>
+        <div class="speed-timer-display"><span class="match-timer speed-timer">${formatMatchTime(MATCH_TIMER_SECONDS)}</span></div>
         ${S.teacherMode ? `
-        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap">
           <button class="btn-secondary" id="match-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
           <span class="dim" id="match-position" style="font-size:0.8rem">${S.matchCurrentIndex + 1} / ${MATCH_QUESTIONS.length}</span>
           <button class="btn-secondary" id="match-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+          <button class="btn-primary" id="match-start-timer" style="font-size:0.78rem;padding:4px 12px">▶️ Start 1:30 Timer</button>
         </div>
         <a href="?board=icebreaker&game=match" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none;display:inline-block;margin-bottom:4px">🖥️ Open Board View</a>` : ''}
         <div class="match-help-box">
@@ -1967,6 +2005,11 @@ function renderIcebreakerBoard() {
           <p>Find a partner, both answer the question below, then switch partners when it changes.</p>
         </div>
         <p class="match-question-text ib-board-question">${esc(MATCH_QUESTIONS[S.matchCurrentIndex])}</p>
+        <div class="speed-timer-display speed-board-timer"><span class="match-timer speed-timer">${formatMatchTime(MATCH_TIMER_SECONDS)}</span></div>
+        <div class="ib-board-controls">
+          <button class="btn-primary" id="match-board-timer" style="font-size:1rem;padding:10px 20px">▶️ Start 1:30 Timer</button>
+          <button class="btn-secondary" id="match-board-next" style="font-size:1rem;padding:10px 20px">Next Question →</button>
+        </div>
       </div>`;
   }
   if (S.icebreakerGame === 'rank') {
@@ -6214,6 +6257,15 @@ function attachListeners() {
 
   const matchNext = document.getElementById('match-next');
   if (matchNext) matchNext.addEventListener('click', () => advanceMatchQuestion(1));
+
+  const matchStartTimer = document.getElementById('match-start-timer');
+  if (matchStartTimer) matchStartTimer.addEventListener('click', startMatchTimer);
+
+  const matchBoardNext = document.getElementById('match-board-next');
+  if (matchBoardNext) matchBoardNext.addEventListener('click', () => advanceMatchQuestion(1));
+
+  const matchBoardTimer = document.getElementById('match-board-timer');
+  if (matchBoardTimer) matchBoardTimer.addEventListener('click', startMatchTimer);
 
   document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));

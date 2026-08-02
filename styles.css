@@ -817,6 +817,15 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .speed-board-timer .speed-timer { font-size: 5rem; padding: 20px 60px; }
 
+.ib-board-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
 /* ── Common Ground ───────────────────────────────────────────── */
 .common-options { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
 .common-option-btn {
