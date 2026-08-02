@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802r';
+const APP_VERSION = '20260802s';
 (function() {
   try {
     const k = 'hm_version';
@@ -4141,13 +4141,13 @@ async function beatToggleMet(beatId, key, checked) {
 async function loadBeatOverrides() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('beats', async () => {
     const snap = await db.collection('hm_beat_info').get();
     trackUsage('reads', snap.size || 1);
     const map = {};
     snap.forEach(doc => { map[parseInt(doc.id)] = doc.data(); });
-    S.beatOverrides = map;
-  } catch(e) {}
+    return map;
+  }, map => { S.beatOverrides = map; });
 }
 
 function getBeat(id) {
@@ -4637,22 +4637,16 @@ function roleLabel(role) {
 }
 
 async function loadYearbookCoverage() {
-  // Show cached data instantly, then refresh from Firestore in background
-  try {
-    const cached = JSON.parse(localStorage.getItem('hm_yb_coverage') || 'null');
-    if (cached) { S.yearbookCoverage = cached; render(); }
-  } catch(e) {}
-
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('yb_coverage', async () => {
     const snap = await db.collection('hm_yearbook_coverage').orderBy('submittedAt', 'desc').get();
     trackUsage('reads', snap.size);
-    const fresh = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    S.yearbookCoverage = fresh;
-    localStorage.setItem('hm_yb_coverage', JSON.stringify(fresh));
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }, list => {
+    S.yearbookCoverage = list;
     if (S.view === 'yearbook' || S.view === 'dashboard') render();
-  } catch(e) { console.error('yearbook coverage load failed', e); }
+  });
 }
 
 function inferYbType(title) {
@@ -4839,11 +4833,11 @@ async function loadCalendarBroadcastEvents() {
 async function loadCustomYbEvents() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('yb_events', async () => {
     const snap = await db.collection('hm_yearbook_events').orderBy('date').get();
     trackUsage('reads', snap.size);
-    S.customYbEvents = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  } catch(e) {}
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }, list => { S.customYbEvents = list; });
 }
 
 async function saveYbEvent() {
@@ -5705,6 +5699,43 @@ function trackUsage(type, n = 1) {
   const u = getUsage();
   u[type] = (u[type] || 0) + n;
   try { localStorage.setItem('hm_usage', JSON.stringify(u)); } catch(e) {}
+  // Any write from this browser invalidates its read cache so the writer
+  // always sees their own change on next load. Other browsers refresh
+  // within the cache TTL.
+  if (type === 'writes') cacheClearAll();
+}
+
+// ── Read cache ────────────────────────────────────────────────
+// Firestore's free-tier read quota is shared by every visitor, so each
+// page load re-fetching every collection adds up fast with a full class.
+// Loads go through cachedLoad: fresh cache (< TTL) skips Firestore
+// entirely; a failed fetch (offline OR quota exhausted) falls back to
+// the stale cache so the site degrades to slightly-old data instead of
+// rendering empty.
+const HM_CACHE_TTL = 10 * 60 * 1000;
+function cacheGet(key) {
+  try { return JSON.parse(localStorage.getItem('hm_cache_' + key) || 'null'); } catch(e) { return null; }
+}
+function cacheSet(key, data) {
+  try { localStorage.setItem('hm_cache_' + key, JSON.stringify({ t: Date.now(), data })); } catch(e) {}
+}
+function cacheClearAll() {
+  try {
+    Object.keys(localStorage).filter(k => k.startsWith('hm_cache_')).forEach(k => localStorage.removeItem(k));
+  } catch(e) {}
+}
+async function cachedLoad(key, fetcher, apply) {
+  const c = cacheGet(key);
+  if (c && Date.now() - c.t < HM_CACHE_TTL) { apply(c.data); return true; }
+  try {
+    const data = await fetcher();
+    cacheSet(key, data);
+    apply(data);
+    return true;
+  } catch(e) {
+    if (c) { apply(c.data); return true; }
+    return false;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────
@@ -5800,7 +5831,9 @@ function attachListeners() {
   if (teacherPinSubmit) teacherPinSubmit.addEventListener('click', () => {
     const pin = teacherPinInput?.value || '';
     if (pin === TEACHER_PIN) {
-      S.teacherMode = true; S.showTeacherPin = false; render();
+      S.teacherMode = true; S.showTeacherPin = false;
+      cacheClearAll();   // teacher always starts from fresh data
+      render();
     } else {
       teacherPinInput.value = '';
       teacherPinInput.placeholder = 'Incorrect PIN — try again';
@@ -7142,7 +7175,7 @@ function renderLessonPage() {
 async function loadFromFirebase() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('core', async () => {
     const [schedSnap, bcastSnap, iasbSnap, availSnap] = await Promise.all([
       db.collection('hm_radio').doc('station_schedule').get(),
       db.collection('hm_broadcasts').get(),
@@ -7150,10 +7183,11 @@ async function loadFromFirebase() {
       db.collection('hm_availability').get()
     ]);
     trackUsage('reads', 1 + bcastSnap.size + iasbSnap.size + availSnap.size);
+    let stationSchedule = null;
     if (schedSnap.exists) {
       const data = schedSnap.data() || {};
       const blank = () => DAYS.map(() => ({ show: '', djs: [] }));
-      S.stationSchedule = {
+      stationSchedule = {
         point: data.point || blank(),
         two:   data.two   || blank(),
       };
@@ -7187,12 +7221,13 @@ async function loadFromFirebase() {
       }));
     }
 
+    let finalBroadcasts;
     if (broadcasts.length === 0 && ALL_SEED_GAMES.length) {
       trackUsage('writes', ALL_SEED_GAMES.length);
       await Promise.all(ALL_SEED_GAMES.map(g =>
         db.collection('hm_broadcasts').doc(g.id).set(g).catch(() => {})
       ));
-      S.broadcasts = ALL_SEED_GAMES.map(g => ({ ...g }));
+      finalBroadcasts = ALL_SEED_GAMES.map(g => ({ ...g }));
     } else {
       const existingIds = new Set(broadcasts.map(b => b.id));
       const missing = ALL_SEED_GAMES.filter(g => !existingIds.has(g.id));
@@ -7201,18 +7236,22 @@ async function loadFromFirebase() {
         await Promise.all(missing.map(g =>
           db.collection('hm_broadcasts').doc(g.id).set(g).catch(() => {})
         ));
-        S.broadcasts = [...broadcasts, ...missing];
+        finalBroadcasts = [...broadcasts, ...missing];
       } else {
-        S.broadcasts = broadcasts;
+        finalBroadcasts = broadcasts;
       }
     }
     const iasbEntries = [];
     iasbSnap.forEach(doc => iasbEntries.push({ id: doc.id, ...doc.data() }));
-    S.iasbEntries = iasbEntries;
     const availabilities = [];
     availSnap.forEach(doc => availabilities.push({ id: doc.id, ...doc.data() }));
-    S.availabilities = availabilities;
-  } catch(e) {}
+    return { stationSchedule, broadcasts: finalBroadcasts, iasbEntries, availabilities };
+  }, data => {
+    if (data.stationSchedule) S.stationSchedule = data.stationSchedule;
+    S.broadcasts     = data.broadcasts     || [];
+    S.iasbEntries    = data.iasbEntries    || [];
+    S.availabilities = data.availabilities || [];
+  });
 }
 
 // Every event on the Homestead Live Event Calendar is teacher-curated and broadcast-worthy by definition,
@@ -7246,48 +7285,48 @@ function canvaEmbedUrl(url) {
 async function loadCanvaLessons() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('canva', async () => {
     const snap = await db.collection('hm_canva_lessons').get();
     trackUsage('reads', snap.size || 1);
     const map = {};
     snap.forEach(doc => { map[doc.id] = doc.data(); });
-    S.canvaLessons = map;
-  } catch(e) {}
+    return map;
+  }, map => { S.canvaLessons = map; });
 }
 
 async function loadIntroClassInfo() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('intro', async () => {
     const snap = await db.collection('hm_intro_classes').get();
     trackUsage('reads', snap.size || 1);
     const map = {};
     snap.forEach(doc => { map[doc.id] = doc.data(); });
-    S.introClassInfo = map;
-  } catch(e) {}
+    return map;
+  }, map => { S.introClassInfo = map; });
 }
 
 async function loadHiddenLessons() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('hidden', async () => {
     const snap = await db.collection('hm_hidden_lessons').get();
     trackUsage('reads', snap.size || 1);
-    S.hiddenLessons = new Set(snap.docs.map(d => d.id));
-  } catch(e) {}
+    return snap.docs.map(d => d.id);
+  }, ids => { S.hiddenLessons = new Set(ids); });
 }
 
 // Teacher text edits for built-in lessons — overrides shadow data.js LESSONS
 async function loadLessonEdits() {
   const db = getDB();
   if (!db) return;
-  try {
+  await cachedLoad('lesson_edits', async () => {
     const snap = await db.collection('hm_lesson_edits').get();
     trackUsage('reads', snap.size || 1);
     const map = {};
     snap.forEach(doc => { map[doc.id] = doc.data(); });
-    S.lessonEdits = map;
-  } catch(e) {}
+    return map;
+  }, map => { S.lessonEdits = map; });
 }
 
 // Apply stored overrides (title/summary/duration + per-section text) to a lesson
@@ -7309,24 +7348,28 @@ let _qlDraft = null;
 
 async function loadQuickLinks() {
   const db = getDB();
-  if (!db) return;
-  try {
+  if (!db) {
+    QL_VIEWS.forEach(v => { S.quickLinks[v] = v === 'live' ? LIVE_QUICK_LINKS : []; });
+    return;
+  }
+  const ok = await cachedLoad('quick_links', async () => {
     const snaps = await Promise.all(QL_VIEWS.map(v => db.collection('hm_quick_links').doc(v).get()));
     trackUsage('reads', QL_VIEWS.length);
+    const map = {};
     QL_VIEWS.forEach((v, i) => {
       if (snaps[i].exists) {
-        S.quickLinks[v] = snaps[i].data().sections || [];
+        map[v] = snaps[i].data().sections || [];
       } else if (v === 'live') {
-        S.quickLinks[v] = LIVE_QUICK_LINKS;
+        map[v] = LIVE_QUICK_LINKS;
         db.collection('hm_quick_links').doc('live').set({ sections: LIVE_QUICK_LINKS });
         trackUsage('writes', 1);
       } else {
-        S.quickLinks[v] = [];
+        map[v] = [];
       }
     });
-  } catch(e) {
-    QL_VIEWS.forEach(v => { S.quickLinks[v] = v === 'live' ? LIVE_QUICK_LINKS : []; });
-  }
+    return map;
+  }, map => { QL_VIEWS.forEach(v => { S.quickLinks[v] = map[v] || []; }); });
+  if (!ok) QL_VIEWS.forEach(v => { S.quickLinks[v] = v === 'live' ? LIVE_QUICK_LINKS : []; });
 }
 
 function qlSyncFromDom() {
@@ -7755,17 +7798,15 @@ function bellringerQuestion() {
 async function loadBellRingerQuestions() {
   const db = getDB();
   if (!db) { S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS; return; }
-  try {
+  const ok = await cachedLoad('br_questions', async () => {
     const doc = await db.collection('hm_bellringer_questions').doc('list').get();
     trackUsage('reads', 1);
-    if (doc.exists && (doc.data().questions || []).length) {
-      S.bellringerQuestions = doc.data().questions;
-    } else {
-      S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS;
-      db.collection('hm_bellringer_questions').doc('list').set({ questions: DEFAULT_BELLRINGER_QUESTIONS });
-      trackUsage('writes', 1);
-    }
-  } catch(e) { S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS; }
+    if (doc.exists && (doc.data().questions || []).length) return doc.data().questions;
+    db.collection('hm_bellringer_questions').doc('list').set({ questions: DEFAULT_BELLRINGER_QUESTIONS });
+    trackUsage('writes', 1);
+    return DEFAULT_BELLRINGER_QUESTIONS;
+  }, questions => { S.bellringerQuestions = questions; });
+  if (!ok) S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS;
 }
 
 function renderBellRingerBanner() {

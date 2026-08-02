@@ -468,6 +468,14 @@ trackUsage('reads', snap.size);
 snap.docs.forEach(doc => { /* doc.id, doc.data() */ });
 ```
 
+### Read cache (`cachedLoad`)
+Every-page-load collection reads go through `cachedLoad(key, fetcher, apply)` in script.js:
+- Fresh `localStorage` cache (`hm_cache_<key>`, 10-min TTL) → skips Firestore entirely.
+- Fetch succeeds → result cached, `apply(data)` sets `S.*`.
+- Fetch fails (offline **or daily quota exhausted**) → falls back to the stale cache, so the site degrades to slightly-old data instead of rendering empty. Returns `false` only if there's no cache at all.
+- Any `trackUsage('writes')` clears all `hm_cache_*` keys, so a writer always re-fetches fresh data on their next load. Unlocking teacher mode also clears the cache.
+Wrapped loaders: `loadFromFirebase` (`core`), `loadCanvaLessons`, `loadIntroClassInfo`, `loadHiddenLessons`, `loadLessonEdits`, `loadQuickLinks`, `loadBeatOverrides`, `loadCustomYbEvents`, `loadYearbookCoverage`, `loadBellRingerQuestions`. Live `onSnapshot` boards (icebreaker games, bell ringer board) are intentionally not cached.
+
 ### Creating a modal
 ```javascript
 const m = modal(`<h2>Title</h2><div class="form-group"><label>X</label><input id="my-input"></div>`, 'Delete', true);
