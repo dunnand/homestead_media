@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zh';
+const APP_VERSION = '20260802zi';
 (function() {
   try {
     const k = 'hm_version';
@@ -218,6 +218,7 @@ const S = {
   lessonSlide: 0,
   canvaLessons: {},
   showCanvaForm: false,
+  lessonOrder: {},
   hiddenLessons: new Set(),
   lessonEdits: {},
   lessonEditOpen: false,
@@ -3535,21 +3536,22 @@ function renderLive() {
         <div class="main-col">
           ${countdownBlock}
           ${(() => {
-            const liveCourse = LESSONS.live;
-            const fromData = (liveCourse?.units || []).flatMap(u => u.lessons.map(l => ({ ...l, unitTitle: u.title, unitId: u.id, isCustom: false }))).filter(l => !S.hiddenLessons.has(l.id));
-            const fromCanva = Object.entries(S.canvaLessons)
-              .filter(([,d]) => d.isCustom && d.course === 'live')
-              .map(([id, d]) => ({ id, title: d.title, duration: d.duration || '', summary: d.summary || '', unitId: d.unit || 'u1', unitTitle: 'Canva Lesson', isCustom: true }));
-            const allLessons = [...fromData, ...fromCanva];
-            const renderLessonCard = l => `
-              <div class="lesson-item" data-lesson-course="live" data-lesson-unit="${l.unitId}" data-lesson-id="${l.id}">
-                <div class="lesson-item-icon">${S.canvaLessons[l.id]?.url ? '🎨' : (LESSON_ICONS[l.id] || '🎬')}</div>
+            const allLessons = getCourseLessonList('live').filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
+            const renderLessonCard = (l, idx) => `
+              <div class="lesson-item${S.hiddenLessons.has(l.id) ? ' lesson-item-off' : ''}" data-lesson-course="live" data-lesson-unit="${l.unitId}" data-lesson-id="${l.id}">
+                ${S.teacherMode ? `
+                <div class="lesson-move-btns">
+                  <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
+                  <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="down" ${idx === allLessons.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+                </div>` : ''}
+                <div class="lesson-item-icon">${l.isCustom ? '🎨' : (LESSON_ICONS[l.id] || '🎬')}</div>
                 <div class="lesson-item-body">
                   <div class="lesson-item-num">${esc(l.unitTitle)}</div>
                   <div class="lesson-item-title">${esc(l.title)}</div>
                   <div class="lesson-item-summary">${esc(l.summary || '')}</div>
                 </div>
                 <div class="lesson-item-right">
+                  ${S.hiddenLessons.has(l.id) ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
                   <span class="lesson-duration-chip">${esc(l.duration || '')}</span>
                   ${S.teacherMode
                     ? `<button class="lesson-delete-btn" data-delete-lesson="${l.id}" data-delete-type="${l.isCustom ? 'canva' : 'builtin'}" title="${l.isCustom ? 'Delete' : 'Hide'} lesson">✕</button>`
@@ -7475,6 +7477,15 @@ function attachListeners() {
     });
   });
 
+  // ── Lesson reorder (teacher move up/down) ─────────────────────
+  document.querySelectorAll('[data-move-lesson]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (btn.disabled) return;
+      moveLessonItem(btn.dataset.moveCourse, btn.dataset.moveLesson, btn.dataset.moveDir);
+    });
+  });
+
   // ── Lesson visibility toggle (teacher checkmarks) ────────────
   document.querySelectorAll('[data-toggle-lesson]').forEach(btn => {
     btn.addEventListener('click', async e => {
@@ -7629,79 +7640,41 @@ function renderLessonsHub() {
 function renderLessonCourse() {
   const course = LESSONS[S.lessonCourse];
   if (!course) return renderLessonsHub();
+  const courseKey = S.lessonCourse;
 
-  const units = course.units.map((unit, ui) => {
-    const items = unit.lessons.filter(l => S.teacherMode || !S.hiddenLessons.has(l.id)).map((rawL, li) => {
-      const l = mergedLesson(rawL);
-      const icon = LESSON_ICONS[l.id] || course.icon;
-      const hasCanva = !!S.canvaLessons[l.id]?.url;
-      const isHidden = S.hiddenLessons.has(l.id);
-      return `
-        <div class="lesson-item${isHidden ? ' lesson-item-off' : ''}"
-             data-lesson-course="${S.lessonCourse}"
-             data-lesson-unit="${unit.id}"
-             data-lesson-id="${l.id}">
-          <div class="lesson-item-icon">${hasCanva ? '🎨' : icon}</div>
-          <div class="lesson-item-body">
-            <div class="lesson-item-num">Lesson ${ui * 10 + li + 1}</div>
-            <div class="lesson-item-title">${l.title}</div>
-            <div class="lesson-item-summary">${l.summary}</div>
-          </div>
-          <div class="lesson-item-right">
-            ${isHidden ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
-            <span class="lesson-duration-chip">${l.duration}</span>
-            ${S.teacherMode
-              ? `<button class="lesson-toggle${isHidden ? '' : ' on'}" data-toggle-lesson="${l.id}"
-                   title="${isHidden ? 'Hidden from students — click to show' : 'Visible to students — click to hide'}">${isHidden ? '' : '✓'}</button>`
-              : `<span class="lesson-item-arrow">→</span>`}
-          </div>
-        </div>`;
-    }).join('');
+  const fullList = getCourseLessonList(courseKey);
+  const list = fullList.filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
+  const items = list.map((l, idx) => {
+    const icon = l.isCustom ? '🎨' : (LESSON_ICONS[l.id] || course.icon);
+    const isHidden = S.hiddenLessons.has(l.id);
     return `
-      <div class="lesson-unit-block">
-        <div class="lesson-unit-header" style="border-left:4px solid ${course.color};color:${course.color}">
-          ${unit.title}
-        </div>
-        <div class="lesson-items-list">${items}</div>
-      </div>`;
-  }).join('');
-
-  // Custom Canva lessons for this course
-  const customCanvaItems = Object.entries(S.canvaLessons)
-    .filter(([,d]) => d.isCustom && d.course === S.lessonCourse)
-    .map(([id, d]) => `
-      <div class="lesson-item" data-lesson-course="${S.lessonCourse}" data-lesson-unit="${d.unit || 'u1'}" data-lesson-id="${id}">
-        <div class="lesson-item-icon">🎨</div>
+      <div class="lesson-item${isHidden ? ' lesson-item-off' : ''}"
+           data-lesson-course="${courseKey}"
+           data-lesson-unit="${l.unitId}"
+           data-lesson-id="${l.id}">
+        ${S.teacherMode ? `
+        <div class="lesson-move-btns">
+          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
+          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="down" ${idx === list.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+        </div>` : ''}
+        <div class="lesson-item-icon">${icon}</div>
         <div class="lesson-item-body">
-          <div class="lesson-item-num">Canva Lesson</div>
-          <div class="lesson-item-title">${esc(d.title || 'Untitled')}</div>
-          <div class="lesson-item-summary">${esc(d.summary || '')}</div>
+          <div class="lesson-item-num">${esc(l.unitTitle)}</div>
+          <div class="lesson-item-title">${esc(l.title)}</div>
+          <div class="lesson-item-summary">${esc(l.summary || '')}</div>
         </div>
         <div class="lesson-item-right">
-          <span class="lesson-duration-chip">${esc(d.duration || '')}</span>
+          ${isHidden ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
+          <span class="lesson-duration-chip">${esc(l.duration || '')}</span>
           ${S.teacherMode
-            ? `<button class="lesson-delete-btn" data-delete-lesson="${id}" data-delete-type="canva" title="Delete lesson">✕</button>`
+            ? (l.isCustom
+                ? `<button class="lesson-delete-btn" data-delete-lesson="${l.id}" data-delete-type="canva" title="Delete lesson">✕</button>`
+                : `<button class="lesson-toggle${isHidden ? '' : ' on'}" data-toggle-lesson="${l.id}"
+                     title="${isHidden ? 'Hidden from students — click to show' : 'Visible to students — click to hide'}">${isHidden ? '' : '✓'}</button>`)
             : `<span class="lesson-item-arrow">→</span>`}
         </div>
-      </div>`).join('');
-
-  const canvaSection = customCanvaItems || S.teacherMode ? `
-    <div class="lesson-unit-block">
-      <div class="lesson-unit-header" style="border-left:4px solid ${course.color};color:${course.color}">Canva Lessons</div>
-      <div class="lesson-items-list">${customCanvaItems}</div>
-      ${S.teacherMode ? (S.showCanvaForm ? `
-        <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:10px">
-          <input id="canva-title" class="form-input" placeholder="Lesson title" style="font-size:0.9rem">
-          <input id="canva-duration" class="form-input" placeholder="Duration (e.g. 2 classes)" style="font-size:0.9rem">
-          <input id="canva-url" class="form-input" placeholder="Canva share link (canva.com/design/...)" style="font-size:0.9rem">
-          <div style="display:flex;gap:8px">
-            <button class="btn-primary" id="canva-save-btn" style="font-size:0.85rem">Add Lesson</button>
-            <button class="btn-secondary" id="canva-cancel-btn" style="font-size:0.85rem">Cancel</button>
-          </div>
-        </div>` : `
-        <button class="btn-secondary" id="canva-add-btn" style="margin-top:10px;font-size:0.82rem;width:100%">+ Add Canva Lesson</button>`)
-      : ''}
-    </div>` : '';
+      </div>`;
+  }).join('');
 
   return `
     ${navBar('lessons')}
@@ -7711,10 +7684,26 @@ function renderLessonCourse() {
         <div class="lesson-course-header-icon">${course.icon}</div>
         <div>
           <h1 style="color:${course.color}">${course.name}</h1>
-          <p>${course.units.length} unit${course.units.length !== 1 ? 's' : ''} · ${course.units.reduce((s, u) => s + u.lessons.length, 0)} lessons</p>
+          <p>${course.units.length} unit${course.units.length !== 1 ? 's' : ''} · ${fullList.length} lesson${fullList.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
-      <div class="lesson-units-list">${units}${canvaSection}</div>
+      <div class="lesson-units-list">
+        <div class="lesson-unit-block">
+          <div class="lesson-items-list">${items}</div>
+          ${S.teacherMode ? (S.showCanvaForm ? `
+            <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:10px">
+              <input id="canva-title" class="form-input" placeholder="Lesson title" style="font-size:0.9rem">
+              <input id="canva-duration" class="form-input" placeholder="Duration (e.g. 2 classes)" style="font-size:0.9rem">
+              <input id="canva-url" class="form-input" placeholder="Canva share link (canva.com/design/...)" style="font-size:0.9rem">
+              <div style="display:flex;gap:8px">
+                <button class="btn-primary" id="canva-save-btn" style="font-size:0.85rem">Add Lesson</button>
+                <button class="btn-secondary" id="canva-cancel-btn" style="font-size:0.85rem">Cancel</button>
+              </div>
+            </div>` : `
+            <button class="btn-secondary" id="canva-add-btn" style="margin-top:10px;font-size:0.82rem;width:100%">+ Add Canva Lesson</button>`)
+          : ''}
+        </div>
+      </div>
     </div>`;
 }
 
@@ -8059,10 +8048,7 @@ function renderLessonPage() {
   lesson = mergedLesson(lesson);
 
   const canvaUrl = canvaData.url;
-  const allLessons = [
-    ...course.units.flatMap(u => u.lessons.map(l => ({ ...l, unitId: u.id }))),
-    ...Object.entries(S.canvaLessons).filter(([,d]) => d.isCustom && d.course === S.lessonCourse).map(([id,d]) => ({ id, title: d.title, unitId: d.unit || 'u1' }))
-  ];
+  const allLessons = getCourseLessonList(S.lessonCourse);
   const lessonIdx = allLessons.findIndex(l => l.id === S.lessonId);
   const lessonNum = lessonIdx + 1;
 
@@ -8245,6 +8231,56 @@ async function loadCanvaLessons() {
     snap.forEach(doc => { map[doc.id] = doc.data(); });
     return map;
   }, map => { S.canvaLessons = map; });
+}
+
+async function loadLessonOrder() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('lesson_order', async () => {
+    const snap = await db.collection('hm_lesson_order').get();
+    trackUsage('reads', snap.size || 1);
+    const map = {};
+    snap.forEach(doc => { map[doc.id] = doc.data().order || []; });
+    return map;
+  }, map => { S.lessonOrder = map; });
+}
+
+// Flat, ordered list of a course's built-in + Canva lessons (custom order override applied)
+function getCourseLessonList(courseKey) {
+  const course = LESSONS[courseKey];
+  if (!course) return [];
+  const builtIn = course.units.flatMap(u =>
+    u.lessons.map(l => ({ ...mergedLesson(l), unitId: u.id, unitTitle: u.title, isCustom: false })));
+  const canva = Object.entries(S.canvaLessons)
+    .filter(([, d]) => d.isCustom && d.course === courseKey)
+    .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
+    .map(([id, d]) => ({
+      id, title: d.title || 'Untitled', duration: d.duration || '', summary: d.summary || '',
+      unitId: d.unit || 'u1', unitTitle: 'Canva Lesson', isCustom: true, sections: [],
+    }));
+  const all = [...builtIn, ...canva];
+  const orderIds = S.lessonOrder[courseKey];
+  if (orderIds && orderIds.length) {
+    const pos = new Map(orderIds.map((id, i) => [id, i]));
+    all.sort((a, b) => (pos.has(a.id) ? pos.get(a.id) : Infinity) - (pos.has(b.id) ? pos.get(b.id) : Infinity));
+  }
+  return all;
+}
+
+async function moveLessonItem(courseKey, itemId, dir) {
+  const ids = getCourseLessonList(courseKey).map(l => l.id);
+  const idx = ids.indexOf(itemId);
+  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+  if (idx === -1 || swapIdx < 0 || swapIdx >= ids.length) return;
+  [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
+  S.lessonOrder[courseKey] = ids;
+  render();
+  const db = getDB();
+  if (!db) return;
+  try {
+    trackUsage('writes');
+    await db.collection('hm_lesson_order').doc(courseKey).set({ order: ids });
+  } catch (e) { console.error('lesson order save failed', e); }
 }
 
 async function loadIntroClassInfo() {
@@ -8953,7 +8989,7 @@ function initBellRingerAudio() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
+  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
