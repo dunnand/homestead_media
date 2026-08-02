@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zc';
+const APP_VERSION = '20260802zd';
 (function() {
   try {
     const k = 'hm_version';
@@ -256,6 +256,8 @@ const S = {
   icebreakerUnsub: null,
   icebreakerGame: 'menu',
   qaCurrentIndex: 0,
+  qaCustomText: '',
+  qaEditing: false,
   qaAnswers: [],
   qaStateUnsub: null,
   qaAnswersUnsub: null,
@@ -601,7 +603,11 @@ function loadQaGame() {
     const data = doc.exists ? doc.data() : { index: 0 };
     const idx = Number.isInteger(data.index) ? data.index : 0;
     S.qaCurrentIndex = Math.max(0, Math.min(idx, QA_QUESTIONS.length - 1));
-    document.querySelectorAll('.qa-question-text').forEach(el => { el.textContent = QA_QUESTIONS[S.qaCurrentIndex]; });
+    S.qaCustomText = (data.customText || '').trim();
+    if (!S.qaEditing) {
+      const text = S.qaCustomText || QA_QUESTIONS[S.qaCurrentIndex];
+      document.querySelectorAll('.qa-question-text').forEach(el => { el.textContent = text; });
+    }
     const posEl = document.getElementById('qa-position');
     if (posEl) posEl.textContent = `${S.qaCurrentIndex + 1} / ${QA_QUESTIONS.length}`;
     loadQaAnswers();
@@ -665,7 +671,37 @@ async function advanceQaQuestion(delta) {
   const db = getDB();
   if (!db) return;
   const next = Math.max(0, Math.min(S.qaCurrentIndex + delta, QA_QUESTIONS.length - 1));
-  await db.collection('hm_qa_state').doc('current').set({ index: next, updatedAt: Date.now() });
+  await db.collection('hm_qa_state').doc('current').set({ index: next, customText: '', updatedAt: Date.now() });
+}
+
+function openQaEdit() {
+  S.qaEditing = true;
+  render();
+  const el = document.getElementById('qa-edit-input');
+  if (el) { el.focus(); el.select(); }
+}
+
+function closeQaEdit() {
+  S.qaEditing = false;
+  render();
+}
+
+async function saveQaCustomQuestion() {
+  const el = document.getElementById('qa-edit-input');
+  const text = el ? el.value.trim() : '';
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_qa_state').doc('current').set({ index: S.qaCurrentIndex, customText: text, updatedAt: Date.now() });
+  S.qaEditing = false;
+  render();
+}
+
+async function resetQaCustomQuestion() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_qa_state').doc('current').set({ index: S.qaCurrentIndex, customText: '', updatedAt: Date.now() });
+  S.qaEditing = false;
+  render();
 }
 
 async function clearQaAnswers() {
@@ -1693,7 +1729,7 @@ function renderIcebreaker() {
   const qaSection = `
       <section class="card" style="margin-bottom:20px">
         <h2>❓ Today's Question</h2>
-        <p class="qa-question-text">${esc(QA_QUESTIONS[S.qaCurrentIndex])}</p>
+        <p class="qa-question-text">${esc(S.qaCustomText || QA_QUESTIONS[S.qaCurrentIndex])}</p>
         ${S.teacherMode ? `
         <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px">
           <button class="btn-secondary" id="qa-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
@@ -1947,12 +1983,26 @@ function renderIcebreaker() {
 
 function renderIcebreakerBoard() {
   if (S.icebreakerGame === 'qa') {
+    const qaText = S.qaCustomText || QA_QUESTIONS[S.qaCurrentIndex];
     return `
       <div class="ib-board">
         <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
         <div class="ib-board-header">
           <h1>🙋 Get to Know You</h1>
-          <p class="qa-question-text ib-board-question">${esc(QA_QUESTIONS[S.qaCurrentIndex])}</p>
+          ${S.qaEditing ? `
+          <textarea id="qa-edit-input" class="qa-edit-input" placeholder="Type a custom question...">${esc(qaText)}</textarea>
+          <div class="ib-board-controls">
+            <button class="btn-secondary" id="qa-edit-save">✓ Save Question</button>
+            <button class="btn-secondary" id="qa-edit-cancel">✕ Cancel</button>
+            ${S.qaCustomText ? `<button class="btn-secondary" id="qa-edit-reset">↺ Use Preset</button>` : ''}
+          </div>` : `
+          <p class="qa-question-text ib-board-question">${esc(qaText)}</p>
+          <div class="ib-board-controls">
+            <button class="btn-secondary" id="qa-board-prev">← Prev</button>
+            <span class="dim" id="qa-position">${S.qaCurrentIndex + 1} / ${QA_QUESTIONS.length}</span>
+            <button class="btn-secondary" id="qa-board-next">Next →</button>
+            <button class="btn-secondary" id="qa-board-edit">✏️ Edit Question</button>
+          </div>`}
         </div>
         <div id="qa-wall" class="ib-board-wall">${renderQaWallCards(S.qaAnswers)}</div>
       </div>`;
@@ -6254,6 +6304,30 @@ function attachListeners() {
 
   const qaNext = document.getElementById('qa-next');
   if (qaNext) qaNext.addEventListener('click', () => advanceQaQuestion(1));
+
+  const qaBoardPrev = document.getElementById('qa-board-prev');
+  if (qaBoardPrev) qaBoardPrev.addEventListener('click', () => advanceQaQuestion(-1));
+
+  const qaBoardNext = document.getElementById('qa-board-next');
+  if (qaBoardNext) qaBoardNext.addEventListener('click', () => advanceQaQuestion(1));
+
+  const qaBoardEdit = document.getElementById('qa-board-edit');
+  if (qaBoardEdit) qaBoardEdit.addEventListener('click', openQaEdit);
+
+  const qaEditSave = document.getElementById('qa-edit-save');
+  if (qaEditSave) qaEditSave.addEventListener('click', saveQaCustomQuestion);
+
+  const qaEditCancel = document.getElementById('qa-edit-cancel');
+  if (qaEditCancel) qaEditCancel.addEventListener('click', closeQaEdit);
+
+  const qaEditReset = document.getElementById('qa-edit-reset');
+  if (qaEditReset) qaEditReset.addEventListener('click', resetQaCustomQuestion);
+
+  const qaEditInput = document.getElementById('qa-edit-input');
+  if (qaEditInput) qaEditInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveQaCustomQuestion(); }
+    else if (e.key === 'Escape') closeQaEdit();
+  });
 
   document.querySelectorAll('.tot-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitTotVote(btn.dataset.choice)));
