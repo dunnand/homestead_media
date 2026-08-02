@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802p';
+const APP_VERSION = '20260802q';
 (function() {
   try {
     const k = 'hm_version';
@@ -1812,7 +1812,6 @@ function renderHome() {
     <div class="home-page">
       <header class="home-header">
         <img src="images/logo-homestead-media.png" alt="Homestead Media" class="home-logo-img">
-        <div class="home-tagline">Homestead High School — Media Arts Program</div>
       </header>
       <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner()}</div>
       <div class="class-grid">
