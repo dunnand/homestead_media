@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802y';
+const APP_VERSION = '20260802z';
 (function() {
   try {
     const k = 'hm_version';
@@ -342,6 +342,7 @@ function loadIcebreakerGame(game) {
   if (game === 'speed') return loadSpeedGame();
   if (game === 'common') return loadCommonGame();
   if (game === 'rank') return loadRankGame();
+  if (game === 'match') return;
   return loadIcebreakerWall();
 }
 
@@ -351,6 +352,7 @@ function go(view, extra) {
   S.view = view;
   if (extra) Object.assign(S, extra);
   if (view === 'icebreaker' && S.icebreakerGame === 'bingo') loadBingoState();
+  if (view === 'icebreaker' && S.icebreakerGame === 'match') loadMatchState();
   render();
   window.scrollTo(0, 0);
   if (view === 'radio') startPointRecentPolling();
@@ -368,6 +370,7 @@ function switchIcebreakerGame(game) {
   unsubIcebreakerGames();
   S.icebreakerGame = game;
   if (game === 'bingo') loadBingoState();
+  if (game === 'match') loadMatchState();
   render();
   loadIcebreakerGame(game);
 }
@@ -1423,6 +1426,55 @@ async function clearBingoWinners() {
   await batch.commit();
 }
 
+const MATCH_CARD_PROMPTS = [
+  "What's a hobby or activity you do outside of school?",
+  "What's your comfort food — the thing you always crave?",
+  "If you could travel anywhere, where would you go and why?",
+  "What's a fun fact about you almost nobody knows?",
+  "What's your favorite way to spend a free Saturday?",
+  "What show or movie could you rewatch a hundred times?",
+  "What's a skill you have that might surprise people?",
+  "What's the best trip you've ever been on?",
+  "What's a food you refuse to eat?",
+  "If you had a whole day with no responsibilities, what would you do?",
+  "What's your favorite season and why?",
+  "What's a song you know all the words to?",
+  "What's something you're really good at?",
+  "What's a goal you're working toward right now?",
+  "What pet do you have, or what pet would you want?",
+  "What's your go-to order at a restaurant?",
+  "What's a place you've lived or visited that stuck with you?",
+  "What's something you collect, or used to collect?",
+  "What's your favorite holiday and why?",
+  "If you could have any superpower, what would it be?",
+  "What's a game — video, board, or otherwise — you love?",
+  "What's something on your bucket list?",
+  "What's the last thing that made you laugh really hard?",
+  "What's a talent you have that isn't obvious?",
+];
+
+function drawMatchCard(avoid) {
+  let idx = Math.floor(Math.random() * MATCH_CARD_PROMPTS.length);
+  if (MATCH_CARD_PROMPTS.length > 1 && idx === avoid) idx = (idx + 1) % MATCH_CARD_PROMPTS.length;
+  return idx;
+}
+
+function loadMatchState() {
+  try {
+    const saved = parseInt(localStorage.getItem('hm_match_card'), 10);
+    S.matchCard = (Number.isInteger(saved) && saved >= 0 && saved < MATCH_CARD_PROMPTS.length) ? saved : drawMatchCard(-1);
+  } catch (e) {
+    S.matchCard = drawMatchCard(-1);
+  }
+  try { localStorage.setItem('hm_match_card', String(S.matchCard)); } catch (e) {}
+}
+
+function newMatchCard() {
+  S.matchCard = drawMatchCard(S.matchCard);
+  try { localStorage.setItem('hm_match_card', String(S.matchCard)); } catch (e) {}
+  render();
+}
+
 const ICEBREAKER_GAMES = [
   { key: 'truths', icon: '🧊', title: 'Two Truths and a Lie', sub: "Add yourself to the wall, then mingle and guess everyone else's lie in person." },
   { key: 'qa',     icon: '🙋', title: 'Get to Know You',      sub: "Answer today's question, then compare with classmates in person." },
@@ -1432,6 +1484,7 @@ const ICEBREAKER_GAMES = [
   { key: 'speed',  icon: '⏱️', title: 'Speed Meet',           sub: "Grab a nearby partner and talk it out before the timer runs out." },
   { key: 'common', icon: '🧭', title: 'Common Ground',        sub: "Answer today's category, then go find your group in person." },
   { key: 'rank',   icon: '🏅', title: 'Rank It',               sub: "Tap to rank today's list, then compare with the class results." },
+  { key: 'match',  icon: '🎴', title: 'Find Your Match',      sub: "Draw a card, find a partner, trade cards, and repeat until you've met the room." },
 ];
 
 function renderIcebreakerMenu() {
@@ -1704,7 +1757,36 @@ function renderIcebreaker() {
         <div class="rank-results">${renderRankResults()}</div>
       </section>`;
 
-  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection };
+  const matchSection = `
+      <section class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+          <h2 style="margin:0">🎴 Your Card</h2>
+          <button class="btn-secondary" id="match-swap" style="font-size:0.78rem;padding:4px 12px">🔄 Swap for a New Card</button>
+        </div>
+        <p class="cal-section-sub">Find a partner, introduce yourselves, and both answer your card's question out loud. Learn their name and answer — then swap cards and find someone new.</p>
+        <div class="match-card">
+          <p class="match-card-label">Your question:</p>
+          <p class="match-card-prompt">${esc(MATCH_CARD_PROMPTS[S.matchCard])}</p>
+        </div>
+        <div class="match-help-box">
+          <p class="match-help-title">📋 How to play</p>
+          <ol class="match-help-list">
+            <li>Find a partner and introduce yourselves.</li>
+            <li>Both answer your card's question — learn their name and answer.</li>
+            <li>Swap cards with your partner.</li>
+            <li>Find a new partner and repeat until the teacher calls time.</li>
+            <li>Group share: introduce one person you met to the class (their name and fun fact).</li>
+          </ol>
+          <p class="match-help-title" style="margin-top:10px">💡 Tips</p>
+          <ul class="match-help-list">
+            <li>Say each person's name at least twice while you talk.</li>
+            <li>Try to meet as many people as possible.</li>
+            <li>Have fun — it's about learning names, not memorizing answers.</li>
+          </ul>
+        </div>
+      </section>`;
+
+  const sections = { truths: truthsSection, qa: qaSection, tot: totSection, bingo: bingoSection, wyr: wyrSection, speed: speedSection, common: commonSection, rank: rankSection, match: matchSection };
   const gameMeta = ICEBREAKER_GAMES.find(g => g.key === game);
 
   return `
@@ -6039,6 +6121,9 @@ function attachListeners() {
 
   const bingoName = document.getElementById('bingo-name');
   if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', bingoName.value.trim()));
+
+  const matchSwap = document.getElementById('match-swap');
+  if (matchSwap) matchSwap.addEventListener('click', newMatchCard);
 
   document.querySelectorAll('.wyr-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitWyrVote(btn.dataset.choice)));
