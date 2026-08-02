@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802x';
+const APP_VERSION = '20260802y';
 (function() {
   try {
     const k = 'hm_version';
@@ -1464,7 +1464,7 @@ function renderIcebreaker() {
         <h2>✏️ Add Yourself to the Wall</h2>
         <p class="cal-section-sub">Write two true statements about yourself and one lie — the more specific and surprising, the better. Skip generic stuff like "I like pizza"; go for a real story with details (who, where, when) so people have to actually guess. The wall shuffles the order so the lie isn't always listed last.</p>
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="ib-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="form-group">
@@ -1509,7 +1509,7 @@ function renderIcebreaker() {
           <button class="btn-secondary" id="qa-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
         </div>` : ''}
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="qa-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="form-group">
@@ -1543,7 +1543,7 @@ function renderIcebreaker() {
           <button class="btn-secondary" id="tot-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
         </div>` : ''}
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="tot-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="tot-choices">
@@ -1574,7 +1574,7 @@ function renderIcebreaker() {
         </div>
         <p class="cal-section-sub">Get up and find a classmate who matches each square, then tap it, type their name, and jot down their answer so you can share it at the end. The center is a free space — get 5 in a row (across, down, or diagonal) to win!</p>
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="bingo-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         ${S.bingoWon ? `<p class="bingo-won-banner">🎉 BINGO! You're on the board below.</p>` : ''}
@@ -1604,7 +1604,7 @@ function renderIcebreaker() {
           <button class="btn-secondary" id="wyr-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
         </div>` : ''}
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="wyr-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div class="wyr-choices">
@@ -1652,7 +1652,7 @@ function renderIcebreaker() {
           <button class="btn-secondary" id="common-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
         </div>` : ''}
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="common-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div id="common-options" class="common-options">${renderCommonOptions()}</div>
@@ -1683,7 +1683,7 @@ function renderIcebreaker() {
         </div>` : ''}
         <p class="cal-section-sub">Tap the items in order from your favorite to least favorite.</p>
         <div class="form-group">
-          <label>Your Name</label>
+          <label>First and Last Name</label>
           <input id="rank-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
         <div id="rank-items" class="rank-items">${renderRankItems()}</div>
@@ -2100,8 +2100,8 @@ function renderPlannerStep0(p) {
     </div>
     ${type ? `
       <div class="form-group">
-        <label>Your Name</label>
-        <input id="p-name" type="text" value="${esc(p.studentName || '')}" placeholder="Your name">
+        <label>First and Last Name</label>
+        <input id="p-name" type="text" value="${esc(p.studentName || '')}" placeholder="First and last name">
       </div>
       <div class="form-group">
         <label>Show Name</label>
@@ -3859,8 +3859,8 @@ function renderStoryPlanForm(d, editable) {
     <div class="story-plan-form">
       ${!editable ? `<div class="story-readonly-notice">👀 You're viewing ${esc(d.reporter || 'this reporter')}'s story plan. Only ${esc(d.createdBy || 'the reporter')} and your teacher can change it — leave a suggestion below instead.</div>` : ''}
       <div class="form-group">
-        <label>Reporter</label>
-        <input id="story-reporter" type="text" value="${esc(d.reporter)}" placeholder="Your name" ${ro}>
+        <label>Reporter (First and Last Name)</label>
+        <input id="story-reporter" type="text" value="${esc(d.reporter)}" placeholder="First and last name" ${ro}>
       </div>
       <div class="form-group">
         <label>Story Idea / Title</label>
@@ -3992,8 +3992,8 @@ function rundownEditorName() {
   if (S.teacherMode) return 'Teacher';
   let n = localStorage.getItem('hm_student_name') || '';
   while (!n) {
-    n = (prompt('Your name? It shows next to your edits so your teacher knows who changed what.') || '').trim();
-    if (!n) alert('Please enter your name to continue editing the rundown.');
+    n = (prompt('Your first and last name? It shows next to your edits so your teacher knows who changed what.') || '').trim();
+    if (!n) alert('Please enter your first and last name to continue editing the rundown.');
   }
   localStorage.setItem('hm_student_name', n);
   return n;
@@ -4440,7 +4440,7 @@ function renderYearbook() {
             ${USE_GOOGLE_FORM_YEARBOOK ? '' : `
             <div class="yb-name-row">
               <div class="form-group">
-                <label>Your Name</label>
+                <label>First and Last Name</label>
                 <input id="yb-name" type="text" placeholder="First and last name" value="${esc(myName)}">
               </div>
             </div>`}
@@ -5103,7 +5103,7 @@ function renderAvailabilityPageLegacy() {
       <div class="avail-name-card card">
         <div class="avail-name-fields">
           <div class="avail-name-field">
-            <label class="avail-name-label">Your Name <span class="avail-required">required</span></label>
+            <label class="avail-name-label">First and Last Name <span class="avail-required">required</span></label>
             <div class="avail-name-row">
               <input id="avail-page-name" type="text" class="avail-name-input ${!myName ? 'avail-input-empty' : ''}"
                 placeholder="First and last name" value="${esc(myName)}">
@@ -7855,7 +7855,7 @@ function renderBellRingerBanner() {
         <p class="dim br-submitted-msg">✅ You're all set for today — see you tomorrow!</p>
       ` : `
         <div class="br-form-row">
-          <input id="br-name" type="text" placeholder="Your name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+          <input id="br-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
           <input id="br-answer" type="text" placeholder="Type your answer here...">
           <button class="btn-primary" id="br-submit">Submit</button>
         </div>
@@ -8692,7 +8692,7 @@ function showRegisterIASBModal(cat) {
   const m = modal(`
     <h2>Register Entry — ${cat.code} ${cat.name}</h2>
     <div class="form-group">
-      <label>Your Name <span style="color:var(--danger)">*</span></label>
+      <label>First and Last Name <span style="color:var(--danger)">*</span></label>
       <input id="iasb-student-name" type="text" placeholder="First and last name">
     </div>
     ${!cat.solo ? `
