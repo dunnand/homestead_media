@@ -90,6 +90,8 @@ Firebase config lives in `index.html`. The app uses the **Compat SDK** (v8/compa
 | `hm_common_answers` | Answers for "Common Ground": doc ID is `{categoryIndex}_{slugified name}` (via `.set()`): `{name, option, categoryIndex, createdAt}`. Students are grouped live by chosen option so they can find their group in person |
 | `hm_rank_state` | Single doc `current`: `{index, updatedAt}` — which round of the hardcoded `RANK_ROUNDS` (script.js) is live for the "Rank It" icebreaker game. Same Prev/Next pattern as `hm_qa_state` |
 | `hm_rank_answers` | Rankings for "Rank It": doc ID is `{roundIndex}_{slugified name}` (via `.set()`): `{name, ranking: [itemIndex,...], roundIndex, createdAt}` — `ranking` is the student's tap order, most-preferred first. Results tally points (`n - position`) per item across all submitted rankings and render as a live bar chart |
+| `hm_bellringer_questions` | Single doc `list`: `{questions: [string,...]}` — teacher-editable via the ✏️ Manage Questions button on the home page bell ringer card. Falls back to hardcoded `DEFAULT_BELLRINGER_QUESTIONS` (script.js) if missing. One question is chosen per calendar day (local midnight rollover) by `bellringerQuestion()`, no manual "today's question" step needed |
+| `hm_bellringer_answers` | Bell ringer submissions from the home page card: `{name, answer, question, createdAt}`. Shown live on the projector board (`?board=bellringer`, alongside an auto-starting 91.1 The Point stream player). Any doc older than 20 minutes (`BELLRINGER_ERASE_MS`) is filtered out of the board view and batch-deleted by whichever client's `onSnapshot` listener notices it — this only actually happens while the board page is open, so the collection can grow if the board is never loaded for a stretch |
 
 ---
 

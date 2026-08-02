@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802l';
+const APP_VERSION = '20260802m';
 (function() {
   try {
     const k = 'hm_version';
@@ -30,6 +30,26 @@ const FIREBASE_CONFIG = {
   messagingSenderId: "94178984100",
   appId: "1:94178984100:web:0b60930161c8c882e02631"
 };
+
+// ── Bell Ringer ───────────────────────────────────────────────
+const WCYT_STREAM_URL = 'https://securestreams2.autopo.st:1069/WCYT.mp3';
+const BELLRINGER_ERASE_MS = 20 * 60 * 1000; // 20 minutes
+const DEFAULT_BELLRINGER_QUESTIONS = [
+  "What TV show have you watched this week?",
+  "What movie have you watched most recently?",
+  "What song or artist have you been listening to this week?",
+  "What's a podcast episode you've listened to recently?",
+  "What YouTube channel do you watch the most right now?",
+  "What's the most recent YouTube video you watched?",
+  "What have you been streaming this week (movie, show, or music)?",
+  "What's a song that's been stuck in your head this week?",
+  "What's your favorite thing you've watched or listened to this week?",
+  "What app do you spend the most time on for media right now?",
+  "What's a new artist or show you've discovered recently?",
+  "What's the last thing you watched on live TV (news, sports, etc.)?",
+  "What's a video game you've played or watched someone play this week?",
+  "What's one song, show, or video you'd recommend to the class right now?"
+];
 
 let _db = null;
 function getDB() {
@@ -230,6 +250,9 @@ const S = {
   calMonthOffset: 0,
   dashSections: {},
   quickLinks: {},
+  bellringerQuestions: [],
+  bellringerAnswers: [],
+  bellringerAnswersUnsub: null,
   icebreakerEntries: [],
   icebreakerUnsub: null,
   icebreakerGame: 'menu',
@@ -374,6 +397,7 @@ function render() {
     case 'lessons':       app.innerHTML = renderLessons();       break;
     case 'icebreaker':       app.innerHTML = renderIcebreaker();      break;
     case 'icebreaker-board': app.innerHTML = renderIcebreakerBoard(); break;
+    case 'bellringer-board': app.innerHTML = renderBellRingerBoard(); break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -1791,6 +1815,7 @@ function renderHome() {
         <img src="images/logo-homestead-media.png" alt="Homestead Media" class="home-logo-img">
         <div class="home-tagline">Homestead High School — Media Arts Program</div>
       </header>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner()}</div>
       <div class="class-grid">
         <div class="class-card radio-card" data-nav="radio">
           <div class="class-icon">📻</div>
@@ -5867,6 +5892,12 @@ function attachListeners() {
   const oi = document.getElementById('open-iasb');
   if (oi) oi.addEventListener('click', () => go('iasb'));
 
+  const brSubmit = document.getElementById('br-submit');
+  if (brSubmit) brSubmit.addEventListener('click', submitBellRinger);
+
+  const brManage = document.getElementById('br-manage-questions');
+  if (brManage) brManage.addEventListener('click', brQStartEdit);
+
   const ibSubmit = document.getElementById('ib-submit');
   if (ibSubmit) ibSubmit.addEventListener('click', submitIcebreaker);
 
@@ -7703,9 +7734,227 @@ async function loadBroadcastChecklist(bid) {
   render();
 }
 
+// ── Bell Ringer ───────────────────────────────────────────────
+function bellringerTodayStr() {
+  return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
+}
+
+function bellringerQuestion() {
+  const list = S.bellringerQuestions.length ? S.bellringerQuestions : DEFAULT_BELLRINGER_QUESTIONS;
+  const d = new Date();
+  const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const days = Math.floor(localMidnight.getTime() / 86400000);
+  const idx = ((days % list.length) + list.length) % list.length;
+  return list[idx];
+}
+
+async function loadBellRingerQuestions() {
+  const db = getDB();
+  if (!db) { S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS; return; }
+  try {
+    const doc = await db.collection('hm_bellringer_questions').doc('list').get();
+    trackUsage('reads', 1);
+    if (doc.exists && (doc.data().questions || []).length) {
+      S.bellringerQuestions = doc.data().questions;
+    } else {
+      S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS;
+      db.collection('hm_bellringer_questions').doc('list').set({ questions: DEFAULT_BELLRINGER_QUESTIONS });
+      trackUsage('writes', 1);
+    }
+  } catch(e) { S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS; }
+}
+
+function renderBellRingerBanner() {
+  const isEditing = _brQDraft !== null;
+  if (isEditing) return renderBellRingerQuestionsEditor();
+
+  const question = bellringerQuestion();
+  const submittedDate = localStorage.getItem('hm_bellringer_date');
+  const alreadySubmitted = submittedDate === bellringerTodayStr();
+
+  return `
+    <section class="card bellringer-card">
+      <div class="card-header">
+        <h2>🔔 Bell Ringer</h2>
+        ${S.teacherMode ? `
+          <div style="display:flex;gap:6px">
+            <a href="?board=bellringer" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            <button class="btn-secondary" id="br-manage-questions" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
+          </div>` : ''}
+      </div>
+      <p class="br-question">${esc(question)}</p>
+      ${alreadySubmitted ? `
+        <p class="dim" style="font-size:0.9rem">✅ You're all set for today — see you tomorrow!</p>
+      ` : `
+        <div class="form-group">
+          <label>Your Name</label>
+          <input id="br-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+        </div>
+        <div class="form-group">
+          <label>Your Answer</label>
+          <textarea id="br-answer" rows="2" placeholder="Type your answer here..."></textarea>
+        </div>
+        <button class="btn-primary" id="br-submit">Submit</button>
+        <p id="br-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+      `}
+    </section>`;
+}
+
+async function submitBellRinger() {
+  const nameEl   = document.getElementById('br-name');
+  const answerEl = document.getElementById('br-answer');
+  const msg      = document.getElementById('br-msg');
+  const name = nameEl.value.trim(), answer = answerEl.value.trim();
+  if (!name || !answer) {
+    msg.textContent = 'Fill in your name and an answer first.';
+    msg.style.color = 'var(--danger)';
+    return;
+  }
+  const db = getDB();
+  if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
+
+  const btn = document.getElementById('br-submit');
+  btn.disabled = true; btn.textContent = 'Submitting…';
+  try {
+    localStorage.setItem('hm_student_name', name);
+    await db.collection('hm_bellringer_answers').add({
+      name, answer, question: bellringerQuestion(), createdAt: Date.now()
+    });
+    trackUsage('writes', 1);
+    localStorage.setItem('hm_bellringer_date', bellringerTodayStr());
+    const wrap = document.getElementById('bellringer-wrap');
+    if (wrap) wrap.innerHTML = renderBellRingerBanner();
+  } catch(e) {
+    msg.textContent = 'Something went wrong — try again.';
+    msg.style.color = 'var(--danger)';
+    btn.disabled = false; btn.textContent = 'Submit';
+  }
+}
+
+// ── Bell Ringer: teacher question editor ────────────────────────
+let _brQDraft = null;
+
+function brQStartEdit() {
+  _brQDraft = (S.bellringerQuestions.length ? S.bellringerQuestions : DEFAULT_BELLRINGER_QUESTIONS).slice();
+  render();
+}
+
+function brQCancel() { _brQDraft = null; render(); }
+
+function brQSyncFromDom() {
+  if (!_brQDraft) return;
+  _brQDraft = Array.from(document.querySelectorAll('.br-q-row input')).map(i => i.value);
+}
+
+function brQAdd() {
+  brQSyncFromDom();
+  _brQDraft.push('');
+  render();
+}
+
+function brQRemove(idx) {
+  brQSyncFromDom();
+  _brQDraft.splice(idx, 1);
+  render();
+}
+
+function brQSave() {
+  brQSyncFromDom();
+  const questions = _brQDraft.map(q => q.trim()).filter(Boolean);
+  S.bellringerQuestions = questions.length ? questions : DEFAULT_BELLRINGER_QUESTIONS;
+  _brQDraft = null;
+  const db = getDB();
+  if (db) { db.collection('hm_bellringer_questions').doc('list').set({ questions: S.bellringerQuestions }); trackUsage('writes', 1); }
+  render();
+}
+
+function renderBellRingerQuestionsEditor() {
+  return `
+    <section class="card bellringer-card">
+      <div class="card-header">
+        <h2>🔔 Manage Bell Ringer Questions</h2>
+        <div style="display:flex;gap:6px">
+          <button class="btn-primary" onclick="brQSave()" style="padding:4px 12px;font-size:0.8rem">Save</button>
+          <button class="btn-secondary" onclick="brQCancel()" style="padding:4px 12px;font-size:0.8rem">Cancel</button>
+        </div>
+      </div>
+      <p class="cal-section-sub">One question rotates in automatically each day. Edit, add, or remove questions below.</p>
+      ${_brQDraft.map((q, i) => `
+        <div class="br-q-row">
+          <input value="${esc(q)}" placeholder="Question text">
+          <button class="ql-rm-btn" onclick="brQRemove(${i})" title="Remove">✕</button>
+        </div>`).join('')}
+      <button class="btn-secondary" onclick="brQAdd()" style="width:100%;margin-top:6px;font-size:0.82rem">+ Add Question</button>
+    </section>`;
+}
+
+// ── Bell Ringer: teacher board (projector view) ─────────────────
+function loadBellRingerBoard() {
+  const db = getDB();
+  if (!db) return;
+  if (S.bellringerAnswersUnsub) { S.bellringerAnswersUnsub(); S.bellringerAnswersUnsub = null; }
+  S.bellringerAnswersUnsub = db.collection('hm_bellringer_answers').onSnapshot(snap => {
+    const cutoff = Date.now() - BELLRINGER_ERASE_MS;
+    const stale = [];
+    S.bellringerAnswers = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => {
+        if ((e.createdAt || 0) < cutoff) { stale.push(e.id); return false; }
+        return true;
+      })
+      .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+    if (stale.length) {
+      const batch = db.batch();
+      stale.forEach(id => batch.delete(db.collection('hm_bellringer_answers').doc(id)));
+      batch.commit().catch(() => {});
+    }
+    const wall = document.getElementById('br-answers-wall');
+    if (wall) wall.innerHTML = renderBellRingerAnswers(S.bellringerAnswers);
+  }, err => console.error('bellringer snapshot error', err));
+}
+
+function renderBellRingerAnswers(entries) {
+  if (!entries.length) return `<p class="dim" style="font-size:1rem">Waiting for answers…</p>`;
+  return `<div class="br-answers-grid">` + entries.map(e => `
+    <div class="br-answer-card">
+      <div class="br-answer-name">${esc(e.name)}</div>
+      <div class="br-answer-text">${esc(e.answer)}</div>
+    </div>`).join('') + `</div>`;
+}
+
+function renderBellRingerBoard() {
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>🔔 Bell Ringer</h1>
+        <p class="ib-board-question">${esc(bellringerQuestion())}</p>
+      </div>
+      <div id="br-answers-wall">${renderBellRingerAnswers(S.bellringerAnswers)}</div>
+      <div class="br-audio-bar">
+        <audio id="br-audio" preload="none" src="${esc(WCYT_STREAM_URL)}"></audio>
+        <button type="button" id="br-audio-toggle" class="br-audio-toggle">▶</button>
+        <span class="br-audio-label">91.1 The Point — Live</span>
+      </div>
+    </div>`;
+}
+
+function initBellRingerAudio() {
+  const audio = document.getElementById('br-audio');
+  const btn = document.getElementById('br-audio-toggle');
+  if (!audio || !btn) return;
+  const setBtn = () => { btn.textContent = audio.paused ? '▶' : '⏸'; };
+  audio.addEventListener('play', setBtn);
+  audio.addEventListener('pause', setBtn);
+  btn.addEventListener('click', () => {
+    if (audio.paused) audio.play().catch(() => {}); else audio.pause();
+  });
+  audio.play().catch(() => { setBtn(); }); // browsers may block autoplay until a user gesture
+}
+
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides()]);
+  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
@@ -7716,6 +7965,14 @@ async function init() {
     if (S.icebreakerGame === 'bingo') loadBingoState();
     render();
     loadIcebreakerGame(S.icebreakerGame);
+    return;
+  }
+
+  if (new URLSearchParams(location.search).get('board') === 'bellringer') {
+    S.view = 'bellringer-board';
+    render();
+    loadBellRingerBoard();
+    initBellRingerAudio();
     return;
   }
 
