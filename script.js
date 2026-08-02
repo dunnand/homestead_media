@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zd';
+const APP_VERSION = '20260802ze';
 (function() {
   try {
     const k = 'hm_version';
@@ -262,10 +262,15 @@ const S = {
   qaStateUnsub: null,
   qaAnswersUnsub: null,
   totCurrentIndex: 0,
+  totStage: 'poll',
   totVotes: { a: 0, b: 0 },
   totMyChoice: null,
+  totMyDivChoice: null,
+  totDivVotesA: { a: 0, b: 0 },
+  totDivVotesB: { a: 0, b: 0 },
   totStateUnsub: null,
   totVotesUnsub: null,
+  totDivVotesUnsub: null,
   bingoOrder: [],
   bingoFilled: {},
   bingoActive: null,
@@ -329,6 +334,7 @@ function unsubIcebreakerGames() {
   if (S.qaAnswersUnsub)  { S.qaAnswersUnsub();  S.qaAnswersUnsub = null; }
   if (S.totStateUnsub)   { S.totStateUnsub();   S.totStateUnsub = null; }
   if (S.totVotesUnsub)   { S.totVotesUnsub();   S.totVotesUnsub = null; }
+  if (S.totDivVotesUnsub) { S.totDivVotesUnsub(); S.totDivVotesUnsub = null; }
   if (S.bingoWinnersUnsub) { S.bingoWinnersUnsub(); S.bingoWinnersUnsub = null; }
   if (S.wyrStateUnsub)   { S.wyrStateUnsub();   S.wyrStateUnsub = null; }
   if (S.wyrVotesUnsub)   { S.wyrVotesUnsub();   S.wyrVotesUnsub = null; }
@@ -716,36 +722,126 @@ async function clearQaAnswers() {
 
 // ── ICEBREAKER: This or That (live poll) ────────────────────────
 const THIS_OR_THAT_QUESTIONS = [
-  { a: '🏖️ Beach',        b: '⛰️ Mountains' },
-  { a: '🌅 Morning person', b: '🌙 Night owl' },
-  { a: '🍕 Pizza',          b: '🌮 Tacos' },
-  { a: '📺 Movies',         b: '📚 Books' },
-  { a: '🐱 Cats',           b: '🐶 Dogs' },
-  { a: '☕ Coffee',         b: '🍵 Tea' },
-  { a: '🎬 Netflix',        b: '🎮 Video games' },
-  { a: '❄️ Winter',         b: '☀️ Summer' },
-  { a: '🚗 Road trip',      b: '✈️ Flight' },
-  { a: '🎤 Karaoke',        b: '💃 Dancing' },
-  { a: '🍦 Ice cream',      b: '🍰 Cake' },
-  { a: '📱 Texting',        b: '📞 Calling' },
-  { a: '🏙️ City',          b: '🌲 Countryside' },
-  { a: '🎸 Concert',        b: '🏟️ Sports game' },
-  { a: '🧩 Puzzles',        b: '🎲 Board games' },
-  { a: '🍔 McDonald\'s',    b: '🌯 Chipotle' },
-  { a: '🍗 Chick-fil-A',    b: '🍕 Domino\'s' },
-  { a: '🍟 Fries',          b: '🧀 Mozzarella sticks' },
-  { a: '📸 Instagram',      b: '🎵 TikTok' },
-  { a: '🕹️ Fortnite',      b: '🧱 Minecraft' },
-  { a: '🎮 Console gaming', b: '💻 PC gaming' },
-  { a: '🍿 Movie theater',  b: '🛋️ Watching at home' },
-  { a: '🏈 Football',       b: '🏀 Basketball' },
-  { a: '👟 Nike',           b: '👟 Adidas' },
-  { a: '📖 Physical book',  b: '📱 E-book' },
-  { a: '🚙 Driving yourself', b: '🚌 Getting a ride' },
-  { a: '🛒 Target',         b: '🛍️ Amazon' },
-  { a: '🎧 Spotify',        b: '🍎 Apple Music' },
-  { a: '🌭 Hot dog',        b: '🍔 Burger' },
-  { a: '🛹 Skateboard',     b: '🛴 Scooter' },
+  { a: '🏖️ Beach', b: '⛰️ Mountains',
+    divA: { a: '🏊 Swimming in the ocean', b: '🏰 Building sandcastles' },
+    divB: { a: '🥾 Hiking to the top', b: '🔥 Camping by a fire' },
+    share: { aa: 'Share a specific memory of swimming somewhere fun.', ab: "Share the coolest thing you've ever built at the beach.", ba: 'Share a story about the best hike you\'ve ever been on.', bb: 'Share your best campfire story or memory.' } },
+  { a: '🌅 Morning person', b: '🌙 Night owl',
+    divA: { a: '🤫 Quiet time alone', b: '✅ Getting things done early' },
+    divB: { a: '👯 Hanging out with friends', b: '😌 Just relaxing alone' },
+    share: { aa: 'Share what your ideal quiet morning looks like.', ab: 'Share the one thing you always get done first thing in the morning.', ba: 'Share your favorite late-night hangout memory.', bb: 'Share what you do to unwind late at night.' } },
+  { a: '🍕 Pizza', b: '🌮 Tacos',
+    divA: { a: '🧀 Classic cheese', b: '🍄 Loaded with toppings' },
+    divB: { a: '🌯 Soft tortilla', b: '🌮 Hard shell' },
+    share: { aa: 'Share your go-to cheese pizza order.', ab: 'Share your favorite wild pizza topping combo.', ba: 'Share your favorite soft taco filling.', bb: 'Share your favorite hard shell taco spot.' } },
+  { a: '📺 Movies', b: '📚 Books',
+    divA: { a: '🛋️ Watching alone', b: '👥 Watching with friends' },
+    divB: { a: '📚 One long series', b: '📖 Lots of different standalones' },
+    share: { aa: 'Share a movie you love watching solo.', ab: "Share a movie that's better with a group.", ba: 'Share your favorite book series.', bb: "Share a standalone book you couldn't put down." } },
+  { a: '🐱 Cats', b: '🐶 Dogs',
+    divA: { a: '😼 Independent cat', b: '🥰 Cuddly cat' },
+    divB: { a: '🐕 Small dog', b: '🐕‍🦺 Big dog' },
+    share: { aa: 'Share a story about an independent cat you know.', ab: 'Share a story about the cuddliest cat you know.', ba: 'Share a story about a small dog you love.', bb: 'Share a story about a big dog you love.' } },
+  { a: '☕ Coffee', b: '🍵 Tea',
+    divA: { a: '⚫ Black coffee', b: '🍬 Sweet & creamy coffee' },
+    divB: { a: '🔥 Hot tea', b: '🧊 Iced tea' },
+    share: { aa: 'Share why you like your coffee simple.', ab: 'Share your go-to sweet coffee order.', ba: 'Share your favorite hot tea to drink.', bb: 'Share your favorite iced tea order.' } },
+  { a: '🎬 Netflix', b: '🎮 Video games',
+    divA: { a: '🍿 Binge a whole series', b: '📅 One episode at a time' },
+    divB: { a: '🎯 Playing solo', b: '👥 Playing with friends online' },
+    share: { aa: "Share a show you've binged in one sitting.", ab: "Share a show you're taking your time with.", ba: 'Share your favorite solo game.', bb: 'Share your favorite game to play with friends.' } },
+  { a: '❄️ Winter', b: '☀️ Summer',
+    divA: { a: '⛄ Snow days', b: '🛋️ Cozy inside' },
+    divB: { a: '🏊 Pool days', b: '🚗 Road trips' },
+    share: { aa: 'Share your best snow day memory.', ab: 'Share what "cozy" looks like for you in winter.', ba: 'Share your best pool day memory.', bb: 'Share your favorite summer road trip memory.' } },
+  { a: '🚗 Road trip', b: '✈️ Flight',
+    divA: { a: '🎵 Driving with music', b: '💬 Driving with good conversation' },
+    divB: { a: '🪟 Window seat', b: '🚶 Aisle seat' },
+    share: { aa: "Share your ultimate road trip playlist pick.", ab: 'Share your best road trip conversation memory.', ba: 'Share why you like the window seat.', bb: 'Share why you like the aisle seat.' } },
+  { a: '🎤 Karaoke', b: '💃 Dancing',
+    divA: { a: '🎻 Singing a ballad', b: '🎉 Singing something upbeat' },
+    divB: { a: '🕺 Freestyle', b: '💃 Choreographed' },
+    share: { aa: "Share the song you'd pick for a karaoke ballad.", ab: 'Share your go-to upbeat karaoke song.', ba: 'Share your best freestyle dance move.', bb: "Share a dance you've actually learned the steps to." } },
+  { a: '🍦 Ice cream', b: '🍰 Cake',
+    divA: { a: '🍦 In a cone', b: '🥣 In a bowl' },
+    divB: { a: '🍫 Chocolate', b: '🍦 Vanilla' },
+    share: { aa: 'Share your favorite ice cream flavor in a cone.', ab: 'Share your favorite ice cream flavor in a bowl.', ba: 'Share your favorite chocolate cake memory.', bb: 'Share your favorite vanilla cake memory.' } },
+  { a: '📱 Texting', b: '📞 Calling',
+    divA: { a: '👍 Quick one-word replies', b: '💬 Long text conversations' },
+    divB: { a: '📅 Planned calls', b: '🎲 Random spontaneous calls' },
+    share: { aa: 'Share who you text the most in one-word replies.', ab: 'Share who you have the longest text threads with.', ba: 'Share who you have planned calls with.', bb: 'Share your best random phone call story.' } },
+  { a: '🏙️ City', b: '🌲 Countryside',
+    divA: { a: '🚶 Walking everywhere', b: '🚇 Public transit' },
+    divB: { a: '🌄 Wide open space', b: '🤫 Quiet and peaceful' },
+    share: { aa: "Share your favorite city you've walked around in.", ab: 'Share a fun public transit story.', ba: "Share what you'd do with wide open space.", bb: 'Share what "peaceful" looks like to you.' } },
+  { a: '🎸 Concert', b: '🏟️ Sports game',
+    divA: { a: '🎤 Front row energy', b: '🧺 Chill lawn seats' },
+    divB: { a: '🏆 Watching your favorite team', b: '📣 Watching for the atmosphere' },
+    share: { aa: 'Share your best front-row concert memory.', ab: 'Share your best lawn-seat concert memory.', ba: 'Share your favorite team memory.', bb: 'Share your favorite game-day atmosphere memory.' } },
+  { a: '🧩 Puzzles', b: '🎲 Board games',
+    divA: { a: '🧍 Working alone', b: '👥 Working as a team' },
+    divB: { a: '♟️ Strategy games', b: '🎉 Party games' },
+    share: { aa: 'Share your favorite puzzle to do solo.', ab: 'Share your favorite puzzle to do with others.', ba: 'Share your favorite strategy board game.', bb: 'Share your favorite party board game.' } },
+  { a: '🍔 McDonald\'s', b: '🌯 Chipotle',
+    divA: { a: '🍳 Breakfast menu', b: '🍟 Regular menu' },
+    divB: { a: '🌯 Burrito', b: '🥣 Bowl' },
+    share: { aa: 'Share your go-to McDonald\'s breakfast order.', ab: 'Share your go-to regular McDonald\'s order.', ba: 'Share your go-to Chipotle burrito order.', bb: 'Share your go-to Chipotle bowl order.' } },
+  { a: '🍗 Chick-fil-A', b: '🍕 Domino\'s',
+    divA: { a: '🥪 Original sandwich', b: '🌶️ Spicy sandwich' },
+    divB: { a: '🍕 Pepperoni', b: '🍕 Something unique' },
+    share: { aa: 'Share why you go with the original.', ab: 'Share why you go with the spicy.', ba: 'Share your loyalty to classic pepperoni.', bb: "Share your most unique Domino's order." } },
+  { a: '🍟 Fries', b: '🧀 Mozzarella sticks',
+    divA: { a: '🍟 Plain', b: '🧀 Loaded or dipped' },
+    divB: { a: '🍅 Marinara', b: '🥗 Ranch' },
+    share: { aa: 'Share why plain fries are all you need.', ab: 'Share your favorite way to load up fries.', ba: 'Share why marinara is the move.', bb: 'Share why ranch is the move.' } },
+  { a: '📸 Instagram', b: '🎵 TikTok',
+    divA: { a: '📤 Posting', b: '📲 Just scrolling' },
+    divB: { a: '🎥 Making videos', b: '👀 Just watching' },
+    share: { aa: 'Share the last thing you posted on Instagram.', ab: 'Share your favorite type of content to scroll.', ba: "Share an idea for a TikTok you'd make.", bb: 'Share your favorite type of TikTok to watch.' } },
+  { a: '🕹️ Fortnite', b: '🧱 Minecraft',
+    divA: { a: '🏗️ Building', b: '🔫 Fighting' },
+    divB: { a: '🌲 Survival mode', b: '🎨 Creative mode' },
+    share: { aa: 'Share your best Fortnite build.', ab: 'Share your best Fortnite win story.', ba: "Share your favorite thing you've survived in Minecraft.", bb: "Share the coolest thing you've built in Creative mode." } },
+  { a: '🎮 Console gaming', b: '💻 PC gaming',
+    divA: { a: '📖 Story games', b: '👥 Multiplayer games' },
+    divB: { a: '🏆 Competitive games', b: '🖥️ Building your own setup' },
+    share: { aa: 'Share your favorite story-driven console game.', ab: 'Share your favorite multiplayer console game.', ba: 'Share your favorite competitive PC game.', bb: 'Share something cool about your PC setup.' } },
+  { a: '🍿 Movie theater', b: '🛋️ Watching at home',
+    divA: { a: '💥 Big blockbuster', b: '🎭 Small indie film' },
+    divB: { a: '🧍 Alone', b: '👥 With people' },
+    share: { aa: "Share the best blockbuster you've seen in theaters.", ab: "Share the best indie film you've seen in theaters.", ba: 'Share your favorite movie to watch alone.', bb: 'Share your favorite movie to watch with people.' } },
+  { a: '🏈 Football', b: '🏀 Basketball',
+    divA: { a: '⚔️ Offense', b: '🛡️ Defense' },
+    divB: { a: '🎯 Shooting', b: '🤝 Passing' },
+    share: { aa: 'Share your favorite offensive play or moment.', ab: 'Share your favorite defensive play or moment.', ba: "Share your favorite shot you've hit or seen.", bb: 'Share your favorite assist or team play.' } },
+  { a: '👟 Nike', b: '👟 Adidas',
+    divA: { a: '👟 Shoes', b: '👕 Apparel' },
+    divB: { a: '👟 Shoes', b: '👕 Apparel' },
+    share: { aa: 'Share your favorite pair of Nike shoes.', ab: 'Share your favorite piece of Nike apparel.', ba: 'Share your favorite pair of Adidas shoes.', bb: 'Share your favorite piece of Adidas apparel.' } },
+  { a: '📖 Physical book', b: '📱 E-book',
+    divA: { a: '📚 Owning a big collection', b: '📕 Borrowing from the library' },
+    divB: { a: '📱 Reading on a tablet', b: '📲 Reading on your phone' },
+    share: { aa: "Share a book you're proud to own.", ab: 'Share your favorite library find.', ba: 'Share what you like about reading on a tablet.', bb: 'Share what you like about reading on your phone.' } },
+  { a: '🚙 Driving yourself', b: '🚌 Getting a ride',
+    divA: { a: '🔊 Blasting music', b: '🤫 Driving in silence' },
+    divB: { a: '💬 Good conversation', b: '😌 Just chilling' },
+    share: { aa: 'Share your go-to driving playlist.', ab: 'Share why you like driving in silence.', ba: 'Share your best car-ride conversation.', bb: 'Share who you like just chilling in the car with.' } },
+  { a: '🛒 Target', b: '🛍️ Amazon',
+    divA: { a: '🚶 Wandering the whole store', b: '⚡ In and out fast' },
+    divB: { a: '📦 Same-day delivery', b: '💸 Waiting for a good deal' },
+    share: { aa: 'Share your favorite Target section to wander.', ab: 'Share your best in-and-out Target run.', ba: "Share the fastest thing you've ever ordered.", bb: 'Share your best Amazon deal find.' } },
+  { a: '🎧 Spotify', b: '🍎 Apple Music',
+    divA: { a: '📋 Curated playlists', b: '✏️ Making your own' },
+    divB: { a: '🔎 Discovering new artists', b: '🔁 Replaying favorites' },
+    share: { aa: 'Share your favorite Spotify playlist to listen to.', ab: "Share a playlist you've made yourself.", ba: "Share a new artist you've discovered recently.", bb: 'Share the song you replay the most.' } },
+  { a: '🌭 Hot dog', b: '🍔 Burger',
+    divA: { a: '⚾ Ballpark style', b: '🌶️ Loaded with toppings' },
+    divB: { a: '🧀 Simple cheeseburger', b: '🥓 Loaded burger' },
+    share: { aa: 'Share your favorite ballpark hot dog memory.', ab: 'Share your favorite hot dog topping combo.', ba: 'Share why a simple cheeseburger wins.', bb: 'Share your favorite loaded burger order.' } },
+  { a: '🛹 Skateboard', b: '🛴 Scooter',
+    divA: { a: '🤸 Tricks', b: '🌅 Just cruising' },
+    divB: { a: '🤸 Tricks', b: '🌅 Just cruising' },
+    share: { aa: 'Share your best skateboard trick (or one you want to learn).', ab: 'Share your favorite place to cruise on a skateboard.', ba: 'Share your best scooter trick (or one you want to learn).', bb: 'Share your favorite place to cruise on a scooter.' } },
 ];
 
 function slugifyName(name) {
@@ -757,18 +853,28 @@ function loadTotGame() {
   if (!db) return;
   if (S.totStateUnsub) { S.totStateUnsub(); S.totStateUnsub = null; }
   S.totStateUnsub = db.collection('hm_tot_state').doc('current').onSnapshot(doc => {
-    const data = doc.exists ? doc.data() : { index: 0 };
+    const data = doc.exists ? doc.data() : { index: 0, stage: 'poll' };
     const idx = Number.isInteger(data.index) ? data.index : 0;
     const newIdx = Math.max(0, Math.min(idx, THIS_OR_THAT_QUESTIONS.length - 1));
-    if (newIdx !== S.totCurrentIndex) S.totMyChoice = null;
+    const newStage = ['poll', 'div', 'share'].includes(data.stage) ? data.stage : 'poll';
+    const indexChanged = newIdx !== S.totCurrentIndex;
+    const stageChanged = newStage !== S.totStage;
+    if (indexChanged) { S.totMyChoice = null; S.totMyDivChoice = null; }
+    if (stageChanged && newStage === 'poll') S.totMyDivChoice = null;
     S.totCurrentIndex = newIdx;
+    S.totStage = newStage;
+    if (indexChanged || stageChanged) {
+      render();
+      if (S.totStage === 'poll') loadTotVotes(); else loadTotDivVotes();
+      return;
+    }
     const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
     document.querySelectorAll('.tot-question-a').forEach(el => { el.textContent = q.a; });
     document.querySelectorAll('.tot-question-b').forEach(el => { el.textContent = q.b; });
     document.querySelectorAll('.tot-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === S.totMyChoice));
     const posEl = document.getElementById('tot-position');
     if (posEl) posEl.textContent = `${S.totCurrentIndex + 1} / ${THIS_OR_THAT_QUESTIONS.length}`;
-    loadTotVotes();
+    if (S.totStage === 'poll') loadTotVotes(); else loadTotDivVotes();
   }, err => console.error('tot state snapshot error', err));
 }
 
@@ -787,24 +893,116 @@ function loadTotVotes() {
   }, err => console.error('tot votes snapshot error', err));
 }
 
-function renderTotPoll() {
-  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
-  const { a, b } = S.totVotes;
+function loadTotDivVotes() {
+  const db = getDB();
+  if (!db) return;
+  if (S.totDivVotesUnsub) { S.totDivVotesUnsub(); S.totDivVotesUnsub = null; }
+  S.totDivVotesUnsub = db.collection('hm_tot_div_votes').where('questionIndex', '==', S.totCurrentIndex).onSnapshot(snap => {
+    const tallyA = { a: 0, b: 0 }, tallyB = { a: 0, b: 0 };
+    snap.docs.forEach(d => {
+      const v = d.data();
+      const t = v.team === 'B' ? tallyB : tallyA;
+      if (v.choice === 'a') t.a++; else if (v.choice === 'b') t.b++;
+    });
+    S.totDivVotesA = tallyA;
+    S.totDivVotesB = tallyB;
+    document.querySelectorAll('.tot-div-poll-a').forEach(el => { el.innerHTML = renderTotDivPoll('A'); });
+    document.querySelectorAll('.tot-div-poll-b').forEach(el => { el.innerHTML = renderTotDivPoll('B'); });
+  }, err => console.error('tot div votes snapshot error', err));
+}
+
+function renderBarPoll(labelA, labelB, a, b) {
   const total = a + b;
   const aPct = total ? Math.round((a / total) * 100) : 0;
   const bPct = total ? 100 - aPct : 0;
   return `
     <div class="tot-bar-row">
-      <div class="tot-bar-label">${esc(q.a)}</div>
+      <div class="tot-bar-label">${esc(labelA)}</div>
       <div class="tot-bar-track"><div class="tot-bar-fill tot-bar-a" style="width:${aPct}%"></div></div>
       <div class="tot-bar-count">${a} (${aPct}%)</div>
     </div>
     <div class="tot-bar-row">
-      <div class="tot-bar-label">${esc(q.b)}</div>
+      <div class="tot-bar-label">${esc(labelB)}</div>
       <div class="tot-bar-track"><div class="tot-bar-fill tot-bar-b" style="width:${bPct}%"></div></div>
       <div class="tot-bar-count">${b} (${bPct}%)</div>
     </div>
     <p class="dim" style="font-size:0.78rem;margin-top:6px">${total} vote${total === 1 ? '' : 's'} so far</p>`;
+}
+
+function renderTotPoll() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  return renderBarPoll(q.a, q.b, S.totVotes.a, S.totVotes.b);
+}
+
+function renderTotDivPoll(team) {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  const divQ = team === 'A' ? q.divA : q.divB;
+  const votes = team === 'A' ? S.totDivVotesA : S.totDivVotesB;
+  return renderBarPoll(divQ.a, divQ.b, votes.a, votes.b);
+}
+
+function renderTotDivStudentPanel() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  if (!S.totMyChoice) {
+    return `<p class="dim" style="font-size:0.85rem;margin-top:10px">You didn't vote in the original poll, so sit tight — watch the board for your group's question.</p>`;
+  }
+  const team = S.totMyChoice === 'a' ? 'A' : 'B';
+  const divQ = S.totMyChoice === 'a' ? q.divA : q.divB;
+  const teamLabel = S.totMyChoice === 'a' ? q.a : q.b;
+  return `
+    <p class="dim" style="font-size:0.82rem;margin:10px 0 6px">You picked <strong>${esc(teamLabel)}</strong> — now answer this to find your final group:</p>
+    <div class="tot-choices">
+      <button class="tot-div-choice-btn ${S.totMyDivChoice === 'a' ? 'active' : ''}" data-choice="a">${esc(divQ.a)}</button>
+      <div class="tot-vs">vs</div>
+      <button class="tot-div-choice-btn ${S.totMyDivChoice === 'b' ? 'active' : ''}" data-choice="b">${esc(divQ.b)}</button>
+    </div>
+    <div class="tot-poll tot-div-poll-${team.toLowerCase()}" style="margin-top:10px">${renderTotDivPoll(team)}</div>`;
+}
+
+function renderTotShareStudentPanel() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  if (!S.totMyChoice || !S.totMyDivChoice) {
+    return `<p class="dim" style="font-size:0.85rem;margin-top:10px">Check the board for your group's discussion question.</p>`;
+  }
+  const key = S.totMyChoice + S.totMyDivChoice;
+  return `
+    <div class="tot-share-box">
+      <p class="tot-share-label">💬 Your group's discussion question:</p>
+      <p class="tot-share-text">${esc(q.share[key])}</p>
+    </div>`;
+}
+
+function renderTotDivBoard() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  return `
+    <div class="tot-div-board">
+      <div class="tot-div-board-team">
+        <h3>${esc(q.a)}</h3>
+        <div class="tot-poll tot-div-poll-a">${renderTotDivPoll('A')}</div>
+      </div>
+      <div class="tot-div-board-team">
+        <h3>${esc(q.b)}</h3>
+        <div class="tot-poll tot-div-poll-b">${renderTotDivPoll('B')}</div>
+      </div>
+    </div>`;
+}
+
+function renderTotShareBoard() {
+  const q = THIS_OR_THAT_QUESTIONS[S.totCurrentIndex];
+  const groups = [
+    { key: 'aa', label: `${q.a} → ${q.divA.a}` },
+    { key: 'ab', label: `${q.a} → ${q.divA.b}` },
+    { key: 'ba', label: `${q.b} → ${q.divB.a}` },
+    { key: 'bb', label: `${q.b} → ${q.divB.b}` },
+  ];
+  return `
+    <div class="tot-share-board">
+      ${groups.map((g, i) => `
+        <div class="tot-share-card">
+          <div class="tot-share-group-label">Group ${i + 1} · ${esc(g.label)}</div>
+          <div class="tot-share-text">${esc(q.share[g.key])}</div>
+        </div>`).join('')}
+    </div>`;
 }
 
 async function submitTotVote(choice) {
@@ -832,20 +1030,56 @@ async function submitTotVote(choice) {
   }
 }
 
+async function submitTotDivVote(choice) {
+  const name = localStorage.getItem('hm_student_name');
+  if (!name || !S.totMyChoice) return;
+  const db = getDB();
+  if (!db) return;
+  const team = S.totMyChoice === 'b' ? 'B' : 'A';
+  try {
+    const voteId = `${S.totCurrentIndex}_${team}_${slugifyName(name)}`;
+    await db.collection('hm_tot_div_votes').doc(voteId).set({ name, team, choice, questionIndex: S.totCurrentIndex, createdAt: Date.now() });
+    S.totMyDivChoice = choice;
+    document.querySelectorAll('.tot-div-choice-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.choice === choice));
+  } catch (e) { console.error('tot div vote error', e); }
+}
+
 async function advanceTotQuestion(delta) {
   const db = getDB();
   if (!db) return;
   const next = Math.max(0, Math.min(S.totCurrentIndex + delta, THIS_OR_THAT_QUESTIONS.length - 1));
-  await db.collection('hm_tot_state').doc('current').set({ index: next, updatedAt: Date.now() });
+  await db.collection('hm_tot_state').doc('current').set({ index: next, stage: 'poll', updatedAt: Date.now() });
+}
+
+async function startTotDivision() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_tot_state').doc('current').set({ index: S.totCurrentIndex, stage: 'div', updatedAt: Date.now() });
+}
+
+async function revealTotShare() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_tot_state').doc('current').set({ index: S.totCurrentIndex, stage: 'share', updatedAt: Date.now() });
+}
+
+async function resetTotStage() {
+  const db = getDB();
+  if (!db) return;
+  await db.collection('hm_tot_state').doc('current').set({ index: S.totCurrentIndex, stage: 'poll', updatedAt: Date.now() });
 }
 
 async function clearTotVotes() {
   if (!confirm('Clear all This or That votes (every question)? Do this between class periods.')) return;
   const db = getDB();
   if (!db) return;
-  const snap = await db.collection('hm_tot_votes').get();
+  const [snap, divSnap] = await Promise.all([
+    db.collection('hm_tot_votes').get(),
+    db.collection('hm_tot_div_votes').get(),
+  ]);
   const batch = db.batch();
   snap.docs.forEach(d => batch.delete(d.ref));
+  divSnap.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
 }
 
@@ -1765,33 +1999,42 @@ function renderIcebreaker() {
       <section class="card" style="margin-bottom:20px">
         <h2>⚖️ This or That</h2>
         ${S.teacherMode ? `
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap">
           <button class="btn-secondary" id="tot-prev" style="font-size:0.78rem;padding:4px 12px">← Prev</button>
           <span class="dim" id="tot-position" style="font-size:0.8rem">${S.totCurrentIndex + 1} / ${THIS_OR_THAT_QUESTIONS.length}</span>
           <button class="btn-secondary" id="tot-next" style="font-size:0.78rem;padding:4px 12px">Next →</button>
+          ${S.totStage === 'poll' ? `<button class="btn-secondary" id="tot-start-div" style="font-size:0.78rem;padding:4px 12px">🔀 Start Division Round</button>` : ''}
+          ${S.totStage === 'div' ? `<button class="btn-secondary" id="tot-reveal-share" style="font-size:0.78rem;padding:4px 12px">💬 Reveal Share Question</button><button class="btn-secondary" id="tot-back-poll" style="font-size:0.78rem;padding:4px 12px">↺ Back to Poll</button>` : ''}
+          ${S.totStage === 'share' ? `<button class="btn-secondary" id="tot-back-poll" style="font-size:0.78rem;padding:4px 12px">↺ Back to Poll</button>` : ''}
         </div>` : ''}
         <div class="form-group">
           <label>First and Last Name</label>
           <input id="tot-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
         </div>
+        ${S.totStage === 'poll' ? `
         <div class="tot-choices">
           <button class="tot-choice-btn ${S.totMyChoice === 'a' ? 'active' : ''}" data-choice="a"><span class="tot-question-a">${esc(totQ.a)}</span></button>
           <div class="tot-vs">vs</div>
           <button class="tot-choice-btn ${S.totMyChoice === 'b' ? 'active' : ''}" data-choice="b"><span class="tot-question-b">${esc(totQ.b)}</span></button>
         </div>
-        <p id="tot-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>
+        <p id="tot-msg" class="dim" style="font-size:0.85rem;margin-top:10px"></p>` : ''}
+        ${S.totStage === 'div' ? renderTotDivStudentPanel() : ''}
+        ${S.totStage === 'share' ? renderTotShareStudentPanel() : ''}
       </section>
 
       <section class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
-          <h2 style="margin:0">📊 Live Results</h2>
+          <h2 style="margin:0">${S.totStage === 'poll' ? '📊 Live Results' : S.totStage === 'div' ? '🔀 Division Round' : '💬 Group Discussion'}</h2>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
             <a href="?board=icebreaker&game=tot" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
             ${S.teacherMode ? `<button class="btn-secondary" id="tot-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear All Votes</button>` : ''}
           </div>
         </div>
-        <p class="cal-section-sub">Watch the class split live, then go find someone who picked the other side and ask them why.</p>
-        <div class="tot-poll">${renderTotPoll()}</div>
+        ${S.totStage === 'poll' ? `
+        <p class="cal-section-sub">Watch the class split live, then get into two groups based on your answer.</p>
+        <div class="tot-poll">${renderTotPoll()}</div>` : ''}
+        ${S.totStage === 'div' ? `<p class="cal-section-sub">Each team answers its own follow-up on this page, splitting into 4 final groups. Watch the board for the live breakdown.</p>` : ''}
+        ${S.totStage === 'share' ? `<p class="cal-section-sub">Find your final group of classmates and talk through your group's question together.</p>` : ''}
       </section>`;
 
   const bingoSection = `
@@ -2015,12 +2258,23 @@ function renderIcebreakerBoard() {
         <div class="ib-board-header">
           <h1>⚖️ This or That</h1>
         </div>
+        ${S.totStage === 'poll' ? `
         <div class="tot-board-choices">
           <div class="tot-board-choice"><span class="tot-question-a">${esc(totQ.a)}</span></div>
           <div class="tot-vs">vs</div>
           <div class="tot-board-choice"><span class="tot-question-b">${esc(totQ.b)}</span></div>
         </div>
-        <div class="tot-poll tot-board-poll">${renderTotPoll()}</div>
+        <div class="tot-poll tot-board-poll">${renderTotPoll()}</div>` : ''}
+        ${S.totStage === 'div' ? renderTotDivBoard() : ''}
+        ${S.totStage === 'share' ? renderTotShareBoard() : ''}
+        <div class="ib-board-controls">
+          <button class="btn-secondary" id="tot-board-prev">← Prev</button>
+          <span class="dim" id="tot-position">${S.totCurrentIndex + 1} / ${THIS_OR_THAT_QUESTIONS.length}</span>
+          <button class="btn-secondary" id="tot-board-next">Next →</button>
+          ${S.totStage === 'poll' ? `<button class="btn-secondary" id="tot-board-start-div">🔀 Start Division Round</button>` : ''}
+          ${S.totStage === 'div' ? `<button class="btn-secondary" id="tot-board-reveal-share">💬 Reveal Share Question</button><button class="btn-secondary" id="tot-board-back-poll">↺ Back to Poll</button>` : ''}
+          ${S.totStage === 'share' ? `<button class="btn-secondary" id="tot-board-back-poll">↺ Back to Poll</button>` : ''}
+        </div>
       </div>`;
   }
   if (S.icebreakerGame === 'bingo') {
@@ -6332,6 +6586,9 @@ function attachListeners() {
   document.querySelectorAll('.tot-choice-btn').forEach(btn =>
     btn.addEventListener('click', () => submitTotVote(btn.dataset.choice)));
 
+  document.querySelectorAll('.tot-div-choice-btn').forEach(btn =>
+    btn.addEventListener('click', () => submitTotDivVote(btn.dataset.choice)));
+
   const totClear = document.getElementById('tot-clear');
   if (totClear) totClear.addEventListener('click', clearTotVotes);
 
@@ -6340,6 +6597,30 @@ function attachListeners() {
 
   const totNext = document.getElementById('tot-next');
   if (totNext) totNext.addEventListener('click', () => advanceTotQuestion(1));
+
+  const totStartDiv = document.getElementById('tot-start-div');
+  if (totStartDiv) totStartDiv.addEventListener('click', startTotDivision);
+
+  const totRevealShare = document.getElementById('tot-reveal-share');
+  if (totRevealShare) totRevealShare.addEventListener('click', revealTotShare);
+
+  const totBackPoll = document.getElementById('tot-back-poll');
+  if (totBackPoll) totBackPoll.addEventListener('click', resetTotStage);
+
+  const totBoardPrev = document.getElementById('tot-board-prev');
+  if (totBoardPrev) totBoardPrev.addEventListener('click', () => advanceTotQuestion(-1));
+
+  const totBoardNext = document.getElementById('tot-board-next');
+  if (totBoardNext) totBoardNext.addEventListener('click', () => advanceTotQuestion(1));
+
+  const totBoardStartDiv = document.getElementById('tot-board-start-div');
+  if (totBoardStartDiv) totBoardStartDiv.addEventListener('click', startTotDivision);
+
+  const totBoardRevealShare = document.getElementById('tot-board-reveal-share');
+  if (totBoardRevealShare) totBoardRevealShare.addEventListener('click', revealTotShare);
+
+  const totBoardBackPoll = document.getElementById('tot-board-back-poll');
+  if (totBoardBackPoll) totBoardBackPoll.addEventListener('click', resetTotStage);
 
   document.querySelectorAll('button.bingo-cell[data-bingo-pos]').forEach(btn =>
     btn.addEventListener('click', () => openBingoCell(parseInt(btn.dataset.bingoPos))));

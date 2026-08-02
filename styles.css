@@ -589,6 +589,63 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .tot-bar-b { background: var(--sports); }
 .tot-bar-count { font-size: 0.8rem; color: var(--dim); text-align: right; }
 
+.tot-div-choice-btn {
+  flex: 1;
+  background: var(--surface2);
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  text-align: center;
+}
+.tot-div-choice-btn.active {
+  border-color: var(--sports);
+  background: color-mix(in srgb, var(--sports) 15%, var(--surface2));
+}
+.tot-div-board {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 10px;
+}
+.tot-div-board-team {
+  flex: 1;
+  min-width: 320px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+.tot-div-board-team h3 { margin: 0 0 14px; font-size: 1.4rem; text-align: center; }
+.tot-share-box {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 16px;
+  margin-top: 10px;
+}
+.tot-share-label { margin: 0 0 6px; font-size: 0.82rem; color: var(--dim); font-weight: 600; }
+.tot-share-text { margin: 0; font-size: 1.05rem; font-weight: 700; }
+.tot-share-board {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  max-width: 1000px;
+  margin: 10px auto 0;
+}
+.tot-share-card {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px 24px;
+}
+.tot-share-group-label { font-size: 1rem; font-weight: 700; color: var(--dim); margin: 0 0 10px; }
+.tot-share-card .tot-share-text { font-size: 1.5rem; }
+
 .bingo-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
