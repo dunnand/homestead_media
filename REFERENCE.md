@@ -144,11 +144,26 @@ const IASB_DROPBOX_URL = 'https://drive.google.com/drive/folders/1Kg4UYcKzOLNYYq
 // Broadcast Planner: https://wcyt.org/planner.html (hour-clock planner, lives in dunnand.github.io repo;
 //   Radio page has an action card linking to it — added Aug 2 2026)
 // Song library JSON: https://wcyt.org/planner-songs.json (slim export of the Broadcast Planner's embedded
-//   libraries — WCYT 5,698 + 2.0 6,347 music songs as {t,a,c,d,y} + per-station cats {label,color}.
+//   libraries — WCYT 5,777 + 2.0 6,515 music songs as {t,a,c,d,y} + per-station cats {label,color}.
 //   Fetched lazily by the Show Planner's "🎵 Pick from station library" song picker (loadSongLibrary()/
 //   showSongPicker() in script.js) on the Air/Radio back-sell + pre-sell fields; picker filters to the
-//   station chosen on step 0. Regenerate by re-running the extraction against planner.html's embedded
-//   SONGS/META data if the library is updated.)
+//   station chosen on step 0.
+//   SOURCE OF TRUTH: the school's Simian automation exports two CSVs to
+//   `G:\Shared drives\Audio Broadcasting\Libaraies\` — "WCYT Library List.csv"
+//   (cols: Source,CategoryID,Title,Artists,Album,Intro,Length,EndType,Tempo,Year)
+//   and "2 Library List.csv" (same, no Album col). To refresh both the
+//   embedded SONGS in dunnand.github.io/planner.html AND this JSON in one
+//   step, run from dunnand.github.io repo root:
+//     node scripts/update-song-library.js "G:\Shared drives\Audio Broadcasting\Libaraies\WCYT Library List.csv" "G:\Shared drives\Audio Broadcasting\Libaraies\2 Library List.csv"
+//   Matches columns by header name (order-proof), converts Length
+//   (HH:MM:SS.mmm or MM:SS.hh) to secs/dur, and carries over album/art from
+//   the existing embedded library by Source then Title+Artist for songs that
+//   already existed (new songs get no art until enriched separately). Only
+//   categories marked music:true in planner.html's META are kept — unknown
+//   codes (e.g. a stray "XXX" flag) and non-music branding categories
+//   (liners/sponsor/legal ID, and specialty-show-only pools like "BHM") are
+//   silently excluded from the library rather than carried in broken. Then
+//   commit+push planner.html and planner-songs.json in dunnand.github.io.)
 ```
 
 ---
