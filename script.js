@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260801t';
+const APP_VERSION = '20260802a';
 (function() {
   try {
     const k = 'hm_version';
@@ -1937,8 +1937,8 @@ function renderPlanner() {
           <input id="b1-connection" type="text" value="${esc(b.connection || '')}" placeholder="How does this news tie into your show's theme?">
         </div>
         <div class="form-group">
-          <label>Transition Line into Music or Next Segment</label>
-          <input id="b1-transition" type="text" value="${esc(b.transition || '')}" placeholder="e.g. Alright, that's the news — now let's get into it...">
+          <label>Transition Line into Music or Next Segment <span class="hint">(hook them — tease your main topic!)</span></label>
+          <input id="b1-transition" type="text" value="${esc(b.transition || '')}" placeholder="e.g. That's the news — but stick around, because coming up we're getting into [your main topic], and you do NOT want to miss it...">
         </div>`;
       break;
     }
