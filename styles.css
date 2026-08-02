@@ -453,6 +453,28 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   font-size: 1rem;
   font-weight: 600;
   color: var(--text);
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  transition: background 0.15s, border-color 0.15s;
+}
+.ib-quiz-statement:hover { background: var(--surface2); }
+.ib-quiz-statement.is-highlighted {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--radio);
+}
+.ib-quiz-hint {
+  margin: 0;
+  font-size: 0.75rem;
+  color: var(--dim);
+  font-style: italic;
+}
+.ib-quiz-explain-prompt {
+  margin: 0;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--radio);
 }
 .ib-quiz-answer {
   margin: 0;
@@ -479,6 +501,8 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .ib-board-wall .ib-quiz-check { font-size: 1.05rem; }
 .ib-board-wall .ib-quiz-question-label { font-size: 0.95rem; }
 .ib-board-wall .ib-quiz-question-input { font-size: 1.1rem; padding: 10px 14px; }
+.ib-board-wall .ib-quiz-hint { font-size: 0.9rem; }
+.ib-board-wall .ib-quiz-explain-prompt { font-size: 1.1rem; }
 
 .ib-menu-grid {
   display: grid;
