@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zb';
+const APP_VERSION = '20260802zc';
 (function() {
   try {
     const k = 'hm_version';
@@ -266,6 +266,7 @@ const S = {
   totVotesUnsub: null,
   bingoOrder: [],
   bingoFilled: {},
+  bingoActive: null,
   bingoWon: false,
   bingoWinners: [],
   bingoWinnersUnsub: null,
@@ -1244,7 +1245,7 @@ const BINGO_PROMPTS = [
   'Plays a sport',
   'Has the same favorite food as you',
   'Has never broken a bone',
-  'Loves to read for fun',
+  'Has read a book for fun, not for school, in the last month',
   'Has met someone famous',
   'Can whistle',
   'Has been to a concert',
@@ -1262,7 +1263,7 @@ const BINGO_PROMPTS = [
   'Has gone viral on social media before (even just with friends)',
   'Wants to work in media or broadcasting someday',
   'Has edited a video before',
-  'Has a favorite podcast',
+  'Can name their favorite podcast without hesitating',
   'Can do an impression of someone',
   'Has a driver’s license',
   'Has a Snapchat or texting streak going 100+ days',
@@ -1275,7 +1276,7 @@ const BINGO_PROMPTS = [
   'Has more than one job',
   'Can name their top artist from Spotify Wrapped this year',
   'Has never had a cavity',
-  'Has a go-to order at a fast food drive-thru',
+  'Knows their order at a fast food drive-thru by heart, without looking at the menu',
   'Has worked (or currently works) a fast food job',
   'Would pick Chick-fil-A over any other fast food',
   'Has tried a fast food item that got discontinued',
@@ -1358,13 +1359,26 @@ function renderBingoGrid() {
         cells += `<div class="bingo-cell bingo-free filled"><span class="bingo-cell-name">FREE</span></div>`;
         continue;
       }
+      const prompt = bingoPromptForPos(pos);
       const raw = S.bingoFilled[pos];
-      const entry = raw ? (typeof raw === 'string' ? { name: raw, answer: '' } : raw) : null;
+      const entry = raw ? (typeof raw === 'string' ? { name: raw } : raw) : null;
+      if (S.bingoActive === pos) {
+        cells += `
+          <div class="bingo-cell bingo-cell-active">
+            <span class="bingo-cell-prompt">${esc(prompt)}</span>
+            <input type="text" class="bingo-fill-input" id="bingo-fill-input" data-bingo-pos="${pos}" placeholder="Who matches this?" value="${esc(entry ? entry.name : '')}">
+            <div class="bingo-fill-actions">
+              <button type="button" class="bingo-fill-save" data-bingo-pos="${pos}">✓ Save</button>
+              <button type="button" class="bingo-fill-cancel">✕</button>
+            </div>
+          </div>`;
+        continue;
+      }
       cells += `
         <button class="bingo-cell ${entry ? 'filled' : ''}" data-bingo-pos="${pos}">
           ${entry
-            ? `<span class="bingo-cell-name">${esc(entry.name)}</span>${entry.answer ? `<span class="bingo-cell-answer">${esc(entry.answer)}</span>` : ''}`
-            : `<span class="bingo-cell-prompt">${esc(bingoPromptForPos(pos))}</span>`}
+            ? `<span class="bingo-cell-name">${esc(entry.name)}</span>`
+            : `<span class="bingo-cell-prompt">${esc(prompt)}</span>`}
         </button>`;
     }
     rows += `<div class="bingo-row">${cells}</div>`;
@@ -1382,13 +1396,25 @@ function checkBingoWin() {
   return false;
 }
 
-function fillBingoSquare(pos) {
-  const prompt = bingoPromptForPos(pos);
-  const name = window.prompt(`Who matches: "${prompt}"?\nEnter their name:`);
-  if (!name || !name.trim()) return;
-  const answer = window.prompt(`What's their answer? (e.g. which pet, which language, etc. — so you can share it later)`);
-  S.bingoFilled[pos] = { name: name.trim(), answer: (answer || '').trim() };
+function openBingoCell(pos) {
+  S.bingoActive = pos;
+  render();
+  const input = document.getElementById('bingo-fill-input');
+  if (input) { input.focus(); input.select(); }
+}
+
+function closeBingoCell() {
+  S.bingoActive = null;
+  render();
+}
+
+function saveBingoCell(pos) {
+  const input = document.getElementById('bingo-fill-input');
+  const name = input ? input.value.trim() : '';
+  if (!name) { closeBingoCell(); return; }
+  S.bingoFilled[pos] = { name };
   try { localStorage.setItem('hm_bingo_filled', JSON.stringify(S.bingoFilled)); } catch (e) {}
+  S.bingoActive = null;
   if (!S.bingoWon && checkBingoWin()) {
     S.bingoWon = true;
     try { localStorage.setItem('hm_bingo_won', '1'); } catch (e) {}
@@ -1412,6 +1438,7 @@ function resetBingoCard() {
   if (!confirm('Start a new BINGO card? This clears your current progress.')) return;
   S.bingoOrder = shuffledBingoOrder();
   S.bingoFilled = {};
+  S.bingoActive = null;
   S.bingoWon = false;
   try {
     localStorage.setItem('hm_bingo_filled', '{}');
@@ -6240,8 +6267,20 @@ function attachListeners() {
   const totNext = document.getElementById('tot-next');
   if (totNext) totNext.addEventListener('click', () => advanceTotQuestion(1));
 
-  document.querySelectorAll('[data-bingo-pos]').forEach(btn =>
-    btn.addEventListener('click', () => fillBingoSquare(parseInt(btn.dataset.bingoPos))));
+  document.querySelectorAll('button.bingo-cell[data-bingo-pos]').forEach(btn =>
+    btn.addEventListener('click', () => openBingoCell(parseInt(btn.dataset.bingoPos))));
+
+  document.querySelectorAll('.bingo-fill-save[data-bingo-pos]').forEach(btn =>
+    btn.addEventListener('click', () => saveBingoCell(parseInt(btn.dataset.bingoPos))));
+
+  document.querySelectorAll('.bingo-fill-cancel').forEach(btn =>
+    btn.addEventListener('click', closeBingoCell));
+
+  const bingoFillInput = document.getElementById('bingo-fill-input');
+  if (bingoFillInput) bingoFillInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') saveBingoCell(parseInt(bingoFillInput.dataset.bingoPos));
+    else if (e.key === 'Escape') closeBingoCell();
+  });
 
   const bingoReset = document.getElementById('bingo-reset');
   if (bingoReset) bingoReset.addEventListener('click', resetBingoCard);

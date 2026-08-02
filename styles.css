@@ -600,8 +600,43 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .bingo-cell.bingo-free { cursor: default; font-style: italic; }
 .bingo-cell-name { font-weight: 700; font-size: 1rem; }
-.bingo-cell-answer { display: block; font-size: 0.82rem; font-weight: 400; opacity: 0.8; margin-top: 2px; line-height: 1.2; }
 .bingo-cell-prompt { line-height: 1.25; }
+.bingo-cell-active {
+  aspect-ratio: auto;
+  flex-direction: column;
+  align-items: stretch;
+  justify-content: flex-start;
+  gap: 6px;
+  padding: 10px;
+  cursor: default;
+  border-color: var(--text);
+}
+.bingo-cell-active .bingo-cell-prompt { font-size: 0.82rem; text-align: left; }
+.bingo-fill-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.85rem;
+}
+.bingo-fill-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+.bingo-fill-save, .bingo-fill-cancel {
+  border: none;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+.bingo-fill-save { background: var(--success); color: var(--bg); }
+.bingo-fill-cancel { background: var(--surface2); color: var(--dim); border: 1px solid var(--border); }
 .bingo-won-banner {
   background: color-mix(in srgb, var(--success) 15%, transparent);
   border: 1px solid var(--success);
