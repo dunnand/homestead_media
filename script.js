@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802e';
+const APP_VERSION = '20260802f';
 (function() {
   try {
     const k = 'hm_version';
@@ -1904,7 +1904,7 @@ function renderRadio() {
 // ── TALK SHOW PLANNER ─────────────────────────────────────────
 const PLANNER_TYPES = {
   talk:  { label: 'Talk Show',        icon: '🎙️', desc: 'A themed episode with segments, a topic, and talking points.' },
-  air:   { label: 'Air Personality',  icon: '🎧', desc: 'Solo on-air breaks between songs — back-sell, pre-sell, and talk points.' },
+  air:   { label: 'Air Personality',  icon: '🎧', desc: 'Solo on-air breaks between songs — back-sell, talk points, and pre-sell.' },
   radio: { label: 'Radio Show',       icon: '🎤', desc: 'Same as Air Personality, but with a co-host.' },
 };
 
@@ -1916,8 +1916,8 @@ const PLANNER_PROMO_CHIPS = [
 const PLANNER_TALK_POINT_IDEAS = [
   'New Releases', "Musicians' Birthdays", 'Trending News', 'Artist Bio Deep-Dive',
   'Albums Released On This Day', 'Local Headlines', 'AccuWeather', 'This Day in Music',
-  'National Holiday "Day"', 'Homestead Sports Scores/Schedule', 'Throwback Thursday Pick',
-  'New Music Friday Spotlight', 'Listener Poll / This-or-That', 'Concert/Tour Announcement',
+  'National Holiday "Day"', 'Homestead Sports Scores/Schedule', 'Throwback Pick',
+  'New Music Spotlight', 'Listener Poll / This-or-That', 'Concert/Tour Announcement',
 ];
 
 function plannerStepLabels(type) {
@@ -1977,11 +1977,20 @@ function renderPlannerStep0(p) {
     ` : ''}`;
 }
 
-function plannerChipsHTML(idx) {
+function plannerPromoChipsHTML(idx) {
   return `
     <div class="talkpoint-chips">
       ${PLANNER_PROMO_CHIPS.map(c => `<button type="button" class="chip chip-promo" data-chip-target="air-talkpoint-${idx}" data-chip-text="${esc(c.text)}">${c.label}</button>`).join('')}
-      ${PLANNER_TALK_POINT_IDEAS.map(t => `<button type="button" class="chip" data-chip-target="air-talkpoint-${idx}" data-chip-text="${esc(t)}">${esc(t)}</button>`).join('')}
+    </div>`;
+}
+
+function plannerIdeaListHTML() {
+  return `
+    <div class="talkpoint-idea-bank">
+      <div class="talkpoint-idea-label">💡 Need a topic? Try looking one of these up online:</div>
+      <div class="talkpoint-idea-tags">
+        ${PLANNER_TALK_POINT_IDEAS.map(t => `<span class="idea-tag">${esc(t)}</span>`).join('')}
+      </div>
     </div>`;
 }
 
@@ -1991,6 +2000,7 @@ function renderPlannerAirBreaks(p) {
     <h2>Your Breaks</h2>
     <div class="break-purpose">Suggested pacing: about 20–30 seconds per break — that's just a guide, not a rule.</div>
     <div class="break-purpose">📱 Text line: <strong>260-702-9118</strong> · 📻 <strong>91.1 FM</strong> — try to work this into at least one break.</div>
+    ${plannerIdeaListHTML()}
     ${Array.from({ length: 5 }, (_, i) => {
       const b = breaks[i] || {};
       return `
@@ -2001,13 +2011,13 @@ function renderPlannerAirBreaks(p) {
           <input id="air-backsell-${i}" type="text" value="${esc(b.backsell || '')}" placeholder="e.g. That was Taylor Swift with Anti-Hero">
         </div>
         <div class="form-group">
-          <label>Pre-sell <span class="hint">(song coming up)</span></label>
-          <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
+          <label>Talk Point(s)</label>
+          ${plannerPromoChipsHTML(i)}
+          <textarea id="air-talkpoint-${i}" rows="2" placeholder="What will you talk about?">${esc(b.talkPoint || '')}</textarea>
         </div>
         <div class="form-group">
-          <label>Talk Point(s)</label>
-          ${plannerChipsHTML(i)}
-          <textarea id="air-talkpoint-${i}" rows="2" placeholder="Tap an idea above or write your own...">${esc(b.talkPoint || '')}</textarea>
+          <label>Pre-sell <span class="hint">(song coming up)</span></label>
+          <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
         </div>
       </div>`;
     }).join('')}`;
@@ -2041,8 +2051,8 @@ function renderPlannerAirReview(p) {
         <div class="review-label">Break ${i + 1}</div>
         <div class="review-value">
           ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
-          ${b.presell ? `<em>Pre-sell:</em> ${esc(b.presell)}<br>` : ''}
           ${esc(b.talkPoint || '')}
+          ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
         </div>
       </div>`).join('') : `
       <div class="review-section">
@@ -4959,8 +4969,8 @@ function buildAirPlanText(p) {
     if (!b || (!b.backsell && !b.presell && !b.talkPoint)) return;
     lines.push(`-- BREAK ${i + 1} --`);
     lines.push(`Back-sell:  ${b.backsell || ''}`);
-    lines.push(`Pre-sell:   ${b.presell || ''}`);
     lines.push(`Talk Point: ${b.talkPoint || ''}`);
+    lines.push(`Pre-sell:   ${b.presell || ''}`);
     lines.push('');
   });
 
@@ -5211,8 +5221,8 @@ function showSubmissionDetail(sub, parentModal) {
           <div class="submission-field-label">Break ${i + 1}</div>
           <div class="submission-field-value">
             ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
-            ${b.presell ? `<em>Pre-sell:</em> ${esc(b.presell)}<br>` : ''}
             ${esc(b.talkPoint || '')}
+            ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
           </div>
         </div>`).join('') : `
         <div class="submission-field">
