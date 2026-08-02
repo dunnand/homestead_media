@@ -821,25 +821,25 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .progress-step.active .step-dot  { background: var(--radio); border-color: var(--radio); color: #000; }
 .progress-step.done   .step-dot  { background: var(--success); border-color: var(--success); color: #000; }
-.step-label { font-size: 0.7rem; color: var(--dim); white-space: nowrap; }
+.step-label { font-size: 0.8rem; color: var(--dim); white-space: nowrap; }
 .progress-step.active .step-label,
 .progress-step.done   .step-label { color: var(--text); }
 .progress-line { flex: 1; height: 2px; background: var(--border); margin: 0 4px 18px; }
 
 .planner-card { max-width: 680px; }
 .planner-card h2 { font-size: 1.25rem; font-weight: 800; margin-bottom: 8px; }
-.planner-card > p { color: var(--dim); margin-bottom: 24px; font-size: 0.875rem; }
+.planner-card > p { color: var(--dim); margin-bottom: 24px; font-size: 1rem; }
 .break-purpose {
   background: var(--surface2);
   border-left: 3px solid var(--radio);
   padding: 10px 14px; border-radius: 0 8px 8px 0;
-  font-size: 0.85rem; color: var(--dim);
+  font-size: 0.95rem; color: var(--dim);
   margin-bottom: 24px; line-height: 1.5;
 }
 
 .form-group { margin-bottom: 20px; }
 .form-group label {
-  display: block; font-size: 0.85rem; font-weight: 600;
+  display: block; font-size: 0.95rem; font-weight: 600;
   margin-bottom: 6px; color: var(--text);
 }
 .form-group .hint { color: var(--dim); font-weight: 400; }
@@ -852,7 +852,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-radius: 8px;
   color: var(--text);
   padding: 10px 14px;
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-family: inherit;
   transition: border-color 0.15s;
   outline: none;
@@ -885,14 +885,14 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .review-section:last-child { border-bottom: none; }
 .review-label {
-  font-size: 0.75rem; font-weight: 700; color: var(--dim);
+  font-size: 0.85rem; font-weight: 700; color: var(--dim);
   text-transform: uppercase; letter-spacing: 0.05em; padding-top: 2px;
 }
-.review-value { font-size: 0.875rem; line-height: 1.6; }
+.review-value { font-size: 0.98rem; line-height: 1.6; }
 
 .criteria-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .criterion {
-  font-size: 0.8rem; color: var(--dim);
+  font-size: 0.9rem; color: var(--dim);
   padding: 8px 12px; background: var(--surface2); border-radius: 8px;
 }
 
@@ -911,8 +911,8 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .showtype-btn:hover { border-color: var(--radio); }
 .showtype-btn.active { border-color: var(--radio); background: rgba(255,255,255,0.04); }
 .showtype-icon { font-size: 1.6rem; }
-.showtype-name { font-weight: 700; font-size: 0.9rem; }
-.showtype-desc { font-size: 0.72rem; color: var(--dim); line-height: 1.4; }
+.showtype-name { font-weight: 700; font-size: 1.02rem; }
+.showtype-desc { font-size: 0.85rem; color: var(--dim); line-height: 1.4; }
 
 @media (max-width: 640px) {
   .showtype-picker { grid-template-columns: 1fr; }
@@ -924,14 +924,14 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   padding: 16px; margin-bottom: 16px; background: var(--surface2);
 }
 .air-break-header {
-  font-size: 0.78rem; font-weight: 700; color: var(--radio);
+  font-size: 0.9rem; font-weight: 700; color: var(--radio);
   text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 12px;
 }
 .talkpoint-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .chip {
-  font-family: inherit; font-size: 0.72rem; cursor: pointer;
+  font-family: inherit; font-size: 0.85rem; cursor: pointer;
   background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  padding: 5px 12px; color: var(--dim); transition: border-color 0.15s, color 0.15s;
+  padding: 6px 14px; color: var(--dim); transition: border-color 0.15s, color 0.15s;
 }
 .chip:hover { border-color: var(--radio); color: var(--text); }
 .chip-promo { border-color: var(--radio); color: var(--radio); font-weight: 600; }
@@ -940,12 +940,12 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
   padding: 14px 16px; margin-bottom: 20px;
 }
-.talkpoint-idea-label { font-size: 0.8rem; font-weight: 600; margin-bottom: 10px; }
+.talkpoint-idea-label { font-size: 0.92rem; font-weight: 600; margin-bottom: 10px; }
 .talkpoint-idea-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .idea-tag {
-  font-size: 0.72rem; color: var(--dim);
+  font-size: 0.85rem; color: var(--dim);
   background: var(--surface); border: 1px solid var(--border); border-radius: 999px;
-  padding: 5px 12px;
+  padding: 6px 14px;
 }
 
 /* ── Homestead Live ──────────────────────────────────────── */
