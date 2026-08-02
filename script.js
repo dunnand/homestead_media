@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802g';
+const APP_VERSION = '20260802h';
 (function() {
   try {
     const k = 'hm_version';
@@ -1904,14 +1904,9 @@ function renderRadio() {
 // ── TALK SHOW PLANNER ─────────────────────────────────────────
 const PLANNER_TYPES = {
   talk:  { label: 'Talk Show',        icon: '🎙️', desc: 'A themed episode with segments, a topic, and talking points.' },
-  air:   { label: 'Air Personality',  icon: '🎧', desc: 'Solo on-air breaks between songs — back-sell, talk points, and pre-sell.' },
+  air:   { label: 'Air Personality',  icon: '🎧', desc: 'Solo on-air breaks that connect with listeners, not just fill time.' },
   radio: { label: 'Radio Show',       icon: '🎤', desc: 'Same as Air Personality, but with a co-host.' },
 };
-
-const PLANNER_PROMO_CHIPS = [
-  { label: '📱 Text Line', text: 'Text us at 260-702-9118!' },
-  { label: '🎧 Invite Interaction', text: "Call in, text your song request, or let us know what you think!" },
-];
 
 const PLANNER_TALK_POINT_IDEAS = [
   'New Releases', "Musicians' Birthdays", 'Trending News', 'Artist Bio Deep-Dive',
@@ -1920,10 +1915,55 @@ const PLANNER_TALK_POINT_IDEAS = [
   'New Music Spotlight', 'Listener Poll / This-or-That', 'Concert/Tour Announcement',
 ];
 
+const PLANNER_PURPOSES = [
+  { key: 'inform',     label: 'Inform',               icon: '📚' },
+  { key: 'entertain',  label: 'Entertain',             icon: '🎉' },
+  { key: 'excitement', label: 'Build Excitement',      icon: '⚡' },
+  { key: 'promote',    label: 'Promote Upcoming',      icon: '📣' },
+  { key: 'connect',    label: 'Connect with Listeners', icon: '🤝' },
+  { key: 'brand',      label: 'Reinforce Brand',       icon: '📻' },
+  { key: 'interact',   label: 'Encourage Interaction', icon: '💬' },
+];
+
+const PLANNER_RELEVANCE_PROMPTS = [
+  'Why is this relevant today?',
+  'Why now, at this time of day?',
+  'How does it connect to our HHS audience?',
+  'Is it entertaining, informative, or engaging?',
+];
+
+const PLANNER_RESET_CHIPS = [
+  { label: '📻 Station ID', text: "You're locked in with 91.1 The Point." },
+  { label: '🕐 Time Check', text: "It's [time] here on [show name]." },
+];
+
+const PLANNER_INTERACTION_CHIPS = [
+  { label: '📱 Text Line', text: 'Text us at 260-702-9118!' },
+  { label: '❓ Ask a Question', text: 'Text us and let us know — [your question]?' },
+  { label: '📲 Promote Social', text: 'Find us on social and tag us — we want to see it!' },
+  { label: '🎉 Contest/Event', text: "Don't forget — [contest or event] is happening..." },
+  { label: '🏫 School News', text: 'Big shoutout to [school news/event]...' },
+];
+
+const PLANNER_SHOW_TIMES = {
+  morning:     'Morning show — listeners are just waking up or heading to class. Keep it upbeat and quick.',
+  midday:      "Midday show — listeners are between classes or at lunch. Quick energy, social vibe works well.",
+  afterschool: 'After-school show — listeners are winding down, at practice, or doing homework. More relaxed pacing works.',
+  other:       '',
+};
+
 function plannerStepLabels(type) {
   if (type === 'talk') return ['Your Info', 'This Week', 'Break 1', 'Break 2', 'Break 3', 'Review'];
-  if (type === 'air' || type === 'radio') return ['Your Info', 'Your Breaks', 'Review'];
-  return ['Your Info', 'Your Breaks', 'Review'];
+  if (type === 'air' || type === 'radio') return ['Your Info', 'Open the Show', 'Your Breaks', 'Close the Show', 'Review'];
+  return ['Your Info', 'Open the Show', 'Your Breaks', 'Close the Show', 'Review'];
+}
+
+function plannerHasPurpose(p, key) {
+  const inBreaks = (p.breaks || []).some(b => (b.purposes || []).includes(key));
+  if (inBreaks) return true;
+  if ((key === 'connect' || key === 'brand') && p.open && (p.open.welcome || p.open.reset || p.open.preview)) return true;
+  if ((key === 'brand' || key === 'promote') && p.close && (p.close.recap || p.close.tease || p.close.signoff)) return true;
+  return false;
 }
 
 function renderPlannerStep0(p) {
@@ -1955,6 +1995,16 @@ function renderPlannerStep0(p) {
           <option value="point" ${p.station !== 'two' ? 'selected' : ''}>The Point 91FM</option>
           <option value="two" ${p.station === 'two' ? 'selected' : ''}>2.0</option>
         </select>
+      </div>
+      <div class="form-group">
+        <label>When does your show air? <span class="hint">(helps you think about who's listening)</span></label>
+        <select id="p-showtime">
+          <option value="" ${!p.showTime ? 'selected' : ''}>— Select —</option>
+          <option value="morning" ${p.showTime === 'morning' ? 'selected' : ''}>Morning</option>
+          <option value="midday" ${p.showTime === 'midday' ? 'selected' : ''}>Midday / Lunch</option>
+          <option value="afterschool" ${p.showTime === 'afterschool' ? 'selected' : ''}>After School</option>
+          <option value="other" ${p.showTime === 'other' ? 'selected' : ''}>Other</option>
+        </select>
       </div>` : ''}
       ${type === 'radio' ? `
       <div class="form-group">
@@ -1977,10 +2027,10 @@ function renderPlannerStep0(p) {
     ` : ''}`;
 }
 
-function plannerPromoChipsHTML(idx) {
+function plannerChipButtonsHTML(chips, targetId, extraClass) {
   return `
     <div class="talkpoint-chips">
-      ${PLANNER_PROMO_CHIPS.map(c => `<button type="button" class="chip chip-promo" data-chip-target="air-talkpoint-${idx}" data-chip-text="${esc(c.text)}">${c.label}</button>`).join('')}
+      ${chips.map(c => `<button type="button" class="chip${extraClass ? ' ' + extraClass : ''}" data-chip-target="${targetId}" data-chip-text="${esc(c.text)}">${c.label}</button>`).join('')}
     </div>`;
 }
 
@@ -1994,30 +2044,99 @@ function plannerIdeaListHTML() {
     </div>`;
 }
 
+function plannerFixedPurposeTagsHTML(keys) {
+  return `
+    <div class="talkpoint-idea-bank">
+      <div class="talkpoint-idea-label">This part's job:</div>
+      <div class="talkpoint-idea-tags">
+        ${keys.map(k => PLANNER_PURPOSES.find(pu => pu.key === k)).filter(Boolean)
+          .map(pu => `<span class="idea-tag purpose-fixed">${pu.icon} ${esc(pu.label)}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderPlannerOpen(p) {
+  const o = p.open || {};
+  return `
+    <h2>Open the Show</h2>
+    <div class="break-purpose">Someone is always tuning in for the first time this break. Welcome them in, reset the station, and give them a reason to stick around.</div>
+    <div class="form-group">
+      <label>Welcome <span class="hint">(how will you welcome listeners tuning in right now?)</span></label>
+      <textarea id="open-welcome" rows="2" placeholder="e.g. What's up Homestead, you're locked in with...">${esc(o.welcome || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Station Reset <span class="hint">(mention your station, show name, and/or the time)</span></label>
+      ${plannerChipButtonsHTML(PLANNER_RESET_CHIPS, 'open-reset', 'chip-promo')}
+      <textarea id="open-reset" rows="2" placeholder="Tap a template above or write your own...">${esc(o.reset || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Preview <span class="hint">(what's coming up today that'll make them want to stay tuned?)</span></label>
+      <textarea id="open-preview" rows="2" placeholder="e.g. songs, features, interviews, contests, programming...">${esc(o.preview || '')}</textarea>
+    </div>
+    ${plannerFixedPurposeTagsHTML(['connect', 'brand'])}`;
+}
+
+function renderPlannerClose(p) {
+  const c = p.close || {};
+  return `
+    <h2>Close the Show</h2>
+    <div class="break-purpose">Give listeners a reason to come back — recap what mattered, tease what's next, and sign off like a pro.</div>
+    <div class="form-group">
+      <label>Recap <span class="hint">(what should listeners remember from today?)</span></label>
+      <textarea id="close-recap" rows="2" placeholder="Quick recap of today's show...">${esc(c.recap || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Tease Next Time <span class="hint">(what can you tease for next time, or later today?)</span></label>
+      <textarea id="close-tease" rows="2" placeholder="e.g. Next week we're talking about...">${esc(c.tease || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Sign-Off</label>
+      <input id="close-signoff" type="text" value="${esc(c.signoff || '')}" placeholder="e.g. That's it for us — thanks for listening to...">
+    </div>
+    ${plannerFixedPurposeTagsHTML(['brand', 'promote'])}`;
+}
+
 function renderPlannerAirBreaks(p) {
   const breaks = p.breaks || [];
+  const timeHint = PLANNER_SHOW_TIMES[p.showTime] || '';
   return `
     <h2>Your Breaks</h2>
-    <div class="break-purpose">Suggested pacing: about 20–30 seconds per break — that's just a guide, not a rule.</div>
-    <div class="break-purpose">📱 Text line: <strong>260-702-9118</strong> · 📻 <strong>91.1 FM</strong> — try to work this into at least one break.</div>
-    ${plannerIdeaListHTML()}
-    ${Array.from({ length: 5 }, (_, i) => {
+    <div class="break-purpose">Every break should answer one question: <strong>why would someone listening right now care about what you're about to say?</strong></div>
+    ${timeHint ? `<div class="break-purpose">🕐 ${esc(timeHint)}</div>` : ''}
+    ${Array.from({ length: 4 }, (_, i) => {
       const b = breaks[i] || {};
+      const purposes = b.purposes || [];
       return `
       <div class="air-break-card">
         <div class="air-break-header">Break ${i + 1}</div>
         <div class="form-group">
-          <label>Back-sell <span class="hint">(song that just ended)</span></label>
+          <label>What is this break for? <span class="hint">(pick 1–2)</span></label>
+          <div class="purpose-picker">
+            ${PLANNER_PURPOSES.map(pu => `<button type="button" class="purpose-chip${purposes.includes(pu.key) ? ' active' : ''}" data-purpose-break="${i}" data-purpose-key="${pu.key}">${pu.icon} ${esc(pu.label)}</button>`).join('')}
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Why would someone listening right now care?</label>
+          <textarea id="air-why-${i}" rows="2" placeholder="Explain the reason, not just the topic...">${esc(b.whyRelevant || '')}</textarea>
+          <div class="coach-hint">${PLANNER_RELEVANCE_PROMPTS.map(q => esc(q)).join(' · ')}</div>
+        </div>
+        <div class="form-group">
+          <label>Reconnect the Listener <span class="hint">(one song you just played new listeners should know about)</span></label>
           <input id="air-backsell-${i}" type="text" value="${esc(b.backsell || '')}" placeholder="e.g. That was Taylor Swift with Anti-Hero">
         </div>
         <div class="form-group">
-          <label>Talk Point(s)</label>
-          ${plannerPromoChipsHTML(i)}
-          <textarea id="air-talkpoint-${i}" rows="2" placeholder="What will you talk about?">${esc(b.talkPoint || '')}</textarea>
+          <label>What You'll Say</label>
+          ${plannerIdeaListHTML()}
+          <textarea id="air-talkpoint-${i}" rows="2" placeholder="Write what you'll actually say on mic...">${esc(b.talkPoint || '')}</textarea>
         </div>
         <div class="form-group">
-          <label>Pre-sell <span class="hint">(song coming up)</span></label>
+          <label>Keep Them Listening <span class="hint">(what's coming up that keeps them tuned in?)</span></label>
           <input id="air-presell-${i}" type="text" value="${esc(b.presell || '')}" placeholder="e.g. Coming up next, we've got...">
+        </div>
+        <div class="form-group">
+          <label>Invite Them In <span class="hint">(try to use one every show)</span></label>
+          ${plannerChipButtonsHTML(PLANNER_INTERACTION_CHIPS, `air-interact-${i}`, 'chip-promo')}
+          <textarea id="air-interact-${i}" rows="2" placeholder="How will you invite listener interaction?">${esc(b.interaction || '')}</textarea>
         </div>
       </div>`;
     }).join('')}`;
@@ -2025,10 +2144,37 @@ function renderPlannerAirBreaks(p) {
 
 function renderPlannerAirReview(p) {
   const typeLabel = PLANNER_TYPES[p.showType]?.label || 'Show';
-  const breaks = (p.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint));
+  const o = p.open || {};
+  const c = p.close || {};
+  const breaks = p.breaks || [];
+  const coverage = PLANNER_PURPOSES.map(pu => ({ ...pu, covered: plannerHasPurpose(p, pu.key) }));
+
+  const breakRows = breaks.map((b, i) => {
+    const purposeTags = (b.purposes || []).map(k => PLANNER_PURPOSES.find(pu => pu.key === k)).filter(Boolean);
+    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction && !purposeTags.length)) return '';
+    return `
+      <div class="review-section">
+        <div class="review-label">Break ${i + 1}</div>
+        <div class="review-value">
+          ${purposeTags.length ? `<div class="review-purpose-tags">${purposeTags.map(pu => `<span class="idea-tag purpose-fixed">${pu.icon} ${esc(pu.label)}</span>`).join('')}</div>` : ''}
+          ${b.whyRelevant ? `<em>Why:</em> ${esc(b.whyRelevant)}<br>` : ''}
+          ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
+          ${esc(b.talkPoint || '')}
+          ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
+          ${b.interaction ? `<br><em>Invite:</em> ${esc(b.interaction)}` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
   return `
-    <h2>Review Your Show Plan</h2>
-    <p>Make sure everything looks right before you submit.</p>
+    <h2>Pre-Air Checklist</h2>
+    <p>Make sure your show has a purpose behind every break before you submit.</p>
+    <div class="purpose-coverage-grid">
+      ${coverage.map(pu => `
+        <div class="purpose-coverage-item ${pu.covered ? 'covered' : 'uncovered'}">
+          <span>${pu.covered ? '✓' : '○'}</span> ${pu.icon} ${esc(pu.label)}
+        </div>`).join('')}
+    </div>
     <div class="review-block">
       <div class="review-section">
         <div class="review-label">Type</div>
@@ -2046,26 +2192,38 @@ function renderPlannerAirReview(p) {
         <div class="review-label">Station</div>
         <div class="review-value">${p.station === 'two' ? '2.0' : 'The Point 91FM'}</div>
       </div>
-      ${breaks.length ? breaks.map((b, i) => `
       <div class="review-section">
-        <div class="review-label">Break ${i + 1}</div>
+        <div class="review-label">Open</div>
         <div class="review-value">
-          ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
-          ${esc(b.talkPoint || '')}
-          ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
+          ${o.welcome || o.reset || o.preview ? `
+            ${o.welcome ? `<em>Welcome:</em> ${esc(o.welcome)}<br>` : ''}
+            ${o.reset ? `<em>Reset:</em> ${esc(o.reset)}<br>` : ''}
+            ${o.preview ? `<em>Preview:</em> ${esc(o.preview)}` : ''}
+          ` : '—'}
         </div>
-      </div>`).join('') : `
+      </div>
+      ${breakRows || `
       <div class="review-section">
         <div class="review-label">Breaks</div>
         <div class="review-value">—</div>
       </div>`}
+      <div class="review-section">
+        <div class="review-label">Close</div>
+        <div class="review-value">
+          ${c.recap || c.tease || c.signoff ? `
+            ${c.recap ? `<em>Recap:</em> ${esc(c.recap)}<br>` : ''}
+            ${c.tease ? `<em>Tease:</em> ${esc(c.tease)}<br>` : ''}
+            ${c.signoff ? `<em>Sign-off:</em> ${esc(c.signoff)}` : ''}
+          ` : '—'}
+        </div>
+      </div>
     </div>
     <div style="margin-bottom:8px"><strong>Grading Criteria</strong></div>
     <div class="criteria-grid">
-      <div class="criterion">✦ <strong>Flow</strong> — Back-sell/pre-sell feel natural, not scripted</div>
-      <div class="criterion">✦ <strong>Clarity</strong> — Talk points are easy to follow</div>
-      <div class="criterion">✦ <strong>Promotion</strong> — Mentioned the text line, frequency, or invited interaction at least once</div>
-      <div class="criterion">✦ <strong>Pacing</strong> — Breaks are tight and don't ramble</div>
+      <div class="criterion">✦ <strong>Relevance</strong> — Explained why listeners right now would care, not just what you'll say</div>
+      <div class="criterion">✦ <strong>Variety</strong> — Breaks serve different purposes, not the same one every time</div>
+      <div class="criterion">✦ <strong>Listener Connection</strong> — Welcome, reconnect, and interaction show up naturally</div>
+      <div class="criterion">✦ <strong>Flow</strong> — Sounds natural on mic, not read off a form</div>
     </div>`;
 }
 
@@ -2224,8 +2382,10 @@ function renderPlanner() {
     }
   } else if (type === 'air' || type === 'radio') {
     switch (step) {
-      case 1: content = renderPlannerAirBreaks(p); break;
-      case 2: content = renderPlannerAirReview(p); break;
+      case 1: content = renderPlannerOpen(p); break;
+      case 2: content = renderPlannerAirBreaks(p); break;
+      case 3: content = renderPlannerClose(p); break;
+      case 4: content = renderPlannerAirReview(p); break;
     }
   }
 
@@ -4822,18 +4982,29 @@ function savePlannerStep() {
     if (!p.showType) { showToast('Pick a show type first.'); return; }
     p.studentName    = val('p-name');
     p.showName       = val('p-show');
-    if (p.showType !== 'talk') p.station = val('p-station');
+    if (p.showType !== 'talk') {
+      p.station  = val('p-station');
+      p.showTime = val('p-showtime');
+    }
     if (p.showType === 'radio' || p.showType === 'talk') {
       p.partners      = val('p-partners');
       p.partnerEmails = val('p-partner-emails');
     }
   } else if (p.showType === 'air' || p.showType === 'radio') {
     if (S.plannerStep === 1) {
-      p.breaks = Array.from({ length: 5 }, (_, i) => ({
-        backsell:  val(`air-backsell-${i}`),
-        presell:   val(`air-presell-${i}`),
-        talkPoint: val(`air-talkpoint-${i}`),
+      p.open = { welcome: val('open-welcome'), reset: val('open-reset'), preview: val('open-preview') };
+    } else if (S.plannerStep === 2) {
+      const prevBreaks = p.breaks || [];
+      p.breaks = Array.from({ length: 4 }, (_, i) => ({
+        purposes:    (prevBreaks[i] || {}).purposes || [],
+        whyRelevant: val(`air-why-${i}`),
+        backsell:    val(`air-backsell-${i}`),
+        talkPoint:   val(`air-talkpoint-${i}`),
+        presell:     val(`air-presell-${i}`),
+        interaction: val(`air-interact-${i}`),
       }));
+    } else if (S.plannerStep === 3) {
+      p.close = { recap: val('close-recap'), tease: val('close-tease'), signoff: val('close-signoff') };
     }
   } else {
     switch (S.plannerStep) {
@@ -4954,6 +5125,9 @@ function buildAirPlanText(p) {
   const typeLabel = (PLANNER_TYPES[p.showType] || {}).label || 'Air Personality';
   const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const breaks = p.breaks || [];
+  const o = p.open || {};
+  const c = p.close || {};
+  const purposeLabel = key => (PLANNER_PURPOSES.find(pu => pu.key === key) || {}).label || key;
   const lines = [
     typeLabel.toUpperCase() + ' PLAN',
     '='.repeat(typeLabel.length + 5),
@@ -4965,14 +5139,32 @@ function buildAirPlanText(p) {
     '',
   ].filter(l => l !== null);
 
+  if (o.welcome || o.reset || o.preview) {
+    lines.push('-- OPEN --');
+    if (o.welcome) lines.push(`Welcome: ${o.welcome}`);
+    if (o.reset)   lines.push(`Reset:   ${o.reset}`);
+    if (o.preview) lines.push(`Preview: ${o.preview}`);
+    lines.push('');
+  }
+
   breaks.forEach((b, i) => {
-    if (!b || (!b.backsell && !b.presell && !b.talkPoint)) return;
-    lines.push(`-- BREAK ${i + 1} --`);
-    lines.push(`Back-sell:  ${b.backsell || ''}`);
+    if (!b || (!b.backsell && !b.presell && !b.talkPoint && !b.whyRelevant && !b.interaction)) return;
+    lines.push(`-- BREAK ${i + 1} ${(b.purposes || []).length ? '(' + b.purposes.map(purposeLabel).join(', ') + ')' : ''} --`);
+    if (b.whyRelevant) lines.push(`Why:        ${b.whyRelevant}`);
+    if (b.backsell)    lines.push(`Back-sell:  ${b.backsell}`);
     lines.push(`Talk Point: ${b.talkPoint || ''}`);
-    lines.push(`Pre-sell:   ${b.presell || ''}`);
+    if (b.presell)     lines.push(`Pre-sell:   ${b.presell}`);
+    if (b.interaction) lines.push(`Invite:     ${b.interaction}`);
     lines.push('');
   });
+
+  if (c.recap || c.tease || c.signoff) {
+    lines.push('-- CLOSE --');
+    if (c.recap)   lines.push(`Recap:   ${c.recap}`);
+    if (c.tease)   lines.push(`Tease:   ${c.tease}`);
+    if (c.signoff) lines.push(`Sign-off: ${c.signoff}`);
+    lines.push('');
+  }
 
   return lines.join('\n');
 }
@@ -5209,26 +5401,50 @@ function showSubmissionDetail(sub, parentModal) {
 
   let bodyHTML;
   if (showType === 'air' || showType === 'radio') {
-    const breaks = (sub.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint));
+    const o = sub.open || {};
+    const c = sub.close || {};
+    const breaks = (sub.breaks || []).filter(b => b && (b.backsell || b.presell || b.talkPoint || b.whyRelevant || b.interaction));
+    const purposeLabel = key => { const pu = PLANNER_PURPOSES.find(x => x.key === key); return pu ? `${pu.icon} ${esc(pu.label)}` : esc(key); };
     bodyHTML = `
       <div class="submission-detail">
         <div class="submission-field">
           <div class="submission-field-label">Station</div>
           <div class="submission-field-value">${sub.station === 'two' ? '2.0' : 'The Point 91FM'}</div>
         </div>
+        ${(o.welcome || o.reset || o.preview) ? `
+        <div class="submission-field">
+          <div class="submission-field-label">Open</div>
+          <div class="submission-field-value">
+            ${o.welcome ? `<em>Welcome:</em> ${esc(o.welcome)}<br>` : ''}
+            ${o.reset ? `<em>Reset:</em> ${esc(o.reset)}<br>` : ''}
+            ${o.preview ? `<em>Preview:</em> ${esc(o.preview)}` : ''}
+          </div>
+        </div>` : ''}
         ${breaks.length ? breaks.map((b, i) => `
         <div class="submission-field">
           <div class="submission-field-label">Break ${i + 1}</div>
           <div class="submission-field-value">
+            ${(b.purposes || []).length ? `<div class="review-purpose-tags">${b.purposes.map(k => `<span class="idea-tag purpose-fixed">${purposeLabel(k)}</span>`).join('')}</div>` : ''}
+            ${b.whyRelevant ? `<em>Why:</em> ${esc(b.whyRelevant)}<br>` : ''}
             ${b.backsell ? `<em>Back-sell:</em> ${esc(b.backsell)}<br>` : ''}
             ${esc(b.talkPoint || '')}
             ${b.presell ? `<br><em>Pre-sell:</em> ${esc(b.presell)}` : ''}
+            ${b.interaction ? `<br><em>Invite:</em> ${esc(b.interaction)}` : ''}
           </div>
         </div>`).join('') : `
         <div class="submission-field">
           <div class="submission-field-label">Breaks</div>
           <div class="submission-field-value">—</div>
         </div>`}
+        ${(c.recap || c.tease || c.signoff) ? `
+        <div class="submission-field">
+          <div class="submission-field-label">Close</div>
+          <div class="submission-field-value">
+            ${c.recap ? `<em>Recap:</em> ${esc(c.recap)}<br>` : ''}
+            ${c.tease ? `<em>Tease:</em> ${esc(c.tease)}<br>` : ''}
+            ${c.signoff ? `<em>Sign-off:</em> ${esc(c.signoff)}` : ''}
+          </div>
+        </div>` : ''}
       </div>`;
   } else {
     const b1 = ((sub.breaks || [])[0]) || {};
@@ -5422,6 +5638,21 @@ function attachListeners() {
       if (!target) return;
       target.value = target.value ? target.value.trim() + ' ' + chip.dataset.chipText : chip.dataset.chipText;
       target.focus();
+    }));
+
+  document.querySelectorAll('.purpose-chip').forEach(chip =>
+    chip.addEventListener('click', () => {
+      const idx = parseInt(chip.dataset.purposeBreak);
+      const key = chip.dataset.purposeKey;
+      S.plannerData = S.plannerData || {};
+      const p = S.plannerData;
+      if (!p.breaks) p.breaks = [];
+      if (!p.breaks[idx]) p.breaks[idx] = {};
+      if (!p.breaks[idx].purposes) p.breaks[idx].purposes = [];
+      const purposes = p.breaks[idx].purposes;
+      const at = purposes.indexOf(key);
+      if (at === -1) purposes.push(key); else purposes.splice(at, 1);
+      chip.classList.toggle('active');
     }));
 
   const ab = document.getElementById('add-broadcast');
