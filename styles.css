@@ -959,7 +959,9 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .rapid-name-board { font-size: 2.6rem; font-weight: 800; margin: 0 0 16px; }
 
 /* ── Speed Meet ──────────────────────────────────────────────── */
-.speed-question-text { font-size: 1.3rem; font-weight: 700; margin: 14px 0; }
+.speed-intro-text { font-size: 1rem; font-weight: 600; color: var(--dim); margin: 14px 0 4px; }
+.ib-board-intro { font-size: 1.4rem !important; color: var(--dim) !important; margin: 0 0 6px !important; }
+.speed-question-text { font-size: 1.3rem; font-weight: 700; margin: 4px 0 14px; }
 .speed-timer-display { text-align: center; margin: 20px 0; }
 .speed-timer {
   display: inline-block;

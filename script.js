@@ -1224,29 +1224,16 @@ async function clearWyrVotes() {
 }
 
 // ── ICEBREAKER: Speed Meet (question roulette) ──────────────────
+const SPEED_INTRO = "Introduce yourself: first name, grade, and what classes in Homestead Media you've been in.";
 const SPEED_QUESTIONS = [
-  "What's your go-to order at a fast food drive-thru?",
-  "What's a show or movie you could rewatch forever?",
-  "What's the last song you had on repeat?",
-  "What's a food combo you love that sounds weird?",
-  "What app do you spend the most time on?",
-  "What's a small thing that instantly makes your day better?",
-  "If you could have any job for a day, what would it be?",
-  "What's your comfort snack?",
-  "What's something you're weirdly good at?",
-  "What's a place you'd love to visit someday?",
-  "What's your favorite way to spend a free Saturday?",
-  "What's a video game or app you were obsessed with as a kid?",
-  "What's the best gift you've ever gotten?",
-  "What's a skill you'd want to learn if you had unlimited time?",
-  "What's your go-to karaoke or shower song?",
-  "What's a food you refuse to eat?",
-  "What's your dream car?",
-  "What's a class you wish existed at school?",
-  "What's the last thing you binge-watched?",
-  "If you had $100 to spend right now, what would you buy?",
+  "What's a video, photo, or audio project you've made (school or personal) that you're proud of?",
+  "What role do you want to try for the first time this semester?",
+  "What's the most nerve-wracking part of being live on air?",
+  "If you could co-host a show with anyone in this room, who would it be?",
+  "What's one skill you want to get better at this semester?",
+  "What got you interested in joining Homestead Media?",
 ];
-const SPEED_TIMER_SECONDS = 60;
+const SPEED_TIMER_SECONDS = 45;
 
 function loadSpeedGame() {
   const db = getDB();
@@ -2319,12 +2306,13 @@ function renderIcebreaker() {
   const speedSection = `
       <section class="card">
         <h2>⏱️ Speed Meet</h2>
-        <p class="cal-section-sub">Find a partner nearby. When the timer starts, talk about the question below until time's up — then find a new partner for the next one.</p>
+        <p class="cal-section-sub">Find a partner nearby. When the timer starts, talk about the prompts below until time's up — then find a new partner for the next round.</p>
         ${S.teacherMode ? `
         <div style="display:flex;align-items:center;gap:10px;margin:10px 0 4px;flex-wrap:wrap">
           <button class="btn-secondary" id="speed-new" style="font-size:0.78rem;padding:4px 12px">🔀 New Question</button>
-          <button class="btn-primary" id="speed-start-timer" style="font-size:0.78rem;padding:4px 12px">▶️ Start 60s Timer</button>
+          <button class="btn-primary" id="speed-start-timer" style="font-size:0.78rem;padding:4px 12px">▶️ Start ${SPEED_TIMER_SECONDS}s Timer</button>
         </div>` : ''}
+        <p class="speed-intro-text">${esc(SPEED_INTRO)}</p>
         <p class="speed-question-text">${esc(SPEED_QUESTIONS[S.speedIndex])}</p>
         <div class="speed-timer-display"><span class="speed-timer">⏱️ ${SPEED_TIMER_SECONDS}</span></div>
       </section>`;
@@ -2570,6 +2558,7 @@ function renderIcebreakerBoard() {
         <div class="ib-board-header">
           <h1>⏱️ Speed Meet</h1>
         </div>
+        <p class="speed-intro-text ib-board-intro">${esc(SPEED_INTRO)}</p>
         <p class="speed-question-text ib-board-question">${esc(SPEED_QUESTIONS[S.speedIndex])}</p>
         <div class="speed-timer-display speed-board-timer"><span class="speed-timer">⏱️ ${SPEED_TIMER_SECONDS}</span></div>
       </div>`;
