@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zj';
+const APP_VERSION = '20260802zk';
 (function() {
   try {
     const k = 'hm_version';
@@ -7510,7 +7510,7 @@ function attachListeners() {
   if (lsConnectCanva) lsConnectCanva.addEventListener('click', async () => {
     const url = prompt('Paste your Canva share link:', S.canvaLessons[S.lessonId]?.url || '');
     if (url === null) return;
-    if (url && !url.includes('canva.com')) { showToast('That doesn\'t look like a Canva link.'); return; }
+    if (url && !isCanvaLink(url)) { showToast('That doesn\'t look like a Canva link.'); return; }
     const db = getDB();
     if (!db) return;
     trackUsage('writes');
@@ -7535,7 +7535,7 @@ function attachListeners() {
     const duration = document.getElementById('canva-duration')?.value.trim();
     const url      = document.getElementById('canva-url')?.value.trim();
     if (!title || !url) { showToast('Title and Canva link are required.'); return; }
-    if (!url.includes('canva.com')) { showToast('That doesn\'t look like a Canva link.'); return; }
+    if (!isCanvaLink(url)) { showToast('That doesn\'t look like a Canva link.'); return; }
     const db = getDB();
     if (!db) return;
     trackUsage('writes');
@@ -8214,6 +8214,10 @@ async function syncBroadcastsFromCalendar() {
   await Promise.all(newBroadcasts.map(g => db.collection('hm_broadcasts').doc(g.id).set(g).catch(() => {})));
   S.broadcasts = [...(S.broadcasts || []), ...newBroadcasts];
   return newBroadcasts.length;
+}
+
+function isCanvaLink(url) {
+  return /canva\.(com|link)/i.test(url);
 }
 
 function canvaEmbedUrl(url) {
