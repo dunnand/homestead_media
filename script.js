@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260803a';
+const APP_VERSION = '20260803b';
 (function() {
   try {
     const k = 'hm_version';
@@ -245,6 +245,7 @@ const S = {
   beatAssignments: {},
   storyPlans: [],
   expandedStoryPlan: null,
+  storyPlanFilter: 'active',
   rundownData: {},
   rundownWeekOffset: 0,
   showSchedule: [],
@@ -4448,6 +4449,7 @@ function blankStoryPlan() {
     createdBy: '',
     approved: false,
     approvedAt: null,
+    archived: false,
     suggestions: [],
   };
 }
@@ -4504,6 +4506,7 @@ function storyPlanStartEdit(id) {
     createdBy: p.createdBy || '',
     approved: !!p.approved,
     approvedAt: p.approvedAt || null,
+    archived: !!p.archived,
     suggestions: [...(p.suggestions || [])],
   };
   S.expandedStoryPlan = id;
@@ -4552,6 +4555,7 @@ async function storyPlanSave() {
     broll: d.broll, brollOther: d.brollOther, production: d.production,
     createdBy: d.createdBy || (S.teacherMode ? 'Teacher' : rundownEditorName()),
     approved: !!d.approved, approvedAt: d.approvedAt || null,
+    archived: !!d.archived,
     suggestions: d.suggestions || [],
     updatedAt: new Date().toISOString(),
   };
@@ -4597,6 +4601,19 @@ async function storyPlanSetApproved(id, approved) {
     catch(e) { showToast('Update failed.'); console.error(e); return; }
   }
   showToast(approved ? 'Story plan approved!' : 'Approval removed.');
+  render();
+}
+
+async function storyPlanSetArchived(id, archived) {
+  const p = (S.storyPlans || []).find(x => x.id === id);
+  if (p) p.archived = archived;
+  if (_storyPlanDraft && _storyPlanDraft.id === id) _storyPlanDraft.archived = archived;
+  const db = getDB();
+  if (db) {
+    try { await db.collection('hm_story_plans').doc(id).set({ archived }, { merge: true }); trackUsage('writes'); }
+    catch(e) { showToast('Update failed.'); console.error(e); return; }
+  }
+  showToast(archived ? 'Story plan archived.' : 'Story plan restored.');
   render();
 }
 
@@ -4751,15 +4768,19 @@ function renderStoryPlanForm(d, editable) {
 }
 
 function renderStoryPlans() {
-  const plans = S.storyPlans || [];
+  const allPlans = S.storyPlans || [];
   const creating = S.expandedStoryPlan === 'new';
+  const filter = S.storyPlanFilter || 'active';
+  const activeCount = allPlans.filter(p => !p.archived).length;
+  const archivedCount = allPlans.filter(p => p.archived).length;
+  const plans = allPlans.filter(p => filter === 'archived' ? !!p.archived : !p.archived);
 
   const rows = plans.map(p => {
     const editing = S.expandedStoryPlan === p.id;
     const updated = p.updatedAt ? fmtDate(p.updatedAt.slice(0, 10)) : '';
     const suggestCount = (p.suggestions || []).length;
     return `
-      <div class="story-plan-row ${editing ? 'open' : ''}">
+      <div class="story-plan-row ${editing ? 'open' : ''}${p.archived ? ' story-plan-archived' : ''}">
         <div class="story-plan-row-main" data-story-toggle="${esc(p.id)}">
           <span class="story-plan-title">${esc(p.title || '(untitled story)')}</span>
           <span class="story-plan-reporter">${esc(p.reporter || 'Unknown reporter')}</span>
@@ -4772,6 +4793,10 @@ function renderStoryPlans() {
             ? (p.addedToRundown
                 ? `<span class="story-approved-badge">📅 In Rundown</span>`
                 : `<button class="btn-sm story-approve-btn" data-story-add-rundown="${esc(p.id)}">+ Add to Rundown</button>`)
+            : ''}
+          ${S.teacherMode
+            ? `<button class="btn-sm story-archive-btn" data-story-archive="${esc(p.id)}" data-archive-to="${p.archived ? 'false' : 'true'}"
+                 title="${p.archived ? 'Move back to the active list' : 'Move off the active list — nothing is deleted'}">${p.archived ? '↩ Restore' : '🗄 Archive'}</button>`
             : ''}
           <span class="story-plan-updated">${updated}</span>
           <span class="beat-row-chevron">${editing ? '▾' : '▸'}</span>
@@ -4794,8 +4819,12 @@ function renderStoryPlans() {
         ${creating
           ? `<div class="story-plan-row open">${renderStoryPlanForm(_storyPlanDraft, true)}</div>`
           : `<button class="btn-primary" id="story-plan-new-btn" style="background:var(--indepth)">+ New Story Plan</button>`}
-        <div class="story-plan-list" style="margin-top:16px">
-          ${rows || (creating ? '' : '<div class="beat-meet-empty">No story plans yet. Click "+ New Story Plan" to start one.</div>')}
+        <div class="story-plan-tabs" style="margin-top:16px">
+          <button class="story-plan-tab ${filter === 'active' ? 'active' : ''}" data-story-filter="active">Active (${activeCount})</button>
+          <button class="story-plan-tab ${filter === 'archived' ? 'active' : ''}" data-story-filter="archived">🗄 Archived (${archivedCount})</button>
+        </div>
+        <div class="story-plan-list" style="margin-top:10px">
+          ${rows || (creating ? '' : `<div class="beat-meet-empty">${filter === 'archived' ? 'No archived story plans.' : 'No active story plans. Click "+ New Story Plan" to start one.'}</div>`)}
         </div>
       </section>
     </div>`;
@@ -7172,6 +7201,18 @@ function attachListeners() {
     btn.addEventListener('click', e => {
       e.stopPropagation();
       storyPlanAddToRundown(btn.dataset.storyAddRundown);
+    }));
+
+  document.querySelectorAll('[data-story-archive]').forEach(btn =>
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      storyPlanSetArchived(btn.dataset.storyArchive, btn.dataset.archiveTo === 'true');
+    }));
+
+  document.querySelectorAll('[data-story-filter]').forEach(btn =>
+    btn.addEventListener('click', () => {
+      S.storyPlanFilter = btn.dataset.storyFilter;
+      render();
     }));
 
   document.querySelectorAll('[data-iasb-cat]').forEach(el =>
