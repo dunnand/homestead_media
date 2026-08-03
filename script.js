@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zk';
+const APP_VERSION = '20260802zl';
 (function() {
   try {
     const k = 'hm_version';
@@ -8065,6 +8065,7 @@ function renderLessonPage() {
             <div class="ls-lesson-label">🎨 ${esc(lesson.title)}</div>
           </div>
           <div class="ls-ctrl-right">
+            <a href="${esc(canvaUrl)}" target="_blank" rel="noopener" class="btn-secondary" style="font-size:0.75rem;padding:4px 10px;text-decoration:none" title="If the lesson didn't load above, some Canva share links block embedding — open it directly instead.">Open in Canva ↗</a>
             ${S.teacherMode ? `<button id="ls-connect-canva" class="btn-secondary" style="font-size:0.75rem;padding:4px 10px">✏️ Change Canva URL</button>` : ''}
           </div>
         </div>
