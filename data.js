@@ -2599,3 +2599,51 @@ const LESSONS = {
     units: []
   }
 };
+
+const LESSON_KEYWORDS = {
+  'intro-welcome': ['orientation', 'program overview', 'welcome'],
+  'intro-routine': ['daily routine', 'air shift', 'broadcast', 'deadline', 'rundown', 'b-roll'],
+  'intro-studio': ['studio tour', 'condenser mic', 'audio board', 'console', 'camera', 'video switcher', 'adobe creative cloud', 'equipment'],
+  'intro-software': ['adobe audition', 'adobe premiere', 'adobe photoshop', 'adobe indesign', 'software'],
+  'welcome': ['orientation', 'audio broadcasting', 'program overview', 'daily routine'],
+  'stations': ['wcyt', 'the point', '91fm', 'station history', 'genre', 'frequency', 'power', 'tagline', 'call letters'],
+  'fcc': ['fcc rules', 'on-air standards', 'obscenity', 'indecency', 'profanity', 'underwriting', 'sponsors', 'regulations', 'compliance'],
+  'expectations': ['classroom expectations', 'grading', 'room rules', 'final project', 'submission'],
+  'ap-intro': ['air personality', 'dj break', '5-break structure', 'back-sell', 'pre-sell'],
+  'front-load': ['front loading', 'artist song album year', 'talk content', 'filler phrases'],
+  'first-break': ['dj break', '5-element formula', 'on air', 'student example'],
+  'radio-pairs': ['radio show pairs', 'co-host', 'partner breaks', 'stations'],
+  'show-structure': ['talk show structure', 'break 1', 'break 2', 'break 3', 'recurring segments', 'group formation'],
+  'destructive-editing': ['destructive editing', 'non-destructive editing', 'waveform editor', 'multitrack editor', 'adobe audition'],
+  'audition-basics': ['adobe audition', 'normalize', 'hard limit', 'audio cleanup', 'destructive edit', 'non-destructive edit'],
+  'stutter': ['stutter effect', 'copy paste', 'crossfade', 'pitch shift', 'envelopes', 'adobe audition'],
+  'double-track': ['double track', 'automatic speech alignment', 'doubling', 'vocal layering'],
+  'remix-stretch': ['remix', 'stretch', 'music bed', 'timbre', 'harmonic', 'minimum loop', 'maximum slack', 'timeline'],
+  'reverb': ['reverb', 'effects rack', 'studio reverb', 'wet dry mix', 'envelopes', 'room size', 'decay', 'early reflections'],
+  'spectral-display': ['spectral frequency display', 'spectral view', 'noise removal', 'beeps hisses artifacts', 'frequency', 'adobe audition'],
+  'radio-in-depth': ['iasb', 'radio in-depth', 'long-form storytelling', 'narrative structure', 'interview', 'judging criteria', 'outline'],
+  'iasb-imaging': ['iasb', 'imaging', 'sweeper', 'drop-in', 'promo', 'jingle', 'station branding', 'collage'],
+  'imaging-4-weeks': ['iasb imaging', 'rule of 3', 'sound collage', 'multiple voices', 'production tricks'],
+  'bhm-liners': ['black history month', 'station liners', 'promo', 'bumper', 'script', 'music bed'],
+  'iasb-air-personality': ['iasb', 'air personality', 'solo dj', 'aircheck', 'backsell', 'scoped aircheck', 'indianapolis finals'],
+  'iasb-talk-show': ['iasb', 'talk show', 'aircheck', 'opinion', 'interviews', 'interaction'],
+  'iasb-copywriting': ['iasb', 'copywriting', '60-second spot', 'client copy points', 'call to action', 'target audience'],
+  'iasb-spot-production': ['iasb', 'spot production', 'commercial', 'psa', 'station promo', '30 or 60 seconds'],
+  'iasb-drama': ['iasb', 'audio drama', 'adapted drama', 'original drama', 'voice actors', 'sound design'],
+  'iasb-interview': ['iasb', 'interview', 'pre-interview research', 'open-ended questions', 'promotion'],
+  'iasb-podcast': ['iasb', 'podcasting', 'podcast series', 'theme', 'tagline', 'intro music', 'spotify'],
+  'fcc-issue-report': ['fcc compliance', 'public fcc file', 'community issue', '3-minute breaks'],
+  'iasb-radio-show': ['iasb', 'radio show', 'team air personality', 'co-host', 'scoped aircheck'],
+  'iasb-news-anchor': ['iasb', 'news anchor', 'newscast', 'global to local', 'scripted news', 'delivery'],
+  'legal-id-aircheck-final': ['semester final', 'legal id', 'aircheck mixdown', 'sponsor read', 'final project'],
+  'graphics-basics': ['photoshop', 'graphics basics', 'safe area', 'font rules', 'industry font', 'resolution', 'dpi', 'color mode', 'broadcast graphics', 'sac'],
+  'basketball-scoreboard': ['basketball scoreboard', 'photoshop', 'safe title area', 'team names', 'team logos', 'team colors', 'rankings', 'records', 'broadcast graphics'],
+};
+
+for (const course of Object.values(LESSONS)) {
+  for (const unit of (course.units || [])) {
+    for (const lesson of (unit.lessons || [])) {
+      lesson.keywords = LESSON_KEYWORDS[lesson.id] || [];
+    }
+  }
+}

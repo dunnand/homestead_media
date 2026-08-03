@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zo';
+const APP_VERSION = '20260803a';
 (function() {
   try {
     const k = 'hm_version';
@@ -7358,6 +7358,51 @@ function attachListeners() {
       go('lessons');
     }));
 
+  // ── Lessons hub: live search across all courses ─────────────
+  (() => {
+    const searchEl = document.getElementById('lesson-search-input');
+    const resultsEl = document.getElementById('lesson-search-results');
+    if (!searchEl || !resultsEl) return;
+
+    function renderSearchResults() {
+      const q = searchEl.value.trim().toLowerCase();
+      S.lessonSearchQuery = searchEl.value;
+      if (!q) { resultsEl.innerHTML = ''; resultsEl.classList.remove('active'); return; }
+
+      const matches = getAllLessonsFlat().filter(l =>
+        l.title.toLowerCase().includes(q) ||
+        (l.summary || '').toLowerCase().includes(q) ||
+        (l.keywords || []).some(k => k.toLowerCase().includes(q)));
+
+      resultsEl.classList.add('active');
+      resultsEl.innerHTML = matches.length
+        ? matches.map((l, i) => `
+          <button type="button" class="lesson-search-item" data-i="${i}" style="--course-color:${l.courseColor}">
+            <span class="lsi-icon">${l.courseIcon}</span>
+            <span class="lsi-body">
+              <span class="lsi-title">${esc(l.title)}</span>
+              <span class="lsi-sub">${esc(l.courseName)} · ${esc(l.unitTitle)}${l.duration ? ' · ' + esc(l.duration) : ''}</span>
+            </span>
+            <span class="lsi-arrow">→</span>
+          </button>`).join('')
+        : `<div class="lesson-search-empty">No lessons match "${esc(searchEl.value.trim())}".</div>`;
+
+      resultsEl.querySelectorAll('.lesson-search-item').forEach(btn =>
+        btn.addEventListener('click', () => {
+          const l = matches[parseInt(btn.dataset.i)];
+          if (!l) return;
+          S.lessonCourse = l.courseKey;
+          S.lessonUnit   = l.unitId;
+          S.lessonId     = l.id;
+          S.lessonSlide  = 0;
+          go('lessons');
+        }));
+    }
+
+    searchEl.addEventListener('input', renderSearchResults);
+    if (S.lessonSearchQuery) renderSearchResults();
+  })();
+
   // ── Intro class info edit handlers ──────────────────────────
   document.querySelectorAll('[data-intro-expand]').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -7656,6 +7701,10 @@ function renderLessonsHub() {
           <p>Pick a class to see units and lessons.</p>
         </div>
       </div>
+      <div class="lesson-search-wrap">
+        <input id="lesson-search-input" type="text" class="form-input" placeholder="🔍 Search all lessons by title or keyword…" value="${esc(S.lessonSearchQuery || '')}">
+        <div id="lesson-search-results"></div>
+      </div>
       <div class="class-grid">${cards}</div>
       ${(S.quickLinks['lessons']?.length || S.teacherMode) ? `<div style="max-width:600px;margin:0 auto">${renderQuickLinksCard('lessons')}</div>` : ''}
     </div>`;
@@ -7904,7 +7953,7 @@ function renderLessonSlideEditor(lesson, slides, idx) {
   const secIdx = idx - 1;               // slide 0 is the title card
   const sec = idx === 0 ? null : slides[idx];
   const hasOverride = idx === 0
-    ? ['title','summary','duration'].some(k => S.lessonEdits[lesson.id]?.[k] !== undefined)
+    ? ['title','summary','duration','keywords'].some(k => S.lessonEdits[lesson.id]?.[k] !== undefined)
     : !!S.lessonEdits[lesson.id]?.sections?.[secIdx];
 
   let fields = '';
@@ -7915,7 +7964,9 @@ function renderLessonSlideEditor(lesson, slides, idx) {
       <label class="le-label">Summary</label>
       <textarea id="le-summary" class="form-input le-ta" rows="3">${esc(lesson.summary || '')}</textarea>
       <label class="le-label">Duration</label>
-      <input id="le-duration" class="form-input" value="${esc(lesson.duration || '')}" placeholder="e.g. 1 class">`;
+      <input id="le-duration" class="form-input" value="${esc(lesson.duration || '')}" placeholder="e.g. 1 class">
+      <label class="le-label">Keywords <span class="le-hint">(comma-separated, used for lesson search)</span></label>
+      <input id="le-keywords" class="form-input" value="${esc((lesson.keywords || []).join(', '))}" placeholder="e.g. reverb, effects rack, adobe audition">`;
   } else {
     switch (sec.type) {
       case 'intro':
@@ -8001,7 +8052,10 @@ async function saveLessonSlideEdit() {
 
   let patch = {};
   if (secIdx < 0) {
-    patch = { title: val('le-title') || '', summary: val('le-summary') || '', duration: val('le-duration') || '' };
+    patch = {
+      title: val('le-title') || '', summary: val('le-summary') || '', duration: val('le-duration') || '',
+      keywords: (val('le-keywords') || '').split(',').map(s => s.trim()).filter(Boolean),
+    };
   } else {
     if (val('le-title') !== undefined && val('le-title') !== null) patch.title = val('le-title');
     if (document.getElementById('le-label-input')) patch.label = val('le-label-input');
@@ -8039,7 +8093,7 @@ async function resetLessonSlideEdit() {
   const secIdx = (S.lessonSlide || 0) - 1;
   const cur = S.lessonEdits[id];
   if (!cur) return;
-  if (secIdx < 0) { delete cur.title; delete cur.summary; delete cur.duration; }
+  if (secIdx < 0) { delete cur.title; delete cur.summary; delete cur.duration; delete cur.keywords; }
   else if (cur.sections) { delete cur.sections[secIdx]; if (!Object.keys(cur.sections).length) delete cur.sections; }
 
   const empty = !Object.keys(cur).length;
@@ -8302,6 +8356,16 @@ function getCourseLessonList(courseKey) {
   return all;
 }
 
+// Flat list of every built-in + Canva lesson across all courses, for search
+function getAllLessonsFlat() {
+  return Object.keys(LESSONS).flatMap(courseKey => {
+    const course = LESSONS[courseKey];
+    return getCourseLessonList(courseKey).map(l => ({
+      ...l, courseKey, courseName: course.name, courseColor: course.color, courseIcon: course.icon,
+    }));
+  });
+}
+
 async function moveLessonItem(courseKey, itemId, dir) {
   const ids = getCourseLessonList(courseKey).map(l => l.id);
   const idx = ids.indexOf(itemId);
@@ -8396,6 +8460,7 @@ function mergedLesson(lesson) {
   if (!ov) return lesson;
   const m = { ...lesson };
   ['title', 'summary', 'duration'].forEach(k => { if (ov[k] !== undefined && ov[k] !== '') m[k] = ov[k]; });
+  if (ov.keywords !== undefined) m.keywords = ov.keywords;
   if (ov.sections) {
     m.sections = (lesson.sections || []).map((s, i) =>
       ov.sections[i] ? { ...s, ...ov.sections[i] } : s);
