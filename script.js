@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zm';
+const APP_VERSION = '20260802zn';
 (function() {
   try {
     const k = 'hm_version';
@@ -7519,6 +7519,7 @@ function attachListeners() {
     const url = prompt('Paste your Canva share link:', S.canvaLessons[S.lessonId]?.url || '');
     if (url === null) return;
     if (url && !isCanvaLink(url)) { showToast('That doesn\'t look like a Canva link.'); return; }
+    if (url && isCanvaShortLink(url) && !confirm('This looks like a Canva "Public view" link — Canva blocks these from embedding inline, so the lesson will show an "Open in Canva" button instead of the design itself.\n\nFor it to embed directly on the page, go to Canva → Share → Embed and paste that link instead.\n\nSave this link anyway?')) return;
     const db = getDB();
     if (!db) return;
     trackUsage('writes');
@@ -7544,6 +7545,7 @@ function attachListeners() {
     const url      = document.getElementById('canva-url')?.value.trim();
     if (!title || !url) { showToast('Title and Canva link are required.'); return; }
     if (!isCanvaLink(url)) { showToast('That doesn\'t look like a Canva link.'); return; }
+    if (isCanvaShortLink(url) && !confirm('This looks like a Canva "Public view" link — Canva blocks these from embedding inline, so the lesson will show an "Open in Canva" button instead of the design itself.\n\nFor it to embed directly on the page, go to Canva → Share → Embed and paste that link instead.\n\nSave this link anyway?')) return;
     const db = getDB();
     if (!db) return;
     trackUsage('writes');
@@ -8227,6 +8229,10 @@ async function syncBroadcastsFromCalendar() {
 
 function isCanvaLink(url) {
   return /canva\.(com|link)/i.test(url);
+}
+
+function isCanvaShortLink(url) {
+  return /canva\.link/i.test(url);
 }
 
 function canvaEmbedUrl(url) {
