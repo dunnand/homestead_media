@@ -249,6 +249,20 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .indepth-card:hover  .class-enter { color: var(--indepth); }
 .intro-card:hover    .class-enter { color: var(--intro); }
 
+.home-icebreaker-wrap {
+  margin-top: 20px;
+  max-width: 960px;
+  width: 100%;
+}
+.home-icebreaker-card {
+  text-align: center;
+  padding: 22px 28px;
+}
+.home-icebreaker-card::before { background: #38bdf8; }
+.home-icebreaker-card .class-icon { margin-bottom: 8px; }
+.home-icebreaker-card .class-desc { margin-bottom: 10px; }
+.home-icebreaker-card:hover .class-enter { color: #38bdf8; }
+
 /* ── Intro Class Accordion ───────────────────────────────────── */
 .intro-acc-list { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .intro-acc-card { border-radius: 10px; border-left: 4px solid var(--border); background: var(--surface2); overflow: hidden; }

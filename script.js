@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zl';
+const APP_VERSION = '20260802zm';
 (function() {
   try {
     const k = 'hm_version';
@@ -2704,6 +2704,14 @@ function renderHome() {
           <div class="class-icon">🎓</div>
           <div class="class-name">Intro to Media</div>
           <div class="class-desc">First-year orientation to the Homestead Media program.</div>
+          <div class="class-enter">Enter →</div>
+        </div>
+      </div>
+      <div class="home-icebreaker-wrap">
+        <div class="class-card home-icebreaker-card" data-nav="icebreaker">
+          <div class="class-icon">🧊</div>
+          <div class="class-name">Icebreakers</div>
+          <div class="class-desc">Warm-up games and mixers to kick off class.</div>
           <div class="class-enter">Enter →</div>
         </div>
       </div>
