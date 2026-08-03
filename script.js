@@ -5,7 +5,7 @@
 // ── Version / CDN cache buster ───────────────────────────────
 // When this value changes, users are auto-redirected to a URL
 // the CDN has never cached, forcing a fully fresh load.
-const APP_VERSION = '20260802zn';
+const APP_VERSION = '20260802zo';
 (function() {
   try {
     const k = 'hm_version';
@@ -219,6 +219,7 @@ const S = {
   canvaLessons: {},
   showCanvaForm: false,
   lessonOrder: {},
+  lessonIcons: {},
   hiddenLessons: new Set(),
   lessonEdits: {},
   lessonEditOpen: false,
@@ -3549,10 +3550,12 @@ function renderLive() {
               <div class="lesson-item${S.hiddenLessons.has(l.id) ? ' lesson-item-off' : ''}" data-lesson-course="live" data-lesson-unit="${l.unitId}" data-lesson-id="${l.id}">
                 ${S.teacherMode ? `
                 <div class="lesson-move-btns">
+                  <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="top" ${idx === 0 ? 'disabled' : ''} title="Move to top">⏫</button>
                   <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
                   <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="down" ${idx === allLessons.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+                  <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="live" data-move-dir="bottom" ${idx === allLessons.length - 1 ? 'disabled' : ''} title="Move to bottom">⏬</button>
                 </div>` : ''}
-                <div class="lesson-item-icon">${l.isCustom ? '🎨' : (LESSON_ICONS[l.id] || '🎬')}</div>
+                <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${getLessonIcon(l, '🎬')}</div>
                 <div class="lesson-item-body">
                   <div class="lesson-item-num">${esc(l.unitTitle)}</div>
                   <div class="lesson-item-title">${esc(l.title)}</div>
@@ -7513,6 +7516,17 @@ function attachListeners() {
     });
   });
 
+  // ── Lesson icon editing (teacher-only) ─────────────────────────
+  document.querySelectorAll('[data-edit-icon]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = el.dataset.editIcon;
+      const newIcon = prompt('Paste an emoji to use as this lesson\'s icon (leave blank to reset to default):', S.lessonIcons[id] || '');
+      if (newIcon === null) return;
+      setLessonIcon(id, newIcon.trim());
+    });
+  });
+
   // ── Canva lesson handlers ────────────────────────────────────
   const lsConnectCanva = document.getElementById('ls-connect-canva');
   if (lsConnectCanva) lsConnectCanva.addEventListener('click', async () => {
@@ -7655,7 +7669,7 @@ function renderLessonCourse() {
   const fullList = getCourseLessonList(courseKey);
   const list = fullList.filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
   const items = list.map((l, idx) => {
-    const icon = l.isCustom ? '🎨' : (LESSON_ICONS[l.id] || course.icon);
+    const icon = getLessonIcon(l, course.icon);
     const isHidden = S.hiddenLessons.has(l.id);
     return `
       <div class="lesson-item${isHidden ? ' lesson-item-off' : ''}"
@@ -7664,10 +7678,12 @@ function renderLessonCourse() {
            data-lesson-id="${l.id}">
         ${S.teacherMode ? `
         <div class="lesson-move-btns">
+          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="top" ${idx === 0 ? 'disabled' : ''} title="Move to top">⏫</button>
           <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
           <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="down" ${idx === list.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="bottom" ${idx === list.length - 1 ? 'disabled' : ''} title="Move to bottom">⏬</button>
         </div>` : ''}
-        <div class="lesson-item-icon">${icon}</div>
+        <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${icon}</div>
         <div class="lesson-item-body">
           <div class="lesson-item-num">${esc(l.unitTitle)}</div>
           <div class="lesson-item-title">${esc(l.title)}</div>
@@ -7846,7 +7862,7 @@ function renderLessonSlide(slide, lesson, lessonNum, icon, course, next, idx, to
                data-lesson-course="${S.lessonCourse}"
                data-lesson-unit="${next.unitId}"
                data-lesson-id="${next.id}">
-            <span class="lesson-next-icon">${LESSON_ICONS[next.id] || course.icon}</span>
+            <span class="lesson-next-icon">${getLessonIcon(next, course.icon)}</span>
             <div>
               <div class="lesson-next-title">${next.title}</div>
               <div class="lesson-next-meta">${next.duration}</div>
@@ -8083,7 +8099,7 @@ function renderLessonPage() {
   }
 
   // ── Original slideshow ───────────────────────────────────────
-  const icon   = LESSON_ICONS[lesson.id] || course.icon;
+  const icon   = getLessonIcon(lesson, course.icon);
   const next   = allLessons[lessonIdx + 1] || null;
   const slides = [{ type: '_title' }, ...(lesson.sections || []), { type: '_end' }];
   const total  = slides.length;
@@ -8289,9 +8305,16 @@ function getCourseLessonList(courseKey) {
 async function moveLessonItem(courseKey, itemId, dir) {
   const ids = getCourseLessonList(courseKey).map(l => l.id);
   const idx = ids.indexOf(itemId);
-  const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
-  if (idx === -1 || swapIdx < 0 || swapIdx >= ids.length) return;
-  [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
+  if (idx === -1) return;
+  if (dir === 'top' || dir === 'bottom') {
+    if ((dir === 'top' && idx === 0) || (dir === 'bottom' && idx === ids.length - 1)) return;
+    ids.splice(idx, 1);
+    dir === 'top' ? ids.unshift(itemId) : ids.push(itemId);
+  } else {
+    const swapIdx = dir === 'up' ? idx - 1 : idx + 1;
+    if (swapIdx < 0 || swapIdx >= ids.length) return;
+    [ids[idx], ids[swapIdx]] = [ids[swapIdx], ids[idx]];
+  }
   S.lessonOrder[courseKey] = ids;
   render();
   const db = getDB();
@@ -8300,6 +8323,36 @@ async function moveLessonItem(courseKey, itemId, dir) {
     trackUsage('writes');
     await db.collection('hm_lesson_order').doc(courseKey).set({ order: ids });
   } catch (e) { console.error('lesson order save failed', e); }
+}
+
+async function loadLessonIcons() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('lesson_icons', async () => {
+    const snap = await db.collection('hm_lesson_icons').get();
+    trackUsage('reads', snap.size || 1);
+    const map = {};
+    snap.forEach(doc => { map[doc.id] = doc.data().icon || ''; });
+    return map;
+  }, map => { S.lessonIcons = map; });
+}
+
+function getLessonIcon(l, fallback) {
+  return S.lessonIcons[l.id] || (l.isCustom ? '🎨' : (LESSON_ICONS[l.id] || fallback));
+}
+
+async function setLessonIcon(lessonId, icon) {
+  const db = getDB();
+  if (!db) return;
+  trackUsage('writes');
+  if (icon) {
+    await db.collection('hm_lesson_icons').doc(lessonId).set({ icon });
+    S.lessonIcons[lessonId] = icon;
+  } else {
+    await db.collection('hm_lesson_icons').doc(lessonId).delete();
+    delete S.lessonIcons[lessonId];
+  }
+  render();
 }
 
 async function loadIntroClassInfo() {
@@ -9008,7 +9061,7 @@ function initBellRingerAudio() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
+  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {

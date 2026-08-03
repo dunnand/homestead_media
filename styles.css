@@ -2478,14 +2478,16 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .lesson-item-arrow { font-size: 1.2rem; color: var(--dim); }
 .lesson-delete-btn { background: none; border: none; color: var(--dim); font-size: 1rem; cursor: pointer; padding: 4px 6px; border-radius: 6px; line-height: 1; }
 .lesson-delete-btn:hover { background: #ef444422; color: #ef4444; }
-.lesson-move-btns { display: flex; flex-direction: column; gap: 2px; flex-shrink: 0; }
+.lesson-move-btns { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; flex-shrink: 0; }
 .lesson-move-btn {
   background: var(--surface2); border: 1px solid var(--border); color: var(--dim);
-  font-size: 0.7rem; cursor: pointer; width: 22px; height: 20px;
+  font-size: 0.65rem; cursor: pointer; width: 20px; height: 18px;
   border-radius: 5px; line-height: 1; display: flex; align-items: center; justify-content: center;
 }
 .lesson-move-btn:hover:not(:disabled) { color: var(--text); border-color: var(--dim); }
 .lesson-move-btn:disabled { opacity: 0.25; cursor: default; }
+.lesson-item-icon-edit { cursor: pointer; border: 1px dashed transparent; }
+.lesson-item-icon-edit:hover { border-color: var(--dim); background: var(--surface3, rgba(255,255,255,0.06)); }
 
 /* ── Lesson Slideshow ────────────────────────────────────────── */
 .ls-show {
