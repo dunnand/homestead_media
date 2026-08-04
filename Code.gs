@@ -229,3 +229,85 @@ function createDropboxFolders() {
   return result;
 }
 
+// ── Weekly Accomplishments Form + auto-filing ─────────────────
+// Run createWeeklyAccomplishmentsForm() ONCE from the Apps Script editor.
+// It creates the Form, wires up the submit trigger, and logs the live
+// Form URL — paste that into script.js as YB_WEEKLY_FORM_URL.
+// Must stay in sync with YB_WEEKLY_FOLDERS in script.js if weeks are added/changed.
+const WEEKLY_ROOT_FOLDER_ID = '11LNVkH8eykaitzbXhSTHNzVz1YkmtxoB'; // "Weekly Accomplishments"
+const WEEKLY_FOLDERS = [
+  { label: 'Week 1 (Aug 5–Aug 7)',   start: '2026-08-05', end: '2026-08-07', folderId: '1TFPzjcReUZufpX1POtZkZC-yEV6PqUey' },
+  { label: 'Week 2 (Aug 10–Aug 14)', start: '2026-08-10', end: '2026-08-14', folderId: '1M_RJN-LIkEIHQ9NQrwbDdc1iCYwE8PV1' },
+  { label: 'Week 3 (Aug 17–Aug 21)', start: '2026-08-17', end: '2026-08-21', folderId: '1T4EcB8bmNZptz_E67Z40sxeFWZ-TM5a6' },
+  { label: 'Week 4 (Aug 24–Aug 28)', start: '2026-08-24', end: '2026-08-28', folderId: '1oP6jKxlIaDjrDdnTpgQtJre7ycJqFvD-' },
+  { label: 'Week 5 (Aug 31–Sep 4)',  start: '2026-08-31', end: '2026-09-04', folderId: '1CKIe2YlLq3hAbo2FAi8S3Xb9Aho9Uckg' },
+  { label: 'Week 6 (Sep 7–Sep 11)',  start: '2026-09-07', end: '2026-09-11', folderId: '1C0F8-8EZ_7ALXGvZTXOVOzzh5q8S_WCA' },
+  { label: 'Week 7 (Sep 14–Sep 18)', start: '2026-09-14', end: '2026-09-18', folderId: '1fKgRUkC_0fsGSXMZ3tn8WoDmotDJdOsK' },
+  { label: 'Week 8 (Sep 21–Sep 25)', start: '2026-09-21', end: '2026-09-25', folderId: '1_3AWr3Cr5uFhCDAcpxXxoYH9z-UjqbJi' },
+  { label: 'Week 9 (Sep 28–Oct 2)',  start: '2026-09-28', end: '2026-10-02', folderId: '1Y_7GE2ZTqDm8XbkghcJe33Bx6bWQZ0Tz' },
+  { label: 'Week 10 (Oct 5–Oct 9)',  start: '2026-10-05', end: '2026-10-09', folderId: '1wEPasRKeLdHA06an_v1ExlM9wemmv2AW' },
+  { label: 'Week 12 (Oct 19–Oct 23)', start: '2026-10-19', end: '2026-10-23', folderId: '16y09Qmns3c725dTFkJirmFwrXr0ruyB9' },
+  { label: 'Week 13 (Oct 26–Oct 30)', start: '2026-10-26', end: '2026-10-30', folderId: '1zDYdNIjkiYIEKDZTnwcp0DU77Hovs7gx' },
+  { label: 'Week 14 (Nov 2–Nov 6)',   start: '2026-11-02', end: '2026-11-06', folderId: '1LWvvryST_eyG1jfwOYpwdhjNruMcsTxH' },
+  { label: 'Week 15 (Nov 9–Nov 13)',  start: '2026-11-09', end: '2026-11-13', folderId: '1MBs3AbzuIpaFb7j-IaSa2Ba2sIV7D_J4' },
+  { label: 'Week 16 (Nov 16–Nov 20)', start: '2026-11-16', end: '2026-11-20', folderId: '1hCA8bSOxF8RR9_MGIvzDaJnBm3GGOhBb' },
+  { label: 'Week 17 (Nov 23–Nov 27)', start: '2026-11-23', end: '2026-11-27', folderId: '1oQjI1xUxuafG0dpTXHp8z9j6ag734GvF' },
+  { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '1EBoCUbTzGdLNkFC9xUpnqV329AIDclcD' },
+  { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '1lE-hTcnTvAzFOvK5jUoMVqTDNeyqG6qj' },
+  { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1SYJo0oIYb3Ut-ZQ7-IStIFyhe21yzLYA' },
+];
+
+// Same fallback logic as getCurrentYbWeek() on the website, so a submission
+// always lands in whichever week the site is currently showing the student.
+function weeklyFolderForDate(dateStr) {
+  const current = WEEKLY_FOLDERS.find(w => dateStr >= w.start && dateStr <= w.end);
+  if (current) return current.folderId;
+  const upcoming = WEEKLY_FOLDERS.find(w => w.start > dateStr);
+  if (upcoming) return upcoming.folderId;
+  if (dateStr < WEEKLY_FOLDERS[0].start) return WEEKLY_FOLDERS[0].folderId;
+  return WEEKLY_FOLDERS[WEEKLY_FOLDERS.length - 1].folderId;
+}
+
+function createWeeklyAccomplishmentsForm() {
+  const form = FormApp.create('Weekly Accomplishments — Homestead Yearbook');
+  form.setDescription("Tell us what you worked on this week. Your response is filed automatically — no need to upload anything yourself.");
+  form.addTextItem().setTitle('First and Last Name').setRequired(true);
+  form.addParagraphTextItem().setTitle('What did you accomplish this week?').setRequired(true);
+  form.addTextItem().setTitle('Link to photos or work (optional)').setRequired(false);
+
+  ScriptApp.newTrigger('onWeeklyFormSubmit')
+    .forForm(form)
+    .onFormSubmit()
+    .create();
+
+  Logger.log('Form created. Paste this into script.js as YB_WEEKLY_FORM_URL: ' + form.getPublishedUrl());
+  Logger.log('Edit URL (for the teacher, not students): ' + form.getEditUrl());
+  return form.getPublishedUrl();
+}
+
+function onWeeklyFormSubmit(e) {
+  const answers = {};
+  e.response.getItemResponses().forEach(item => {
+    answers[item.getItem().getTitle()] = item.getResponse();
+  });
+
+  const name = answers['First and Last Name'] || 'Unknown Student';
+  const work = answers['What did you accomplish this week?'] || '';
+  const link = answers['Link to photos or work (optional)'] || '';
+
+  const tz = 'America/Indiana/Indianapolis';
+  const todayStr   = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
+  const dateLabel  = Utilities.formatDate(new Date(), tz, 'MMM d, yyyy');
+  const folder     = DriveApp.getFolderById(weeklyFolderForDate(todayStr));
+
+  const doc = DocumentApp.create(`${name} — ${dateLabel}`);
+  const body = doc.getBody();
+  body.appendParagraph(`${name} — ${dateLabel}`).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  body.appendParagraph('What I accomplished this week:');
+  body.appendParagraph(work);
+  if (link) body.appendParagraph('Link: ' + link);
+  doc.saveAndClose();
+
+  DriveApp.getFileById(doc.getId()).moveTo(folder);
+}
+

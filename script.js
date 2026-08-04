@@ -5205,6 +5205,9 @@ async function beatSave(id) {
 }
 
 // ── YEARBOOK: Weekly Accomplishments (Shared Drive folders) ────
+// After running createWeeklyAccomplishmentsForm() in Apps Script (Code.gs),
+// paste the logged Form URL here to switch the card over to the form.
+const YB_WEEKLY_FORM_URL  = '';
 const YB_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/folders/11LNVkH8eykaitzbXhSTHNzVz1YkmtxoB';
 const YB_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)',   start: '2026-08-05', end: '2026-08-07', folderId: '1TFPzjcReUZufpX1POtZkZC-yEV6PqUey' },
@@ -5313,15 +5316,22 @@ function renderYearbook() {
 
 <section class="card" id="yb-weekly-card">
             <h2 class="cal-section-title">📤 Weekly Accomplishments</h2>
-            <p class="cal-section-sub">Every week, upload a screenshot of your work or write a short paragraph of what you accomplished into your week's folder.</p>
+            <p class="cal-section-sub">${YB_WEEKLY_FORM_URL
+              ? "Every week, fill out the short form below with what you accomplished — it's filed into your week's folder automatically."
+              : "Every week, upload a screenshot of your work or write a short paragraph of what you accomplished into your week's folder."}</p>
             ${(() => {
               const { week, status } = getCurrentYbWeek();
-              const statusNote = status === 'upcoming' ? `Upload window opens for <strong>${esc(week.label)}</strong>` :
+              const statusNote = status === 'upcoming' ? `Opens for <strong>${esc(week.label)}</strong>` :
                 status === 'past' ? `The last configured week was <strong>${esc(week.label)}</strong> — ask your teacher if you need a new one` :
                 `This is <strong>${esc(week.label)}</strong>`;
+              const formBtn = YB_WEEKLY_FORM_URL
+                ? `<a class="btn-primary" href="${esc(YB_WEEKLY_FORM_URL)}" target="_blank" rel="noopener">📝 Fill Out This Week's Form ↗</a>`
+                : '';
+              const folderBtnClass = YB_WEEKLY_FORM_URL ? 'btn-secondary' : 'btn-primary';
               return `
               <p style="font-size:0.85rem;margin:0 0 10px">${statusNote}</p>
-              <a class="btn-primary" href="${ybFolderUrl(week.folderId)}" target="_blank" rel="noopener">📁 Open This Week's Folder ↗</a>
+              ${formBtn}
+              <a class="${folderBtnClass}" href="${ybFolderUrl(week.folderId)}" target="_blank" rel="noopener" style="${YB_WEEKLY_FORM_URL ? 'margin-left:8px' : ''}">📁 Open This Week's Folder ↗</a>
               <a class="btn-secondary" href="${YB_WEEKLY_DRIVE_URL}" target="_blank" rel="noopener" style="margin-left:8px">🗂️ Browse All Weeks ↗</a>`;
             })()}
           </section>
