@@ -8576,14 +8576,15 @@ async function loadQuickLinks() {
     trackUsage('reads', QL_VIEWS.length);
     const map = {};
     QL_VIEWS.forEach((v, i) => {
-      if (snaps[i].exists) {
-        map[v] = snaps[i].data().sections || [];
+      const existingSections = snaps[i].exists ? (snaps[i].data().sections || []) : null;
+      if (existingSections && existingSections.length) {
+        map[v] = existingSections;
       } else if (QL_DEFAULTS[v]) {
         map[v] = QL_DEFAULTS[v];
         db.collection('hm_quick_links').doc(v).set({ sections: QL_DEFAULTS[v] });
         trackUsage('writes', 1);
       } else {
-        map[v] = [];
+        map[v] = existingSections || [];
       }
     });
     return map;
