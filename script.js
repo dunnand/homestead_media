@@ -5344,13 +5344,28 @@ function renderYearbook() {
           <section class="card" id="yb-signup-card">
             <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px">
               <h2 class="cal-section-title" style="margin:0">✏️ Sign Up to Cover an Event</h2>
-              <button id="yb-away-toggle" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px">
-                ${S.ybShowAway ? '🏠 Home Only' : '🚌 Show Away Games'}
-              </button>
+              <div style="display:flex;gap:6px;flex-wrap:wrap">
+                <button id="yb-add-event-btn" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px">+ Add New Event</button>
+                <button id="yb-away-toggle" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px">
+                  ${S.ybShowAway ? '🏠 Home Only' : '🚌 Show Away Games'}
+                </button>
+              </div>
             </div>
             <p class="cal-section-sub">${USE_GOOGLE_FORM_YEARBOOK
               ? 'Pick the event, then sign up on the Google Form — it opens with that event already filled in. Your name appears below after you submit.'
               : 'Pick an event, choose your role, and submit. Your teacher will confirm assignments.'}</p>
+
+            <div id="yb-event-form" style="display:none;padding:14px 0 18px;border-bottom:1px solid var(--border);margin-bottom:16px">
+              <p class="cal-section-sub" style="margin-top:0">Don't see your event listed below? Add it here — it'll go straight onto the Coverage Calendar and appear in the list to sign up for.</p>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+                <div class="form-group" style="margin:0"><label>Title</label><input id="yb-new-title" type="text" placeholder="e.g. Homecoming Dance"></div>
+                <div class="form-group" style="margin:0"><label>Date</label><input id="yb-new-date" type="date"></div>
+                <div class="form-group" style="margin:0"><label>Time <span class="hint">(optional)</span></label><input id="yb-new-time" type="text" placeholder="7:00 PM"></div>
+                <div class="form-group" style="margin:0"><label>Type</label><select id="yb-new-type">${Object.entries(EVENT_TYPES).map(([k, v]) => `<option value="${k}">${YB_ICONS[k] || '📅'} ${v.label}</option>`).join('')}</select></div>
+              </div>
+              <button class="btn-primary" id="yb-save-event-btn">Save &amp; Add to Calendar</button>
+              <button class="btn-secondary" id="yb-cancel-event-btn" style="margin-left:8px">Cancel</button>
+            </div>
 
             ${USE_GOOGLE_FORM_YEARBOOK ? '' : `
             <div class="yb-name-row">
