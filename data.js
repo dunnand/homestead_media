@@ -306,6 +306,39 @@ const LIVE_QUICK_LINKS = [
   ]},
 ];
 
+// ── Yearbook — Shared Drive top-level folders ─────────────────
+const YEARBOOK_QUICK_LINKS = [
+  { heading: '🎤 Interviews', links: [
+    { label: 'Fall Interviews',   url: 'https://drive.google.com/drive/folders/1Ilk2PNF2UflI3FVszqaoW5KP6b8vhyRN' },
+    { label: 'Winter Interviews', url: 'https://drive.google.com/drive/folders/1X0q5E58VSsvoJmrg7teOgIdkHX-j2NQ4' },
+    { label: 'Spring Interviews', url: 'https://drive.google.com/drive/folders/1io_wUtcBCwurUq4oHY60BO7bt4nXwIpq' },
+    { label: 'Summer Interviews', url: 'https://drive.google.com/drive/folders/1ZBCRNJnNXldptwonhy9g6ex4yLQOp2Ej' },
+  ]},
+  { heading: '🏆 Sports', links: [
+    { label: 'Fall Sports',   url: 'https://drive.google.com/drive/folders/1X9RKMsRk3SGH1_HOn1wnWbkVrNpDObxM' },
+    { label: 'Winter Sports', url: 'https://drive.google.com/drive/folders/166T7cilJyZURsyYHDkI4SppHiYghO4vj' },
+    { label: 'Spring Sports', url: 'https://drive.google.com/drive/folders/1v6b9bZdGjL1tAuTG_gAJwwDsvLwT3Zhe' },
+    { label: 'Summer Sports', url: 'https://drive.google.com/drive/folders/1FJF2intrWzNNnaKp9GUXDrajMNQ3oDCD' },
+  ]},
+  { heading: '🎓 Academics & Arts', links: [
+    { label: 'Academics',        url: 'https://drive.google.com/drive/folders/1QdUwW5NxSqfCtJB7F2vaTgfl4BtH2Ohu' },
+    { label: 'Performing Arts',  url: 'https://drive.google.com/drive/folders/1EsV-KCPO8xGnz7bqej5I4HHv1uYH53RS' },
+  ]},
+  { heading: '👥 People & Groups', links: [
+    { label: 'Student Life / People', url: 'https://drive.google.com/drive/folders/1OtZ_Y-AJafX8wosuqwLym35RUWo7O14i' },
+    { label: 'Clubs & Orgs',          url: 'https://drive.google.com/drive/folders/12YmVmvUf7FHA-GP-VLbcbmJ72GH9fmo2' },
+    { label: 'Portrait IDs',          url: 'https://drive.google.com/drive/folders/1QJ2woiPecyO6A1XTIy332bqvM_Gpd5CW' },
+    { label: 'Groups Photos and IDs', url: 'https://drive.google.com/drive/folders/1mxbUaMb_0o9v0TlayPuTWip5f17onF3Y' },
+  ]},
+  { heading: '📅 Events & Extras', links: [
+    { label: 'Events and Schedules',  url: 'https://drive.google.com/drive/folders/1oP5zIUpuGviRDNfF0EneBCHSE9-8LjRz' },
+    { label: 'Sports Scoreboards',    url: 'https://drive.google.com/drive/folders/1AzJwxquTuLgCH0iljXGKESJ5MLsTIniC' },
+    { label: 'Additional Resources',  url: 'https://drive.google.com/drive/folders/1nfO7mLO7iNgRBuxKe70tmhWZGklIDWIe' },
+    { label: 'Socials',               url: 'https://drive.google.com/drive/folders/1nFCUCkvSGPTzYKwkiUNPbXYZjYH1i7dL' },
+    { label: 'Miscellaneous',         url: 'https://drive.google.com/drive/folders/1RSh2YvHNKrkeiYloKUCqOe-fidjBT1Ba' },
+  ]},
+];
+
 // ── Homestead Live — Graphics Checklists per sport ────────────
 const BROADCAST_CHECKLISTS = {
   football: [

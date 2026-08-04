@@ -5472,9 +5472,9 @@ function renderYearbook() {
                         <span class="yb-dropbox-arr">↗</span>
                       </a>`).join('')}
                 </div>`
-              : `<a class="btn-secondary" href="https://drive.google.com/drive/folders/16tMS2QUG4hSoN8aRE-r1c84vivFxI4pT" target="_blank" rel="noopener" style="display:block;text-align:center">Open Folder Index ↗</a>`
+              : `<a class="btn-secondary" href="https://drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA" target="_blank" rel="noopener" style="display:block;text-align:center">Open Shared Drive ↗</a>`
             }
-            <a href="https://drive.google.com/drive/folders/16tMS2QUG4hSoN8aRE-r1c84vivFxI4pT" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.78rem;margin-top:10px;color:var(--dim)">🗂️ Can't find your folder? Browse the full index ↗</a>
+            <a href="https://drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.78rem;margin-top:10px;color:var(--dim)">🗂️ Can't find your folder? Browse the full Shared Drive ↗</a>
           </section>
 
           <section class="card action-card">
@@ -8556,8 +8556,9 @@ let _qlDraft = null;
 
 async function loadQuickLinks() {
   const db = getDB();
+  const QL_DEFAULTS = { live: LIVE_QUICK_LINKS, yearbook: YEARBOOK_QUICK_LINKS };
   if (!db) {
-    QL_VIEWS.forEach(v => { S.quickLinks[v] = v === 'live' ? LIVE_QUICK_LINKS : []; });
+    QL_VIEWS.forEach(v => { S.quickLinks[v] = QL_DEFAULTS[v] || []; });
     return;
   }
   const ok = await cachedLoad('quick_links', async () => {
@@ -8567,9 +8568,9 @@ async function loadQuickLinks() {
     QL_VIEWS.forEach((v, i) => {
       if (snaps[i].exists) {
         map[v] = snaps[i].data().sections || [];
-      } else if (v === 'live') {
-        map[v] = LIVE_QUICK_LINKS;
-        db.collection('hm_quick_links').doc('live').set({ sections: LIVE_QUICK_LINKS });
+      } else if (QL_DEFAULTS[v]) {
+        map[v] = QL_DEFAULTS[v];
+        db.collection('hm_quick_links').doc(v).set({ sections: QL_DEFAULTS[v] });
         trackUsage('writes', 1);
       } else {
         map[v] = [];
@@ -8577,7 +8578,7 @@ async function loadQuickLinks() {
     });
     return map;
   }, map => { QL_VIEWS.forEach(v => { S.quickLinks[v] = map[v] || []; }); });
-  if (!ok) QL_VIEWS.forEach(v => { S.quickLinks[v] = v === 'live' ? LIVE_QUICK_LINKS : []; });
+  if (!ok) QL_VIEWS.forEach(v => { S.quickLinks[v] = QL_DEFAULTS[v] || []; });
 }
 
 function qlSyncFromDom() {
