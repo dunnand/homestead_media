@@ -5207,7 +5207,7 @@ async function beatSave(id) {
 // ── YEARBOOK: Weekly Accomplishments (Shared Drive folders) ────
 // After running createWeeklyAccomplishmentsForm() in Apps Script (Code.gs),
 // paste the logged Form URL here to switch the card over to the form.
-const YB_WEEKLY_FORM_URL  = '';
+const YB_WEEKLY_FORM_URL  = 'https://docs.google.com/forms/d/e/1FAIpQLSdIGRXOtg1Id8hsmJvluoYZyOz-0N5_eBBs5RGoF1g3ahW9aA/viewform';
 const YB_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/folders/11LNVkH8eykaitzbXhSTHNzVz1YkmtxoB';
 const YB_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)',   start: '2026-08-05', end: '2026-08-07', folderId: '1TFPzjcReUZufpX1POtZkZC-yEV6PqUey' },
