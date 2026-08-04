@@ -7757,7 +7757,7 @@ function renderLessons() {
 
 function renderLessonsHub() {
   const cards = Object.entries(LESSONS).map(([key, course]) => {
-    const totalLessons = course.units.reduce((sum, u) => sum + u.lessons.length, 0);
+    const totalLessons = getCourseLessonList(key).length;
     const locked = totalLessons === 0;
     return `
       <div class="class-card lesson-hub-card ${locked ? 'lesson-locked' : ''}"
@@ -7766,7 +7766,7 @@ function renderLessonsHub() {
         <div class="lesson-hub-icon" style="${locked ? '' : `background:${course.color}18`}">${course.icon}</div>
         <div class="class-name" style="color:${locked ? 'var(--dim)' : course.color}">${course.name}</div>
         ${totalLessons > 0
-          ? `<div class="lesson-hub-meta">${course.units.length} unit${course.units.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ${totalLessons} lesson${totalLessons !== 1 ? 's' : ''}</div>`
+          ? `<div class="lesson-hub-meta">${course.units.length > 0 ? `${course.units.length} unit${course.units.length !== 1 ? 's' : ''} &nbsp;·&nbsp; ` : ''}${totalLessons} lesson${totalLessons !== 1 ? 's' : ''}</div>`
           : `<div class="lesson-hub-meta">Coming soon</div>`}
         <div class="class-enter">${locked ? 'Coming Soon' : 'Open →'}</div>
       </div>`;
