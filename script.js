@@ -5464,29 +5464,6 @@ function renderYearbook() {
         </div>
         <div class="side-col">
 
-          <section class="card">
-            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
-              <span style="font-size:1.5rem">📁</span>
-              <h3 style="margin:0;font-size:1rem;font-weight:700">Photo Dropbox</h3>
-            </div>
-            <p style="font-size:0.82rem;color:var(--dim);margin-bottom:12px">Upload your photos after covering an event. Select your sport's folder below.</p>
-            ${Object.keys(YB_DROPBOX_FOLDERS).length
-              ? `<div class="yb-dropbox-list">
-                  ${Object.entries(YB_DROPBOX_FOLDERS)
-                    .filter(([k]) => EVENT_TYPES[k])
-                    .sort(([a],[b]) => (EVENT_TYPES[a]?.label||a).localeCompare(EVENT_TYPES[b]?.label||b))
-                    .map(([k, fid]) => `
-                      <a class="yb-dropbox-link" href="https://drive.google.com/drive/folders/${esc(fid)}" target="_blank" rel="noopener">
-                        <span>${YB_ICONS[k] || '📁'}</span>
-                        <span>${EVENT_TYPES[k].label}</span>
-                        <span class="yb-dropbox-arr">↗</span>
-                      </a>`).join('')}
-                </div>`
-              : `<a class="btn-secondary" href="https://drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA" target="_blank" rel="noopener" style="display:block;text-align:center">Open Shared Drive ↗</a>`
-            }
-            <a href="https://drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.78rem;margin-top:10px;color:var(--dim)">🗂️ Can't find your folder? Browse the full Shared Drive ↗</a>
-          </section>
-
           <section class="card action-card">
             <div class="action-icon">📒</div>
             <h3>Walsworth Yearbooks</h3>

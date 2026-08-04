@@ -159,10 +159,6 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .yb-tracker-title { font-size: 0.85rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .yb-tracker-date { font-size: 0.75rem; }
 .yb-tracker-badge { font-size: 0.75rem; font-weight: 600; padding: 3px 9px; border-radius: 20px; white-space: nowrap; flex-shrink: 0; }
-.yb-dropbox-list { display: flex; flex-direction: column; gap: 4px; }
-.yb-dropbox-link { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 8px; background: var(--surface2); color: var(--text); text-decoration: none; font-size: 0.85rem; transition: background 0.15s; }
-.yb-dropbox-link:hover { background: var(--border); }
-.yb-dropbox-arr { margin-left: auto; color: var(--dim); font-size: 0.8rem; }
 .yb-cov-header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 8px; }
 .yb-cov-title { font-weight: 700; font-size: 0.9rem; }
 .yb-cov-date { font-size: 0.78rem; white-space: nowrap; }

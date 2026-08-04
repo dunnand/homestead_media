@@ -9,7 +9,6 @@
 
 const SOURCE_CAL_ID     = 'fd9gn9o6bq5lfvsaiqkt4gs4n1gneqc6@import.calendar.google.com';
 const TARGET_CAL_ID     = '2b9bdfdee65f7330d8d5d2fd1d4877c1b709289fa0b0747427f57fd62516bed5@group.calendar.google.com';
-const DROPBOX_FOLDER_ID = '0AKQDvIUms2qIUk9PVA';
 
 function respond(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
@@ -180,53 +179,6 @@ function maybeSync() {
   if (new Date().getMonth() === 6) {
     syncAthletics();
   }
-}
-
-// ── Create per-sport subfolders in the Photo Dropbox ─────────
-// Run this once from the Apps Script editor (not via web app).
-// After it runs, copy the logged output into data.js → YB_DROPBOX_FOLDERS.
-function createDropboxFolders() {
-  const SPORT_LABELS = {
-    football:        'Football',
-    basketball_boys: 'Boys Basketball',
-    basketball_girls:'Girls Basketball',
-    volleyball:      'Volleyball',
-    soccer_boys:     'Boys Soccer',
-    soccer_girls:    'Girls Soccer',
-    cross_country:   'Cross Country',
-    tennis_boys:     'Boys Tennis',
-    tennis_girls:    'Girls Tennis',
-    golf_boys:       'Boys Golf',
-    golf_girls:      'Girls Golf',
-    wrestling:       'Wrestling',
-    swimming:        'Swimming',
-    gymnastics:      'Gymnastics',
-    track:           'Track & Field',
-    baseball:        'Baseball',
-    softball:        'Softball',
-    dance:           'Dance',
-    showchoir:       'Show Choir',
-    nhs:             'NHS / Honor Society',
-    graduation:      'Graduation'
-  };
-
-  const parent = DriveApp.getFolderById(DROPBOX_FOLDER_ID);
-
-  const existing = {};
-  const iter = parent.getFolders();
-  while (iter.hasNext()) {
-    const f = iter.next();
-    existing[f.getName()] = f.getId();
-  }
-
-  const result = {};
-  Object.entries(SPORT_LABELS).forEach(([key, label]) => {
-    result[key] = existing[label] || parent.createFolder(label).getId();
-  });
-
-  Logger.log('Paste this into data.js as YB_DROPBOX_FOLDERS:');
-  Logger.log(JSON.stringify(result));
-  return result;
 }
 
 // ── Weekly Accomplishments Form + auto-filing ─────────────────

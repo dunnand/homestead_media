@@ -144,59 +144,6 @@ const HHS_MEDIA_CAL_ID  = '2b9bdfdee65f7330d8d5d2fd1d4877c1b709289fa0b0747427f57
 const HOMESTEAD_LIVE_CAL_ID = 'thepoint91fm@gmail.com';
 const GOOGLE_CAL_API_KEY = 'AIzaSyCy5ZKtIjrF1lgDojmYgDlxit2Te7SKyeU';
 
-// Google Drive subfolder IDs for the Photo Dropbox — one folder per sport/category.
-// Parent folder: drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA
-const YB_DROPBOX_FOLDERS = {
-  football:         '1G-RzKF0DFxTjbeboOROKq8wOvjbWfmCD',
-  basketball_boys:  '196vis9GdEVD-38al8Wpwl0eAVuPsTYi-',
-  basketball_girls: '1ZVpUAbiCnGkugUtQSUZYmsvb-Qrqe1Oe',
-  volleyball:       '1kfSUed7ErDdJp8k1wtoijBcukkVyug_C',
-  soccer_boys:      '14pc8mV7V5RWikLkemstD_KmSp9XuWCeN',
-  soccer_girls:     '1uuLF1oj73XMMUKg1hwoG54SvW3LLF_uU',
-  cross_country:    '1oSLEnBAQcLC29vdT9kc09y6o_uLdWmM5',
-  tennis_boys:      '1UaY6vV3jt2TZ2oy8kEC4XkwWJ7VfBZGo',
-  tennis_girls:     '13rQWyDhiHeMdmIER9iof8-5Dq5vhoYGc',
-  golf_boys:        '1wZZ-NkVLU5hAO6ynW6aKcx8zn870-QL2',
-  golf_girls:       '1YydgVjlBi4L4kLxZj2BLZOW0xdgjRxRY',
-  wrestling:        '1YW2xUL-yMWWmv5HTAdWJTSP1nsGCLYOy',
-  swimming:         '1aUP1IMy7fFSBuIOVA18oTJ5srmZaANcq',
-  gymnastics:       '1F6mTFfFr56RxTdqzRgXLzTXwUx4xBtQ9',
-  track:            '1cSjacDe4HSTPBnxb1o0ca5DSnBZX_xzV',
-  baseball:         '1IOzHhMjF20zLS5tyUkfNm9StlSRBAGwC',
-  softball:         '1iyYf4AfpONodfy0JghQ1lzRssJvVOsFX',
-  dance:             '1LtGmkaKT0l0_tpNVpy0hCIfHU6X9sug2',
-  showchoir:         '1B0YaX9NlB24iRSsda9SeGLlpLxn1XcmW',
-  nhs:               '1C4VCqa1VV5-8ZjbhAc5ylLXJ7wSgUJok',
-  graduation:        '1sevk5vhmGhVkGATimw2_dS32HXB0gOeJ',
-  marching_band:     '1q6H-VCrVc_xHadL9_HNxEEvkwWeCKnUe',
-  jazz_band:         '1nOimebPI5Bix2F0knxpun0Z1jJF72JTB',
-  color_guard:       '1nyTvHw4p192C7Sfv03XIVfIRfzbwA3OF',
-  indoor_percussion: '12eltbMOd2wvBf7A0mx8lDv-bRF7xozPU',
-  winter_guard:      '1qYPOfa0_QxuFnfcMed8E-5jOrSMIEiuV',
-  homecoming:        '1jYw8XF2i5rOQtGAwZo1GIV6pfX_K4Nft',
-  lacrosse_boys:     '1h5WbMpAY5UAbacyRcYluA_0W-qBWhOXF',
-  lacrosse_girls:    '1ZTD6pc5yNVmXRp--fUtLXBU3NSBVnz_H',
-  bowling_boys:      '1Y5eFRiWiVeMZKJtk_2SpBdBDo5Gk2nvP',
-  bowling_girls:     '1FKKWAJJ_dO_S08D137IEx3rVos7JzDv2',
-  cheer:             '1cama0X2XMQphcWNaqnQA_UiwYu5GS-kS',
-  dance_team:        '1gHYz8jkZO4TXiUhMc3EInVjQ3IcDUD1X',
-  fine_arts:         '1yJIKQTq-EMXNHdQB_UqxgTkgrZVauR8F',
-  arts:              '1BIdyc_i3AgONZFCBbrw3aQgSOjJoJnpy',
-  school:            '187sIPJGTdi8-ksgnjhEoJpa7mfjYiqIl',
-  academic:          '1g3Dkzeyylkwjun7M_0g0C0OKjwL1uFRZ',
-  club:              '12YmVmvUf7FHA-GP-VLbcbmJ72GH9fmo2',
-  other:             '1RSh2YvHNKrkeiYloKUCqOe-fidjBT1Ba',
-  orchestra:         '1tu6NtXpT1PRcIes7Npd2Png0lWFi5j8u',
-  theater:           '184DqtDCmkO4YAPRr2-xH4IaMit02hcWz',
-  elite_choir:       '1zeP5j4TVny2fhkDmNMjdJFnpM-UnNhCd',
-  speech_debate:     '13FIe2fVcVPmDmYVV8EJCvhzDa1WQSUz2',
-  robotics:          '1Jflwlen7g9iMBkW2Bp1zQZ9ld2qoQ3p-',
-  student_gov:       '1eI5YmV4W-vEHFcAEp2JmoNCkUPPH20U6',
-  prom:              '1DE4AejbYGQbh9URCTO_fUT17HQuFsYJn',
-  volleyball_boys:   '13IDB3FVZ4mql_5K-gVFc7gDjEre9XU8r',
-  key_club:          '1fimQpUr_O9zxAqR4XxQcdPdY5GQoM_M4',
-};
-
 // ── Homestead Live — Broadcast Rundown Templates ─────────────
 const RUNDOWN_TEMPLATES = {
   football: [
