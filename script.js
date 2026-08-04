@@ -5472,8 +5472,9 @@ function renderYearbook() {
                         <span class="yb-dropbox-arr">↗</span>
                       </a>`).join('')}
                 </div>`
-              : `<a class="btn-secondary" href="https://drive.google.com/drive/folders/0AKQDvIUms2qIUk9PVA" target="_blank" rel="noopener" style="display:block;text-align:center">Open General Folder ↗</a>`
+              : `<a class="btn-secondary" href="https://drive.google.com/drive/folders/16tMS2QUG4hSoN8aRE-r1c84vivFxI4pT" target="_blank" rel="noopener" style="display:block;text-align:center">Open Folder Index ↗</a>`
             }
+            <a href="https://drive.google.com/drive/folders/16tMS2QUG4hSoN8aRE-r1c84vivFxI4pT" target="_blank" rel="noopener" style="display:block;text-align:center;font-size:0.78rem;margin-top:10px;color:var(--dim)">🗂️ Can't find your folder? Browse the full index ↗</a>
           </section>
 
           <section class="card action-card">

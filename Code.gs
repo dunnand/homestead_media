@@ -228,3 +228,65 @@ function createDropboxFolders() {
   Logger.log(JSON.stringify(result));
   return result;
 }
+
+// ── Build a master shortcut index of every folder in the Shared Drive ──
+// Run this once from the Apps Script editor (not via web app).
+// REQUIRES: Services (left sidebar) → + → add "Drive API" (advanced service) first.
+// Safe to re-run — it skips folders that already have a shortcut in the index.
+const FOLDER_INDEX_ID = '16tMS2QUG4hSoN8aRE-r1c84vivFxI4pT'; // "📁 Folder Index (All Folders)"
+
+function buildFolderIndex() {
+  const existingTargets = {};
+  let pageToken = null;
+  do {
+    const resp = Drive.Files.list({
+      q: `'${FOLDER_INDEX_ID}' in parents and mimeType = 'application/vnd.google-apps.shortcut' and trashed = false`,
+      fields: 'nextPageToken, files(id, shortcutDetails)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      pageToken
+    });
+    (resp.files || []).forEach(f => {
+      if (f.shortcutDetails) existingTargets[f.shortcutDetails.targetId] = true;
+    });
+    pageToken = resp.nextPageToken;
+  } while (pageToken);
+
+  const folders = [];
+  collectFoldersRecursive(DROPBOX_FOLDER_ID, '', folders);
+
+  let created = 0, skipped = 0;
+  folders.forEach(f => {
+    if (f.id === FOLDER_INDEX_ID || existingTargets[f.id]) { skipped++; return; }
+    Drive.Files.create(
+      { name: f.path, mimeType: 'application/vnd.google-apps.shortcut', parents: [FOLDER_INDEX_ID], shortcutDetails: { targetId: f.id } },
+      null,
+      { supportsAllDrives: true }
+    );
+    created++;
+  });
+
+  Logger.log(`Found ${folders.length} folders total. Created ${created} new shortcuts, skipped ${skipped} (already indexed or is the index itself).`);
+}
+
+function collectFoldersRecursive(parentId, pathPrefix, out) {
+  let pageToken = null;
+  do {
+    const resp = Drive.Files.list({
+      q: `'${parentId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'nextPageToken, files(id, name)',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
+      corpora: 'drive',
+      driveId: DROPBOX_FOLDER_ID,
+      pageToken
+    });
+    (resp.files || []).forEach(f => {
+      if (f.id === FOLDER_INDEX_ID) return;
+      const path = pathPrefix ? `${pathPrefix} / ${f.name}` : f.name;
+      out.push({ id: f.id, name: f.name, path });
+      collectFoldersRecursive(f.id, path, out);
+    });
+    pageToken = resp.nextPageToken;
+  } while (pageToken);
+}
