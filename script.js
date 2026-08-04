@@ -5231,8 +5231,6 @@ const YB_WEEKLY_FOLDERS = [
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1SYJo0oIYb3Ut-ZQ7-IStIFyhe21yzLYA' },
 ];
 
-function ybFolderUrl(id) { return `https://drive.google.com/drive/folders/${id}`; }
-
 function getCurrentYbWeek() {
   const today = new Date().toISOString().slice(0, 10);
   const current = YB_WEEKLY_FOLDERS.find(w => today >= w.start && today <= w.end);
@@ -5327,12 +5325,11 @@ function renderYearbook() {
               const formBtn = YB_WEEKLY_FORM_URL
                 ? `<a class="btn-primary" href="${esc(YB_WEEKLY_FORM_URL)}" target="_blank" rel="noopener">📝 Fill Out This Week's Form ↗</a>`
                 : '';
-              const folderBtnClass = YB_WEEKLY_FORM_URL ? 'btn-secondary' : 'btn-primary';
+              const browseBtnClass = YB_WEEKLY_FORM_URL ? 'btn-secondary' : 'btn-primary';
               return `
               <p style="font-size:0.85rem;margin:0 0 10px">${statusNote}</p>
               ${formBtn}
-              <a class="${folderBtnClass}" href="${ybFolderUrl(week.folderId)}" target="_blank" rel="noopener" style="${YB_WEEKLY_FORM_URL ? 'margin-left:8px' : ''}">📁 Open This Week's Folder ↗</a>
-              <a class="btn-secondary" href="${YB_WEEKLY_DRIVE_URL}" target="_blank" rel="noopener" style="margin-left:8px">🗂️ Browse All Weeks ↗</a>`;
+              <a class="${browseBtnClass}" href="${YB_WEEKLY_DRIVE_URL}" target="_blank" rel="noopener" style="${YB_WEEKLY_FORM_URL ? 'margin-left:8px' : ''}">🗂️ Browse All Weeks ↗</a>`;
             })()}
           </section>
 
