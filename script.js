@@ -5205,27 +5205,27 @@ async function beatSave(id) {
 }
 
 // ── YEARBOOK: Weekly Accomplishments (Shared Drive folders) ────
-const YB_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/u/0/folders/0AKQDvIUms2qIUk9PVA';
+const YB_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/folders/11LNVkH8eykaitzbXhSTHNzVz1YkmtxoB';
 const YB_WEEKLY_FOLDERS = [
-  { label: 'Week 1 (Aug 5–Aug 7)',   start: '2026-08-05', end: '2026-08-07', folderId: '17FL3-Sib7QsbNr9_yfPadjO6tMpezqPA' },
-  { label: 'Week 2 (Aug 10–Aug 14)', start: '2026-08-10', end: '2026-08-14', folderId: '1cA6bQInDQGzIao7Wr2CQ-LzrYgOroPY3' },
-  { label: 'Week 3 (Aug 17–Aug 21)', start: '2026-08-17', end: '2026-08-21', folderId: '1GbUf0UmKD8VzIyL_b7HfUO42sr3GgK9B' },
-  { label: 'Week 4 (Aug 24–Aug 28)', start: '2026-08-24', end: '2026-08-28', folderId: '1nooo_wOYn7rhgNkwVZgYh0YT80n0B35y' },
-  { label: 'Week 5 (Aug 31–Sep 4)',  start: '2026-08-31', end: '2026-09-04', folderId: '1bv-6SbSgORE-dmuYlFQWXSE7XLGS_kdr' },
-  { label: 'Week 6 (Sep 7–Sep 11)',  start: '2026-09-07', end: '2026-09-11', folderId: '1b706CtVPVL0JXuvMNcAd0TjxPswLbQjf' },
-  { label: 'Week 7 (Sep 14–Sep 18)', start: '2026-09-14', end: '2026-09-18', folderId: '1ozE0AlIUF4GuFBJ9in42tYjfcrQhnl26' },
-  { label: 'Week 8 (Sep 21–Sep 25)', start: '2026-09-21', end: '2026-09-25', folderId: '1P7aaGE6DZf-5-Az1fPbeIDHTTh3hA-rT' },
-  { label: 'Week 9 (Sep 28–Oct 2)',  start: '2026-09-28', end: '2026-10-02', folderId: '1SoTxbWjkfl-cjRQCK8aKoFbF-4_lZr_a' },
-  { label: 'Week 10 (Oct 5–Oct 9)',  start: '2026-10-05', end: '2026-10-09', folderId: '1xi6qM3MX-N2TpUaKK5-xxm2ViZ9Cvpmp' },
-  { label: 'Week 12 (Oct 19–Oct 23)', start: '2026-10-19', end: '2026-10-23', folderId: '1x_l8mXRtq7Mco5kh-IvELXulav99xSGL' },
-  { label: 'Week 13 (Oct 26–Oct 30)', start: '2026-10-26', end: '2026-10-30', folderId: '1cjw-uo5YiV86RmtfvhPqyYndbzNlcBSB' },
-  { label: 'Week 14 (Nov 2–Nov 6)',   start: '2026-11-02', end: '2026-11-06', folderId: '1Qnuveg1q4QTSU-U6gSzpzqgyeYIJ5Qk3' },
-  { label: 'Week 15 (Nov 9–Nov 13)',  start: '2026-11-09', end: '2026-11-13', folderId: '176RHOxGZni-qimvybsv8-ecDbB6dhuLG' },
-  { label: 'Week 16 (Nov 16–Nov 20)', start: '2026-11-16', end: '2026-11-20', folderId: '1L5LxgEIgmggC2dKLF8BIM2xioK0i-GoI' },
-  { label: 'Week 17 (Nov 23–Nov 27)', start: '2026-11-23', end: '2026-11-27', folderId: '1gP9GfL4zJDnu_IEXGqj2K00pyuXcRu-f' },
-  { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '1MbJvkpVvGyA0FRcWV9vyM4saryR7DauZ' },
-  { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '1n9vmos1u6T062C7qvZfS3xuhh_q32YWI' },
-  { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1lBpcMnbw2f6RwsZAbASGxpFeVFu1EWgj' },
+  { label: 'Week 1 (Aug 5–Aug 7)',   start: '2026-08-05', end: '2026-08-07', folderId: '1TFPzjcReUZufpX1POtZkZC-yEV6PqUey' },
+  { label: 'Week 2 (Aug 10–Aug 14)', start: '2026-08-10', end: '2026-08-14', folderId: '1M_RJN-LIkEIHQ9NQrwbDdc1iCYwE8PV1' },
+  { label: 'Week 3 (Aug 17–Aug 21)', start: '2026-08-17', end: '2026-08-21', folderId: '1T4EcB8bmNZptz_E67Z40sxeFWZ-TM5a6' },
+  { label: 'Week 4 (Aug 24–Aug 28)', start: '2026-08-24', end: '2026-08-28', folderId: '1oP6jKxlIaDjrDdnTpgQtJre7ycJqFvD-' },
+  { label: 'Week 5 (Aug 31–Sep 4)',  start: '2026-08-31', end: '2026-09-04', folderId: '1CKIe2YlLq3hAbo2FAi8S3Xb9Aho9Uckg' },
+  { label: 'Week 6 (Sep 7–Sep 11)',  start: '2026-09-07', end: '2026-09-11', folderId: '1C0F8-8EZ_7ALXGvZTXOVOzzh5q8S_WCA' },
+  { label: 'Week 7 (Sep 14–Sep 18)', start: '2026-09-14', end: '2026-09-18', folderId: '1fKgRUkC_0fsGSXMZ3tn8WoDmotDJdOsK' },
+  { label: 'Week 8 (Sep 21–Sep 25)', start: '2026-09-21', end: '2026-09-25', folderId: '1_3AWr3Cr5uFhCDAcpxXxoYH9z-UjqbJi' },
+  { label: 'Week 9 (Sep 28–Oct 2)',  start: '2026-09-28', end: '2026-10-02', folderId: '1Y_7GE2ZTqDm8XbkghcJe33Bx6bWQZ0Tz' },
+  { label: 'Week 10 (Oct 5–Oct 9)',  start: '2026-10-05', end: '2026-10-09', folderId: '1wEPasRKeLdHA06an_v1ExlM9wemmv2AW' },
+  { label: 'Week 12 (Oct 19–Oct 23)', start: '2026-10-19', end: '2026-10-23', folderId: '16y09Qmns3c725dTFkJirmFwrXr0ruyB9' },
+  { label: 'Week 13 (Oct 26–Oct 30)', start: '2026-10-26', end: '2026-10-30', folderId: '1zDYdNIjkiYIEKDZTnwcp0DU77Hovs7gx' },
+  { label: 'Week 14 (Nov 2–Nov 6)',   start: '2026-11-02', end: '2026-11-06', folderId: '1LWvvryST_eyG1jfwOYpwdhjNruMcsTxH' },
+  { label: 'Week 15 (Nov 9–Nov 13)',  start: '2026-11-09', end: '2026-11-13', folderId: '1MBs3AbzuIpaFb7j-IaSa2Ba2sIV7D_J4' },
+  { label: 'Week 16 (Nov 16–Nov 20)', start: '2026-11-16', end: '2026-11-20', folderId: '1hCA8bSOxF8RR9_MGIvzDaJnBm3GGOhBb' },
+  { label: 'Week 17 (Nov 23–Nov 27)', start: '2026-11-23', end: '2026-11-27', folderId: '1oQjI1xUxuafG0dpTXHp8z9j6ag734GvF' },
+  { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '1EBoCUbTzGdLNkFC9xUpnqV329AIDclcD' },
+  { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '1lE-hTcnTvAzFOvK5jUoMVqTDNeyqG6qj' },
+  { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1SYJo0oIYb3Ut-ZQ7-IStIFyhe21yzLYA' },
 ];
 
 function ybFolderUrl(id) { return `https://drive.google.com/drive/folders/${id}`; }
