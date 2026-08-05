@@ -2803,8 +2803,9 @@ function renderRadio() {
           <section class="card action-card radio-action">
             <div class="action-icon">✍️</div>
             <h3>Show Planner</h3>
-            <p>Plan your talk show, air personality breaks, or radio show — step by step.</p>
+            <p>Plan your talk show, air personality breaks, or radio show — step by step. Submitting files your plan into this week's shared folder automatically.</p>
             <button class="btn-primary" id="start-planner">Start Planning →</button>
+            <a class="btn-secondary" style="margin-top:8px;display:inline-block" href="${AIR_WEEKLY_DRIVE_URL}" target="_blank" rel="noopener">🗂️ Browse Submitted Plans ↗</a>
           </section>
           <section class="card action-card radio-action">
             <div class="action-icon">🎛️</div>
@@ -3006,8 +3007,8 @@ function renderPlannerOpen(p) {
     <div class="break-purpose">Someone is always tuning in for the first time this break. Welcome them in, reset the station, and give them a reason to stick around.</div>
     <div class="form-group">
       <label>Welcome <span class="hint">(how will you welcome listeners tuning in right now?)</span></label>
-      <textarea id="open-welcome" rows="2" placeholder="${isRadio ? "e.g. What's up Homestead, you're locked in with me and [co-host]..." : "e.g. What's up Homestead, you're locked in with..."}">${esc(o.welcome || '')}</textarea>
-      ${isRadio ? `<div class="coach-hint">Introduce your co-host by name so listeners know who's on with you today.</div>` : ''}
+      <textarea id="open-welcome" rows="2" placeholder="${isRadio ? "e.g. You're locked in with [show name] on 91.1 The Point, I'm [your name] with [co-host]..." : "e.g. You're locked in with [show name] on 91.1 The Point, I'm [your name]..."}">${esc(o.welcome || '')}</textarea>
+      <div class="coach-hint">Skip "What's up" — it's overused. We're a public station, not a school PA system, so lead with the show/station, not "Homestead."${isRadio ? ' Introduce your co-host by name so listeners know who\'s on with you today.' : ''}</div>
     </div>
     <div class="form-group">
       <label>Station Reset <span class="hint">(mention your station, show name, and/or the time)</span></label>
@@ -3222,7 +3223,8 @@ function renderPlanner() {
           </div>
           <div class="form-group">
             <label>Welcome <span class="hint">(how will you open the show and welcome listeners in?)</span></label>
-            <textarea id="p-theme-welcome" rows="2" placeholder="e.g. What's up Homestead, welcome back to...">${esc((p.theme || {}).welcome || '')}</textarea>
+            <textarea id="p-theme-welcome" rows="2" placeholder="e.g. Welcome back to [show name] on 91.1 The Point — today we're getting into...">${esc((p.theme || {}).welcome || '')}</textarea>
+            <div class="coach-hint">Skip "What's up" — it's overused. We're a public station, not a school PA system, so lead with the show/station, not "Homestead."</div>
           </div>`;
         break;
       case 2: {
@@ -6000,6 +6002,64 @@ function savePlannerStep() {
   render();
 }
 
+// ── SHOW PLANNER: Weekly submissions (Shared Drive) ─────────────
+// Every submitted plan is filed automatically as a Doc into that week's
+// folder — see fileAirPlanToDrive() below and doPost()/fileAirPlan() in
+// Code.gs. Must stay in sync with AIR_WEEKLY_FOLDERS in Code.gs if weeks
+// are added/changed. Folder IDs live server-side only; this list is just
+// for the "this is week X" status shown to students.
+const AIR_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/u/2/folders/0AGI4ogJFHfYTUk9PVA';
+const AIR_WEEKLY_FOLDERS = [
+  { label: 'Week 1 (Aug 5–Aug 7)',    start: '2026-08-05', end: '2026-08-07' },
+  { label: 'Week 2 (Aug 10–Aug 14)',  start: '2026-08-10', end: '2026-08-14' },
+  { label: 'Week 3 (Aug 17–Aug 21)',  start: '2026-08-17', end: '2026-08-21' },
+  { label: 'Week 4 (Aug 24–Aug 28)',  start: '2026-08-24', end: '2026-08-28' },
+  { label: 'Week 5 (Aug 31–Sep 4)',   start: '2026-08-31', end: '2026-09-04' },
+  { label: 'Week 6 (Sep 7–Sep 11)',   start: '2026-09-07', end: '2026-09-11' },
+  { label: 'Week 7 (Sep 14–Sep 18)',  start: '2026-09-14', end: '2026-09-18' },
+  { label: 'Week 8 (Sep 21–Sep 25)',  start: '2026-09-21', end: '2026-09-25' },
+  { label: 'Week 9 (Sep 28–Oct 2)',   start: '2026-09-28', end: '2026-10-02' },
+  { label: 'Week 10 (Oct 5–Oct 9)',   start: '2026-10-05', end: '2026-10-09' },
+  { label: 'Week 12 (Oct 19–Oct 23)', start: '2026-10-19', end: '2026-10-23' },
+  { label: 'Week 13 (Oct 26–Oct 30)', start: '2026-10-26', end: '2026-10-30' },
+  { label: 'Week 14 (Nov 2–Nov 6)',   start: '2026-11-02', end: '2026-11-06' },
+  { label: 'Week 15 (Nov 9–Nov 13)',  start: '2026-11-09', end: '2026-11-13' },
+  { label: 'Week 16 (Nov 16–Nov 20)', start: '2026-11-16', end: '2026-11-20' },
+  { label: 'Week 17 (Nov 23–Nov 27)', start: '2026-11-23', end: '2026-11-27' },
+  { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04' },
+  { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11' },
+  { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18' },
+];
+
+function getCurrentAirWeek() {
+  const today = new Date().toISOString().slice(0, 10);
+  const current = AIR_WEEKLY_FOLDERS.find(w => today >= w.start && today <= w.end);
+  if (current) return { week: current, status: 'current' };
+  const upcoming = AIR_WEEKLY_FOLDERS.find(w => w.start > today);
+  if (upcoming) return { week: upcoming, status: 'upcoming' };
+  if (today < AIR_WEEKLY_FOLDERS[0].start) return { week: AIR_WEEKLY_FOLDERS[0], status: 'upcoming' };
+  return { week: AIR_WEEKLY_FOLDERS[AIR_WEEKLY_FOLDERS.length - 1], status: 'past' };
+}
+
+// Fire-and-forget — files a Doc named "Student Name — Show Name — Date"
+// into the current week's shared-drive folder. Same pattern as the
+// Athletics Calendar sync button (no-cors POST, response not read).
+function fileAirPlanToDrive(p) {
+  if (!SYNC_SCRIPT_URL) return;
+  fetch(SYNC_SCRIPT_URL, {
+    method: 'POST',
+    mode: 'no-cors',
+    body: JSON.stringify({
+      action: 'submitAirPlan',
+      studentName: p.studentName || '',
+      showName: p.showName || '',
+      showType: p.showType || '',
+      planText: buildPlanText(p),
+      submittedAt: new Date().toISOString(),
+    }),
+  }).catch(() => {});
+}
+
 async function submitPlan() {
   const p = S.plannerData || {};
   if (!p.studentName) { showToast('Please enter your name first.'); return; }
@@ -6012,6 +6072,7 @@ async function submitPlan() {
     try { trackUsage('writes'); await db.collection('hm_radio_plans').add(dbSubmission); }
     catch(e) {}
   }
+  fileAirPlanToDrive(p);
   localStorage.setItem('hm_plan_' + p.studentName, JSON.stringify(submission));
 
   const typeLabel   = (PLANNER_TYPES[p.showType] || {}).label || 'show';
@@ -6019,12 +6080,14 @@ async function submitPlan() {
   const coHostNote  = (p.partnerEmails || '').trim()
     ? `It'll also be addressed to your co-host${(p.partnerEmails.split(',').filter(Boolean).length > 1) ? 's' : ''} so everyone's on the same page.`
     : 'You can also download a copy to share with your co-hosts.';
+  const { week: airWeek } = getCurrentAirWeek();
   const m = modal(`
     <div style="text-align:center;padding:8px 0 4px">
       <div style="font-size:2.5rem;margin-bottom:12px">✓</div>
       <h2 style="margin-bottom:8px">Plan Submitted!</h2>
       <p style="color:var(--dim);font-size:0.875rem;line-height:1.6;margin-bottom:24px">
-        Your ${esc(typeLabel)} plan for <strong>${esc(p.showName || 'your show')}</strong> has been turned in.
+        Your ${esc(typeLabel)} plan for <strong>${esc(p.showName || 'your show')}</strong> has been turned in
+        and filed into the <strong>${esc(airWeek.label)}</strong> folder.
         ${esc(coHostNote)}
       </p>
       <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">

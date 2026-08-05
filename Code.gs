@@ -33,6 +33,16 @@ function doGet(e) {
   }
 }
 
+function doPost(e) {
+  try {
+    const data = JSON.parse(e.postData.contents);
+    if (data.action === 'submitAirPlan') { fileAirPlan(data); return respond({ success: true }); }
+    return respond({ success: false, error: 'Unknown action: ' + data.action });
+  } catch(err) {
+    return respond({ success: false, error: err.toString() });
+  }
+}
+
 // ── Return upcoming events from HHS Media Events calendar ─────
 function getUpcomingEvents() {
   const cal = CalendarApp.getCalendarById(TARGET_CAL_ID);
@@ -258,6 +268,92 @@ function onWeeklyFormSubmit(e) {
   body.appendParagraph('What I accomplished this week:');
   body.appendParagraph(work);
   if (link) body.appendParagraph('Link: ' + link);
+  doc.saveAndClose();
+
+  DriveApp.getFileById(doc.getId()).moveTo(folder);
+}
+
+// ── Show Planner Weekly Filing (Radio) ─────────────────────────
+// Every plan submitted through the Show Planner (Talk Show / Air
+// Personality / Radio Show) on the website is POSTed here and filed
+// automatically as a Doc into that week's folder — no separate Form,
+// since the planner already collects everything in-app.
+//
+// ONE-TIME SETUP:
+// 1. Run createAirWeeklyFolders() from the Apps Script editor. It creates
+//    a subfolder per week inside the shared drive below and logs a ready
+//    -to-paste AIR_WEEKLY_FOLDERS array.
+// 2. Paste that array over the placeholder one below.
+// 3. Deploy → Manage deployments → Edit → New version, so the live /exec
+//    URL picks up doPost(). (Code changes don't apply to /exec until you
+//    push a new version.)
+// Must stay in sync with AIR_WEEKLY_FOLDERS in script.js if weeks change.
+const AIR_WEEKLY_DRIVE_ID = '0AGI4ogJFHfYTUk9PVA'; // shared drive — not a regular folder
+const AIR_WEEKLY_FOLDERS = [
+  { label: 'Week 1 (Aug 5–Aug 7)',    start: '2026-08-05', end: '2026-08-07', folderId: '' },
+  { label: 'Week 2 (Aug 10–Aug 14)',  start: '2026-08-10', end: '2026-08-14', folderId: '' },
+  { label: 'Week 3 (Aug 17–Aug 21)',  start: '2026-08-17', end: '2026-08-21', folderId: '' },
+  { label: 'Week 4 (Aug 24–Aug 28)',  start: '2026-08-24', end: '2026-08-28', folderId: '' },
+  { label: 'Week 5 (Aug 31–Sep 4)',   start: '2026-08-31', end: '2026-09-04', folderId: '' },
+  { label: 'Week 6 (Sep 7–Sep 11)',   start: '2026-09-07', end: '2026-09-11', folderId: '' },
+  { label: 'Week 7 (Sep 14–Sep 18)',  start: '2026-09-14', end: '2026-09-18', folderId: '' },
+  { label: 'Week 8 (Sep 21–Sep 25)',  start: '2026-09-21', end: '2026-09-25', folderId: '' },
+  { label: 'Week 9 (Sep 28–Oct 2)',   start: '2026-09-28', end: '2026-10-02', folderId: '' },
+  { label: 'Week 10 (Oct 5–Oct 9)',   start: '2026-10-05', end: '2026-10-09', folderId: '' },
+  { label: 'Week 12 (Oct 19–Oct 23)', start: '2026-10-19', end: '2026-10-23', folderId: '' },
+  { label: 'Week 13 (Oct 26–Oct 30)', start: '2026-10-26', end: '2026-10-30', folderId: '' },
+  { label: 'Week 14 (Nov 2–Nov 6)',   start: '2026-11-02', end: '2026-11-06', folderId: '' },
+  { label: 'Week 15 (Nov 9–Nov 13)',  start: '2026-11-09', end: '2026-11-13', folderId: '' },
+  { label: 'Week 16 (Nov 16–Nov 20)', start: '2026-11-16', end: '2026-11-20', folderId: '' },
+  { label: 'Week 17 (Nov 23–Nov 27)', start: '2026-11-23', end: '2026-11-27', folderId: '' },
+  { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '' },
+  { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '' },
+  { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '' },
+];
+
+// Run once from the Apps Script editor after setting/changing the weeks
+// above. Creates each week's subfolder inside the shared drive and logs
+// an AIR_WEEKLY_FOLDERS array (with real folderIds) to paste back in here
+// and into script.js. Re-running it will create duplicate folders, so
+// don't run it twice without clearing the ones it already made.
+function createAirWeeklyFolders() {
+  const root = DriveApp.getFolderById(AIR_WEEKLY_DRIVE_ID);
+  const lines = ['const AIR_WEEKLY_FOLDERS = ['];
+  AIR_WEEKLY_FOLDERS.forEach(w => {
+    const folder = root.createFolder(w.label);
+    lines.push(`  { label: '${w.label}', start: '${w.start}', end: '${w.end}', folderId: '${folder.getId()}' },`);
+  });
+  lines.push('];');
+  const out = lines.join('\n');
+  Logger.log(out);
+  return out;
+}
+
+// Same fallback logic as getCurrentAirWeek() on the website. Falls back to
+// filing straight into the shared drive root if a week's folderId hasn't
+// been filled in yet (e.g. before createAirWeeklyFolders() has been run).
+function airWeeklyFolderForDate(dateStr) {
+  const current  = AIR_WEEKLY_FOLDERS.find(w => dateStr >= w.start && dateStr <= w.end);
+  const upcoming = AIR_WEEKLY_FOLDERS.find(w => w.start > dateStr);
+  const pick = current || upcoming || AIR_WEEKLY_FOLDERS[AIR_WEEKLY_FOLDERS.length - 1];
+  return (pick && pick.folderId) || AIR_WEEKLY_DRIVE_ID;
+}
+
+function fileAirPlan(data) {
+  const tz = 'America/Indiana/Indianapolis';
+  const submitted = data.submittedAt ? new Date(data.submittedAt) : new Date();
+  const todayStr  = Utilities.formatDate(submitted, tz, 'yyyy-MM-dd');
+  const dateLabel = Utilities.formatDate(submitted, tz, 'MMM d, yyyy');
+  const folder    = DriveApp.getFolderById(airWeeklyFolderForDate(todayStr));
+
+  const studentName = data.studentName || 'Unknown Student';
+  const showName    = data.showName || '';
+  const fileName = showName ? `${studentName} — ${showName} — ${dateLabel}` : `${studentName} — ${dateLabel}`;
+
+  const doc = DocumentApp.create(fileName);
+  const body = doc.getBody();
+  body.appendParagraph(fileName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+  (data.planText || '').split('\n').forEach(line => body.appendParagraph(line));
   doc.saveAndClose();
 
   DriveApp.getFileById(doc.getId()).moveTo(folder);
