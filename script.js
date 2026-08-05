@@ -220,6 +220,7 @@ const S = {
   showCanvaForm: false,
   equipment: {},
   equipmentUnsub: null,
+  equipmentLive: false,
   lessonOrder: {},
   lessonIcons: {},
   hiddenLessons: new Set(),
@@ -7407,6 +7408,9 @@ function attachListeners() {
   const equipName = document.getElementById('equip-name');
   if (equipName) equipName.addEventListener('change', () => localStorage.setItem('hm_student_name', equipName.value.trim()));
 
+  const equipGoLiveBtn = document.getElementById('equip-go-live-btn');
+  if (equipGoLiveBtn) equipGoLiveBtn.addEventListener('click', goLiveEquipment);
+
   document.querySelectorAll('.yb-delete-event-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteYbEvent(btn.dataset.ybEventId)));
 
@@ -8431,6 +8435,25 @@ function loadEquipment() {
   });
 }
 
+function loadEquipmentState() {
+  const db = getDB();
+  if (!db) return;
+  db.collection('hm_equipment_state').doc('current').onSnapshot(doc => {
+    const wasLive = S.equipmentLive;
+    S.equipmentLive = !!(doc.exists && doc.data().live);
+    if (S.equipmentLive !== wasLive) render();
+  });
+}
+
+async function goLiveEquipment() {
+  if (!confirm("Make equipment check-in/out visible to everyone on the class pages now?")) return;
+  const db = getDB();
+  if (!db) { showToast('Offline — try again when connected.'); return; }
+  await db.collection('hm_equipment_state').doc('current').set({ live: true, wentLiveAt: new Date().toISOString() }, { merge: true });
+  trackUsage('writes', 1);
+  showToast('📦 Equipment check-in/out is now live!');
+}
+
 function renderEquipmentCheckedOutList() {
   const items = Object.values(S.equipment || {})
     .filter(i => i.status === 'checked_out')
@@ -8445,20 +8468,26 @@ function renderEquipmentCheckedOutList() {
       </div>`).join('')}`;
 }
 
-function renderEquipmentCard() {
+function renderEquipmentWidget() {
+  return `
+    <div class="form-group" style="margin-bottom:8px">
+      <label>Your Name</label>
+      <input id="equip-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+    </div>
+    <div class="form-group" style="margin-bottom:4px">
+      <label>Scan Barcode</label>
+      <input id="equip-scan" type="text" placeholder="Click here, then scan" autocomplete="off">
+    </div>
+    <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>`;
+}
+
+function renderEquipmentCard(forceShow) {
+  if (!S.equipmentLive && !forceShow) return '';
   return `
     <section class="card" id="equipment-card">
       <h3>📦 Equipment Check-In / Check-Out</h3>
       <p class="cal-section-sub" style="margin-top:0">Scan an item's barcode to check it out — scan the same barcode again to check it back in.</p>
-      <div class="form-group" style="margin-bottom:8px">
-        <label>Your Name</label>
-        <input id="equip-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
-      </div>
-      <div class="form-group" style="margin-bottom:4px">
-        <label>Scan Barcode</label>
-        <input id="equip-scan" type="text" placeholder="Click here, then scan" autocomplete="off">
-      </div>
-      <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>
+      ${renderEquipmentWidget()}
     </section>`;
 }
 
@@ -9314,6 +9343,7 @@ function initBellRingerAudio() {
 async function init() {
   await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
   loadEquipment();
+  loadEquipmentState();
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
@@ -9962,6 +9992,15 @@ function renderDashboard() {
               </div>
             </div>`).join('');
         })()}`
+      )}
+
+      ${dbSec('equipment',
+        `<h2>📦 Equipment Check-In/Out</h2>`,
+        S.equipmentLive ? '' : `<button class="btn-primary" id="equip-go-live-btn" style="font-size:0.8rem">🚀 Go Live</button>`,
+        `${S.equipmentLive
+            ? `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🟢 Live — visible on every class page.</p>`
+            : `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🧪 Test mode — try scanning below. Students won't see this on their class pages until you click Go Live.</p>`}
+        ${renderEquipmentWidget()}`
       )}
     </div>`;
 }
