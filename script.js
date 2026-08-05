@@ -5273,11 +5273,30 @@ function getCurrentYbWeek() {
 }
 
 // ── YEARBOOK ──────────────────────────────────────────────────
+// Strips emoji/punctuation and normalizes "High School"/"H.S." so the same
+// game re-entered on the source calendar with slightly different formatting
+// collapses to one key, without merging genuinely different same-day games.
+function normalizeYbTitle(title) {
+  return (title || '')
+    .toLowerCase()
+    .replace(/[^\w\s]/g, '')
+    .replace(/\bhigh school\b/g, 'hs')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 function allYbEvents() {
   const custom = (S.customYbEvents || []).map(e => ({ ...e, home: true, icon: YB_ICONS[e.type] || '📅' }));
   const base = [...YEARBOOK_EVENTS.map(e => ({ ...e, home: true })), ...custom];
   const covered = new Set(base.map(e => e.type + '|' + e.date));
-  const fromCal = (S.calendarYbEvents || []).filter(e => !covered.has(e.type + '|' + e.date));
+  const seenCal = new Set();
+  const fromCal = (S.calendarYbEvents || []).filter(e => {
+    if (covered.has(e.type + '|' + e.date)) return false;
+    const key = e.type + '|' + e.date + '|' + normalizeYbTitle(e.title);
+    if (seenCal.has(key)) return false;
+    seenCal.add(key);
+    return true;
+  });
   const all = [...base, ...fromCal];
   return S.ybShowAway ? all : all.filter(e => e.home !== false || YB_ALWAYS_SHOW.has(e.type));
 }
