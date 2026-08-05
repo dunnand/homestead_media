@@ -3911,7 +3911,7 @@ function showEditBroadcastModal(id) {
     const notes    = val('m-notes');
     if (!title || !date) { showToast('Title and date are required.'); return; }
     const newRoles = {};
-    m.querySelectorAll('.role-input').forEach(el => { newRoles[el.dataset.role] = el.value.trim(); });
+    m.querySelectorAll('.role-input').forEach(el => { newRoles[el.dataset.role] = shortenName(el.value.trim()); });
     Object.assign(b, { title, date, type, gameTime, notes, roles: newRoles });
     const db = getDB();
     if (db) { trackUsage('writes'); await db.collection('hm_broadcasts').doc(b.id).update({ title, date, type, gameTime, notes, roles: newRoles }).catch(() => {}); }
@@ -6311,7 +6311,7 @@ async function saveRoleAssignments() {
   const b = (S.broadcasts || []).find(x => x.id === S.broadcastId);
   if (!b) return;
   const roles = {};
-  document.querySelectorAll('.role-input').forEach(el => { roles[el.dataset.role] = el.value.trim(); });
+  document.querySelectorAll('.role-input').forEach(el => { roles[el.dataset.role] = shortenName(el.value.trim()); });
   b.roles = roles;
   const db = getDB();
   if (db) { trackUsage('writes'); await db.collection('hm_broadcasts').doc(b.id).update({ roles }).catch(() => {}); }
