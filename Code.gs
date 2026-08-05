@@ -382,14 +382,24 @@ function createAirWeeklyFolders() {
 // previous output back into Code.gs first, since already-filled entries
 // are skipped.
 function createFutureWeeklyFolders() {
-  function fill(list, rootId) {
+  // Remembers created folders in Script Properties (independent of the
+  // deployed source), so clicking the button again before pasting the
+  // result back into Code.gs reuses the same folder instead of making a
+  // duplicate — the paste-back is still needed for filing/display to
+  // pick up the new weeks, just not to avoid duplicate folders.
+  const props = PropertiesService.getScriptProperties();
+
+  function fill(list, rootId, keyPrefix) {
     const root = DriveApp.getFolderById(rootId);
     let created = 0;
     list.forEach(w => {
-      if (!w.folderId) {
-        w.folderId = root.createFolder(w.label).getId();
-        created++;
-      }
+      if (w.folderId) return;
+      const propKey = keyPrefix + w.label;
+      const existing = props.getProperty(propKey);
+      if (existing) { w.folderId = existing; return; }
+      w.folderId = root.createFolder(w.label).getId();
+      props.setProperty(propKey, w.folderId);
+      created++;
     });
     return created;
   }
@@ -401,8 +411,8 @@ function createFutureWeeklyFolders() {
     return lines.join('\n');
   }
 
-  const ybCreated  = fill(WEEKLY_FOLDERS, WEEKLY_ROOT_FOLDER_ID);
-  const airCreated = fill(AIR_WEEKLY_FOLDERS, AIR_WEEKLY_DRIVE_ID);
+  const ybCreated  = fill(WEEKLY_FOLDERS, WEEKLY_ROOT_FOLDER_ID, 'yb:');
+  const airCreated = fill(AIR_WEEKLY_FOLDERS, AIR_WEEKLY_DRIVE_ID, 'air:');
   const yb  = toSource('WEEKLY_FOLDERS', WEEKLY_FOLDERS);
   const air = toSource('AIR_WEEKLY_FOLDERS', AIR_WEEKLY_FOLDERS);
 
