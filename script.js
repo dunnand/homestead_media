@@ -77,7 +77,6 @@ function getDB() {
 //    that sheet: File → Share → Publish to web → select the responses tab + CSV → Publish.
 // 4. Paste the three values below.
 //
-// To restore the old on-site sign-up, set USE_GOOGLE_FORM_SIGNUP = false.
 const USE_GOOGLE_FORM_SIGNUP = true;
 const SIGNUP_FORM = {
   formUrl: 'https://docs.google.com/forms/d/1_OeCPHDdmSJRsNBtQIMyn0JcjjiTkgm5qUwYE1V3k8g/viewform',
@@ -553,7 +552,7 @@ async function submitIcebreaker() {
   const t2El   = document.getElementById('ib-truth2');
   const lieEl  = document.getElementById('ib-lie');
   const msg    = document.getElementById('ib-msg');
-  const name = nameEl.value.trim(), t1 = t1El.value.trim(), t2 = t2El.value.trim(), lie = lieEl.value.trim();
+  const name = shortenName(nameEl.value.trim()), t1 = t1El.value.trim(), t2 = t2El.value.trim(), lie = lieEl.value.trim();
   if (!name || !t1 || !t2 || !lie) {
     msg.textContent = 'Fill in your name and all three statements first.';
     msg.style.color = 'var(--danger)';
@@ -664,7 +663,7 @@ async function submitQaAnswer() {
   const nameEl = document.getElementById('qa-name');
   const ansEl  = document.getElementById('qa-answer');
   const msg    = document.getElementById('qa-msg');
-  const name = nameEl.value.trim(), answer = ansEl.value.trim();
+  const name = shortenName(nameEl.value.trim()), answer = ansEl.value.trim();
   if (!name || !answer) {
     msg.textContent = 'Fill in your name and an answer first.';
     msg.style.color = 'var(--danger)';
@@ -1024,7 +1023,7 @@ function renderTotShareBoard() {
 async function submitTotVote(choice) {
   const nameEl = document.getElementById('tot-name');
   const msg    = document.getElementById('tot-msg');
-  const name = nameEl.value.trim();
+  const name = shortenName(nameEl.value.trim());
   if (!name) {
     msg.textContent = 'Enter your name first.';
     msg.style.color = 'var(--danger)';
@@ -1183,7 +1182,7 @@ function renderWyrPoll() {
 async function submitWyrVote(choice) {
   const nameEl = document.getElementById('wyr-name');
   const msg    = document.getElementById('wyr-msg');
-  const name = nameEl.value.trim();
+  const name = shortenName(nameEl.value.trim());
   msg.classList.remove('wyr-move-active');
   if (!name) {
     msg.textContent = 'Enter your name first.';
@@ -1346,7 +1345,7 @@ function renderCommonGroups() {
 async function submitCommonAnswer(option) {
   const nameEl = document.getElementById('common-name');
   const msg    = document.getElementById('common-msg');
-  const name = nameEl.value.trim();
+  const name = shortenName(nameEl.value.trim());
   if (!name) {
     msg.textContent = 'Enter your name first.';
     msg.style.color = 'var(--danger)';
@@ -1484,7 +1483,7 @@ async function submitRankAnswer() {
   const round = RANK_ROUNDS[S.rankCurrentIndex];
   const nameEl = document.getElementById('rank-name');
   const msg    = document.getElementById('rank-msg');
-  const name = nameEl.value.trim();
+  const name = shortenName(nameEl.value.trim());
   if (!name) { msg.textContent = 'Enter your name first.'; msg.style.color = 'var(--danger)'; return; }
   if (S.rankMyOrder.length !== round.items.length) { msg.textContent = 'Tap every item to rank it before submitting.'; msg.style.color = 'var(--danger)'; return; }
   const db = getDB();
@@ -1711,7 +1710,7 @@ async function submitBingoWin() {
   const db = getDB();
   if (!db) return;
   const nameEl = document.getElementById('bingo-name');
-  const name = (nameEl && nameEl.value.trim()) || localStorage.getItem('hm_student_name') || 'Someone';
+  const name = shortenName((nameEl && nameEl.value.trim()) || localStorage.getItem('hm_student_name') || 'Someone');
   try {
     localStorage.setItem('hm_student_name', name);
     await db.collection('hm_bingo_winners').add({ name, createdAt: Date.now() });
@@ -2019,7 +2018,7 @@ function renderRapidSignupList() {
 async function submitRapidSignup() {
   const nameEl = document.getElementById('rapid-name');
   const msg    = document.getElementById('rapid-signup-msg');
-  const name = nameEl.value.trim();
+  const name = shortenName(nameEl.value.trim());
   if (!name) { msg.textContent = 'Enter your name first.'; msg.style.color = 'var(--danger)'; return; }
   const db = getDB();
   if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
@@ -4518,7 +4517,7 @@ function storyPlanCancelEdit() {
 function storyPlanSyncFromDom() {
   if (!_storyPlanDraft) return;
   const d = _storyPlanDraft;
-  d.reporter    = val('story-reporter');
+  d.reporter    = shortenName(val('story-reporter'));
   d.title       = val('story-title');
   d.whatAbout   = val('story-whatabout');
   d.whyCare     = val('story-whycare');
@@ -4855,7 +4854,7 @@ function rundownEditorName() {
   if (S.teacherMode) return 'Teacher';
   let n = localStorage.getItem('hm_student_name') || '';
   while (!n) {
-    n = (prompt('Your first and last name? It shows next to your edits so your teacher knows who changed what.') || '').trim();
+    n = shortenName((prompt('Your first and last name? It shows next to your edits so your teacher knows who changed what.') || '').trim());
     if (!n) alert('Please enter your first and last name to continue editing the rundown.');
   }
   localStorage.setItem('hm_student_name', n);
@@ -5842,7 +5841,7 @@ async function deleteYbEvent(id) {
 }
 
 async function submitYearbookSignup() {
-  const name    = (document.getElementById('yb-name')?.value || '').trim();
+  const name    = shortenName((document.getElementById('yb-name')?.value || '').trim());
   const eventId = document.getElementById('yb-event')?.value;
   const role    = document.getElementById('yb-role')?.value;
 
@@ -5890,8 +5889,7 @@ async function unsignYearbook(docId) {
 
 // ── BROADCAST SIGN-UP (Student) ───────────────────────────────
 function renderAvailabilityPage() {
-  if (USE_GOOGLE_FORM_SIGNUP) return renderFormSignupPage();
-  return renderAvailabilityPageLegacy();
+  return renderFormSignupPage();
 }
 
 // Google Form version — sign-ups happen on the Form, this page lists
@@ -5946,118 +5944,19 @@ function renderFormSignupPage() {
     </div>`;
 }
 
-/* LEGACY on-site sign-up — kept intact but disabled while sign-ups run
-   through the Google Form. Restore with USE_GOOGLE_FORM_SIGNUP = false.
-   (Note: the email field was removed site-wide; the legacy flow still
-   references it and would need the email handler restored to work.) */
-function renderAvailabilityPageLegacy() {
-  const myName  = localStorage.getItem('hm_student_name') || '';
-  const myEmail = localStorage.getItem('hm_student_email') || '';
-  const canSignUp = !!(myName && myEmail);
-  const now = new Date();
-  const upcoming = (S.broadcasts || [])
-    .filter(b => new Date(b.date + 'T00:00:00') >= now)
-    .sort((a, b) => a.date.localeCompare(b.date));
-
-  const broadcastCards = upcoming.map(b => {
-    const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
-    const myEntry = (S.availabilities || []).find(
-      a => a.broadcastId === b.id && a.studentName.toLowerCase() === myName.toLowerCase()
-    );
-    const isAvailable = !!myEntry;
-    const myRoles = myEntry?.interestedRoles || [];
-    const totalSignedUp = (S.availabilities || []).filter(a => a.broadcastId === b.id).length;
-
-    return `
-      <div class="avail-bc-card card">
-        <div class="avail-bc-meta">
-          <span class="avail-bc-type-badge" style="background:${et.color}">${et.label}</span>
-          <span class="avail-bc-date">${fmtDate(b.date, false)}</span>
-          ${totalSignedUp > 0 ? `<span class="avail-bc-signups">${totalSignedUp} signed up</span>` : ''}
-        </div>
-        <div class="avail-bc-title">${esc(b.title)}</div>
-        ${b.notes ? `<div class="avail-bc-notes">${esc(b.notes)}</div>` : ''}
-        ${b.gameTime ? `
-        <div class="avail-bc-times">
-          <span class="avail-door33-chip">🚪 Door 33 ${computeDoor33(b.gameTime, b.type)}</span>
-          <span class="avail-arrival-chip">${ARRIVAL_LABEL[b.type] ?? ARRIVAL_DEFAULT_LABEL} ${computeArrival(b.gameTime, b.type)}</span>
-          <span class="avail-gametime-chip">Game ${esc(b.gameTime)}</span>
-        </div>` : ''}
-
-        <label class="avail-available-toggle ${!canSignUp ? 'avail-disabled' : ''}">
-          <input type="checkbox" class="avail-broadcast-cb"
-            data-bid="${b.id}"
-            ${isAvailable ? 'checked' : ''}
-            ${!canSignUp ? 'disabled' : ''}>
-          <span class="avail-toggle-label">I'm available for this broadcast</span>
-        </label>
-
-        ${isAvailable ? `
-          <div class="avail-roles-section">
-            <div class="avail-roles-label">Interested positions <span class="hint" style="font-weight:400;color:var(--dim)">(optional)</span></div>
-            <div class="avail-roles-grid">
-              ${LIVE_ROLES.map(role => `
-                <label class="avail-role-label">
-                  <input type="checkbox" class="avail-role-cb"
-                    data-bid="${b.id}" data-role="${role}"
-                    ${myRoles.includes(role) ? 'checked' : ''}>
-                  <span>${role}</span>
-                </label>`).join('')}
-            </div>
-          </div>` : ''}
-      </div>`;
-  }).join('') || `<p class="dim" style="padding:24px 0">No upcoming broadcasts scheduled.</p>`;
-
-  return `
-    ${navBar('live')}
-    <div class="class-page">
-      <button class="back-btn" data-nav="live">← Back to Homestead Live</button>
-      <div class="avail-page-header">
-        <h1>Broadcast Sign-Up</h1>
-        <p>Check the positions you're interested in for each upcoming broadcast. Your teacher will use this to assign the crew.</p>
-      </div>
-      <div class="avail-name-card card">
-        <div class="avail-name-fields">
-          <div class="avail-name-field">
-            <label class="avail-name-label">First and Last Name <span class="avail-required">required</span></label>
-            <div class="avail-name-row">
-              <input id="avail-page-name" type="text" class="avail-name-input ${!myName ? 'avail-input-empty' : ''}"
-                placeholder="First and last name" value="${esc(myName)}">
-              ${myName
-                ? `<span class="avail-name-saved">✓ Saved</span>`
-                : `<span class="avail-hint-warn">← Enter to unlock sign-ups</span>`}
-            </div>
-          </div>
-          <div class="avail-name-field">
-            <label class="avail-name-label">Email Address <span class="avail-required">required</span></label>
-            <div class="avail-name-row">
-              <input id="avail-page-email" type="email" class="avail-name-input ${!myEmail ? 'avail-input-empty' : ''}"
-                placeholder="your@email.com" value="${esc(myEmail)}">
-              ${myEmail
-                ? `<span class="avail-name-saved">✓ Saved</span>`
-                : `<span class="avail-hint-warn">← Enter to unlock sign-ups</span>`}
-            </div>
-          </div>
-          ${!canSignUp ? `<p class="avail-unlock-msg">Enter your name and email above to sign up for broadcasts.</p>` : ''}
-        </div>
-      </div>
-      <div class="avail-broadcasts">${broadcastCards}</div>
-    </div>`;
-}
-
 // ── Planner Logic ─────────────────────────────────────────────
 function savePlannerStep() {
   const p = S.plannerData || {};
   if (S.plannerStep === 0) {
     if (!p.showType) { showToast('Pick a show type first.'); return; }
-    p.studentName    = val('p-name');
+    p.studentName    = shortenName(val('p-name'));
     p.showName       = val('p-show');
     if (p.showType !== 'talk') {
       p.station  = val('p-station');
       p.showTime = val('p-showtime');
     }
     if (p.showType === 'radio' || p.showType === 'talk') {
-      p.partners      = val('p-partners');
+      p.partners      = val('p-partners').split(',').map(n => shortenName(n.trim())).filter(Boolean).join(', ');
       p.partnerEmails = val('p-partner-emails');
     }
   } else if (p.showType === 'air' || p.showType === 'radio') {
@@ -6107,7 +6006,10 @@ async function submitPlan() {
   const submission = { ...p, submittedAt: new Date().toISOString() };
   const db = getDB();
   if (db) {
-    try { trackUsage('writes'); await db.collection('hm_radio_plans').add(submission); }
+    // partnerEmails is only used for the local "email a copy" mailto link —
+    // never stored server-side.
+    const { partnerEmails, ...dbSubmission } = submission;
+    try { trackUsage('writes'); await db.collection('hm_radio_plans').add(dbSubmission); }
     catch(e) {}
   }
   localStorage.setItem('hm_plan_' + p.studentName, JSON.stringify(submission));
@@ -6437,68 +6339,6 @@ async function saveChecklist() {
   if (db) { trackUsage('writes'); await db.collection('hm_broadcasts').doc(b.id).update({ checks }).catch(() => {}); }
 }
 
-// ── Availability ──────────────────────────────────────────────
-async function toggleBroadcastAvailability(broadcastId, available) {
-  const myName  = localStorage.getItem('hm_student_name') || '';
-  const myEmail = localStorage.getItem('hm_student_email') || '';
-  if (!myName || !myEmail) { showToast('Enter your name and email first.'); return; }
-
-  const existing = (S.availabilities || []).find(
-    a => a.broadcastId === broadcastId && a.studentName.toLowerCase() === myName.toLowerCase()
-  );
-
-  if (available && !existing) {
-    const myEmail = localStorage.getItem('hm_student_email') || '';
-    const entry = { broadcastId, studentName: myName, email: myEmail, interestedRoles: [], submittedAt: new Date().toISOString() };
-    const db = getDB();
-    if (db) {
-      try {
-        trackUsage('writes');
-        const ref = await db.collection('hm_availability').add(entry);
-        S.availabilities.push({ id: ref.id, ...entry });
-      } catch(e) { showToast('Could not save. Try again.'); return; }
-    } else {
-      S.availabilities.push({ id: Date.now().toString(), ...entry });
-    }
-  } else if (!available && existing) {
-    S.availabilities = S.availabilities.filter(a => a.id !== existing.id);
-    const db = getDB();
-    if (db) { trackUsage('writes'); await db.collection('hm_availability').doc(existing.id).delete().catch(() => {}); }
-  }
-  render();
-}
-
-async function toggleAvailabilityRole(broadcastId, role, checked) {
-  const myName  = localStorage.getItem('hm_student_name') || '';
-  const myEmail = localStorage.getItem('hm_student_email') || '';
-  if (!myName || !myEmail) { showToast('Enter your name and email first.'); return; }
-
-  const existing = (S.availabilities || []).find(
-    a => a.broadcastId === broadcastId && a.studentName.toLowerCase() === myName.toLowerCase()
-  );
-  const db = getDB();
-
-  if (existing) {
-    const roles = existing.interestedRoles || [];
-    existing.interestedRoles = checked
-      ? [...new Set([...roles, role])]
-      : roles.filter(r => r !== role);
-    if (db) { trackUsage('writes'); await db.collection('hm_availability').doc(existing.id)
-      .update({ interestedRoles: existing.interestedRoles }).catch(() => {}); }
-  } else {
-    const myEmail = localStorage.getItem('hm_student_email') || '';
-    const entry = { broadcastId, studentName: myName, email: myEmail, interestedRoles: checked ? [role] : [], submittedAt: new Date().toISOString() };
-    if (db) {
-      try {
-        trackUsage('writes');
-        const ref = await db.collection('hm_availability').add(entry);
-        S.availabilities.push({ id: ref.id, ...entry });
-      } catch(e) { showToast('Could not save. Try again.'); }
-    } else {
-      S.availabilities.push({ id: Date.now().toString(), ...entry });
-    }
-  }
-}
 
 async function removeAvailability(availId) {
   S.availabilities = (S.availabilities || []).filter(a => a.id !== availId);
@@ -6702,6 +6542,16 @@ function chunk(arr, size) {
 function val(id) {
   const el = document.getElementById(id);
   return el ? el.value.trim() : '';
+}
+
+// Privacy: student names are stored as "First L." (first name + last initial)
+// rather than full names, since Firestore data here isn't access-controlled.
+function shortenName(fullName) {
+  const parts = String(fullName || '').trim().split(/\s+/).filter(Boolean);
+  if (parts.length < 2) return parts[0] || '';
+  const first = parts[0];
+  const lastInitial = parts[parts.length - 1][0];
+  return lastInitial ? `${first} ${lastInitial.toUpperCase()}.` : first;
 }
 
 function fmtDate(dateStr, long) {
@@ -7017,7 +6867,7 @@ function attachListeners() {
   if (bingoClear) bingoClear.addEventListener('click', clearBingoWinners);
 
   const bingoName = document.getElementById('bingo-name');
-  if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', bingoName.value.trim()));
+  if (bingoName) bingoName.addEventListener('change', () => localStorage.setItem('hm_student_name', shortenName(bingoName.value.trim())));
 
   const matchPrev = document.getElementById('match-prev');
   if (matchPrev) matchPrev.addEventListener('click', () => advanceMatchQuestion(-1));
@@ -7290,12 +7140,6 @@ function attachListeners() {
       if (confirm('Delete this entry? This cannot be undone.')) deleteIASBEntry(btn.dataset.entryId);
     }));
 
-  document.querySelectorAll('.avail-broadcast-cb').forEach(cb =>
-    cb.addEventListener('change', () => toggleBroadcastAvailability(cb.dataset.bid, cb.checked)));
-
-  document.querySelectorAll('.avail-role-cb').forEach(cb =>
-    cb.addEventListener('change', () => toggleAvailabilityRole(cb.dataset.bid, cb.dataset.role, cb.checked)));
-
   document.querySelectorAll('.avail-assign-sel').forEach(sel =>
     sel.addEventListener('change', () => {
       if (!sel.value) return;
@@ -7311,7 +7155,7 @@ function attachListeners() {
   const apn = document.getElementById('avail-page-name');
   if (apn) {
     apn.addEventListener('blur', () => {
-      const n = apn.value.trim();
+      const n = shortenName(apn.value.trim());
       if (n) { localStorage.setItem('hm_student_name', n); render(); }
     });
     apn.addEventListener('keydown', e => { if (e.key === 'Enter') apn.blur(); });
@@ -7406,7 +7250,7 @@ function attachListeners() {
     if (e.key === 'Enter') { e.preventDefault(); handleEquipmentScan(equipScan.value); }
   });
   const equipName = document.getElementById('equip-name');
-  if (equipName) equipName.addEventListener('change', () => localStorage.setItem('hm_student_name', equipName.value.trim()));
+  if (equipName) equipName.addEventListener('change', () => localStorage.setItem('hm_student_name', shortenName(equipName.value.trim())));
 
   const equipGoLiveBtn = document.getElementById('equip-go-live-btn');
   if (equipGoLiveBtn) equipGoLiveBtn.addEventListener('click', goLiveEquipment);
@@ -8538,7 +8382,7 @@ async function handleEquipmentScan(rawBarcode) {
   const barcode = (rawBarcode || '').trim();
   if (!barcode) return;
   const scanInput = document.getElementById('equip-scan');
-  const name = (val('equip-name') || localStorage.getItem('hm_student_name') || '').trim();
+  const name = shortenName((val('equip-name') || localStorage.getItem('hm_student_name') || '').trim());
   if (!name) {
     showToast('Enter your name first.');
     document.getElementById('equip-name')?.focus();
@@ -9230,7 +9074,7 @@ async function submitBellRinger() {
   const nameEl   = document.getElementById('br-name');
   const answerEl = document.getElementById('br-answer');
   const msg      = document.getElementById('br-msg');
-  const name = nameEl.value.trim(), answer = answerEl.value.trim();
+  const name = shortenName(nameEl.value.trim()), answer = answerEl.value.trim();
   if (!name || !answer) {
     msg.textContent = 'Fill in your name and an answer first.';
     msg.style.color = 'var(--danger)';
@@ -9968,7 +9812,7 @@ function renderDashboard() {
             const byStudent = {};
             coverage.forEach(s => {
               const key = s.studentName.toLowerCase();
-              if (!byStudent[key]) byStudent[key] = { name: s.studentName, email: s.email, events: [] };
+              if (!byStudent[key]) byStudent[key] = { name: s.studentName, events: [] };
               byStudent[key].events.push(s);
             });
             return Object.values(byStudent)
@@ -9977,7 +9821,6 @@ function renderDashboard() {
                 <div class="yb-db-event">
                   <div class="yb-db-event-title">
                     ${esc(st.name)}
-                    <span class="dim" style="font-weight:400;font-size:0.78rem;margin-left:6px">${esc(st.email)}</span>
                     ${badge(st.events.length + ' event' + (st.events.length !== 1 ? 's' : ''))}
                   </div>
                   <div class="yb-db-signups">
@@ -10030,7 +9873,6 @@ function renderDashboard() {
                   <div class="yb-db-row">
                     <span class="yb-db-name">${esc(s.studentName)}</span>
                     <span class="yb-my-role yb-role-${s.role}">${roleLabel(s.role)}</span>
-                    <span class="dim" style="font-size:0.75rem">${s.email}</span>
                   </div>`).join('')}
               </div>
             </div>`).join('');
@@ -10086,14 +9928,16 @@ function showRegisterIASBModal(cat) {
     </div>`);
 
   m.querySelector('#modal-save').addEventListener('click', () => {
-    const name  = val('iasb-student-name');
+    const name  = shortenName(val('iasb-student-name'));
     const title = val('iasb-entry-title');
     if (!name || !title) { showToast('Please enter your name and an entry title.'); return; }
+    const partnerNames = val('iasb-partner-names')
+      .split(',').map(n => shortenName(n.trim())).filter(Boolean).join(', ');
     const data = {
       code: cat.code,
       season: IASB_SEASON,
       studentName: name,
-      partnerNames: val('iasb-partner-names'),
+      partnerNames,
       entryTitle: title,
       notes: val('iasb-entry-notes'),
       checklist: {},
