@@ -394,7 +394,7 @@ function createFutureWeeklyFolders() {
     let created = 0;
     list.forEach(w => {
       if (w.folderId) return;
-      const propKey = keyPrefix + w.label;
+      const propKey = keyPrefix + w.start + '_' + w.end; // dates, not label — stays unique across school years
       const existing = props.getProperty(propKey);
       if (existing) { w.folderId = existing; return; }
       w.folderId = root.createFolder(w.label).getId();
