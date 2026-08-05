@@ -110,10 +110,11 @@ const GIRLS_BASKETBALL_HOME_GAMES = [
 // Dates marked TBD are estimates — update when school publishes the official calendar
 const SPECIAL_EVENTS = [
   // Fall
-  { id: 'hc26-1003d',  title: 'Homecoming Dance',      date: '2026-10-03', type: 'dance',      gameTime: '7:00 PM',  roles: {}, checks: {}, notes: 'Date TBD — update when confirmed' },
-  { id: 'nhs26-1015',  title: 'NHS Induction',         date: '2026-10-15', type: 'nhs',        gameTime: '',         roles: {}, checks: {}, notes: 'Date TBD — update when confirmed' },
+  // broadcastWorthy: false — Yearbook still covers these for photos, but Homestead Live doesn't broadcast them.
+  { id: 'hc26-1003d',  title: 'Homecoming Dance',      date: '2026-10-03', type: 'dance',      gameTime: '7:00 PM',  roles: {}, checks: {}, notes: 'Date TBD — update when confirmed', broadcastWorthy: false },
+  { id: 'nhs26-1015',  title: 'NHS Induction',         date: '2026-10-15', type: 'nhs',        gameTime: '',         roles: {}, checks: {}, notes: 'Date TBD — update when confirmed', broadcastWorthy: false },
   // Spring
-  { id: 'prom27-0501', title: 'Prom',                  date: '2027-05-01', type: 'dance',      gameTime: '7:00 PM',  roles: {}, checks: {}, notes: 'Date TBD — update when confirmed' },
+  { id: 'prom27-0501', title: 'Prom',                  date: '2027-05-01', type: 'dance',      gameTime: '7:00 PM',  roles: {}, checks: {}, notes: 'Date TBD — update when confirmed', broadcastWorthy: false },
   { id: 'sc27-0219',   title: 'Show Choir Showcase',   date: '2027-02-19', type: 'showchoir',  gameTime: '',         roles: {}, checks: {}, notes: 'TBD — time to be announced' },
   { id: 'sc27-0220',   title: 'Show Choir Showcase',   date: '2027-02-20', type: 'showchoir',  gameTime: '',         roles: {}, checks: {}, notes: 'TBD — time to be announced' },
   { id: 'grad27-0607', title: 'Graduation',             date: '2027-06-07', type: 'graduation', gameTime: '',         roles: {}, checks: {}, notes: 'TBD — time to be announced' },

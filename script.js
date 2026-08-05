@@ -8308,7 +8308,8 @@ async function loadFromFirebase() {
         return db.collection('hm_broadcasts').doc(b.id).update({ type: newType }).catch(() => {});
       }));
     }
-    const ALL_SEED_GAMES = [...BASKETBALL_HOME_GAMES, ...FOOTBALL_HOME_GAMES, ...GIRLS_BASKETBALL_HOME_GAMES, ...SPECIAL_EVENTS];
+    const ALL_SEED_GAMES = [...BASKETBALL_HOME_GAMES, ...FOOTBALL_HOME_GAMES, ...GIRLS_BASKETBALL_HOME_GAMES, ...SPECIAL_EVENTS]
+      .filter(g => g.broadcastWorthy !== false);
 
     // Patch existing records missing gameTime (one-time migration)
     const needsGameTime = broadcasts.filter(b => {
