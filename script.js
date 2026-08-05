@@ -7411,6 +7411,9 @@ function attachListeners() {
   const equipGoLiveBtn = document.getElementById('equip-go-live-btn');
   if (equipGoLiveBtn) equipGoLiveBtn.addEventListener('click', goLiveEquipment);
 
+  document.querySelectorAll('.equip-delete-btn').forEach(btn =>
+    btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
+
   document.querySelectorAll('.yb-delete-event-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteYbEvent(btn.dataset.ybEventId)));
 
@@ -8432,7 +8435,47 @@ function loadEquipment() {
     S.equipment = map;
     const list = document.getElementById('equipment-checked-out-list');
     if (list) list.innerHTML = renderEquipmentCheckedOutList();
+    const adminList = document.getElementById('equipment-admin-list');
+    if (adminList) {
+      adminList.innerHTML = renderEquipmentAdminList();
+      adminList.querySelectorAll('.equip-delete-btn').forEach(btn =>
+        btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
+    }
   });
+}
+
+function renderEquipmentAdminList() {
+  const items = Object.values(S.equipment || {})
+    .sort((a, b) => (a.status === b.status ? 0 : a.status === 'checked_out' ? -1 : 1) || (a.name || '').localeCompare(b.name || ''));
+  if (!items.length) return `<p class="dim" style="font-size:0.875rem">No items scanned yet.</p>`;
+  return items.map(i => `
+    <div class="db-entry-row">
+      <div class="db-entry-main">
+        <div class="db-entry-student">${esc(i.name)}
+          ${i.status === 'checked_out'
+            ? `<span style="background:var(--surface2);color:var(--dim);font-size:0.72rem;padding:2px 7px;border-radius:10px;margin-left:6px">out — ${esc(i.currentHolder || '?')}</span>`
+            : `<span style="background:var(--surface2);color:var(--success);font-size:0.72rem;padding:2px 7px;border-radius:10px;margin-left:6px">available</span>`}
+        </div>
+        <div class="db-entry-notes">Barcode: <code>${esc(i.id)}</code></div>
+      </div>
+      <div class="db-entry-meta">
+        <button class="btn-danger db-btn equip-delete-btn" data-equip-id="${esc(i.id)}" style="font-size:0.75rem">Delete</button>
+      </div>
+    </div>`).join('');
+}
+
+async function deleteEquipmentItem(id) {
+  const item = S.equipment[id];
+  if (!confirm(`Remove "${item ? item.name : id}" (barcode ${id}) from the equipment list?\n\nThis won't touch past check-in/check-out history — just this entry, so a mis-scanned or duplicate barcode can be cleared out.`)) return;
+  const db = getDB();
+  if (!db) return;
+  try {
+    await db.collection('hm_equipment').doc(id).delete();
+    trackUsage('writes', 1);
+    showToast('Removed.');
+  } catch (e) {
+    showToast('Could not remove that item.');
+  }
 }
 
 function loadEquipmentState() {
@@ -10000,7 +10043,10 @@ function renderDashboard() {
         `${S.equipmentLive
             ? `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🟢 Live — visible on every class page.</p>`
             : `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🧪 Test mode — try scanning below. Students won't see this on their class pages until you click Go Live.</p>`}
-        ${renderEquipmentWidget()}`
+        ${renderEquipmentWidget()}
+        <h3 style="margin:22px 0 8px;font-size:0.95rem">All Registered Items</h3>
+        <p style="font-size:0.8rem;color:var(--dim);margin:0 0 10px">Shows the exact barcode behind each item — use this to spot a mis-scanned or duplicate barcode and delete it.</p>
+        <div id="equipment-admin-list">${renderEquipmentAdminList()}</div>`
       )}
     </div>`;
 }
