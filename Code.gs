@@ -27,6 +27,7 @@ function doGet(e) {
     if (action === 'getEvents')   return out(getUpcomingEvents());
     if (action === 'addEvent')    return out(addCalendarEvent(e.parameter));
     if (action === 'deleteEvent') return out(deleteCalendarEvent(e.parameter.calEventId));
+    if (action === 'createFutureFolders') return out(createFutureWeeklyFolders());
     return out({ success: false, error: 'Unknown action: ' + action });
   } catch(err) {
     return out({ success: false, error: err.toString() });
@@ -217,6 +218,28 @@ const WEEKLY_FOLDERS = [
   { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '1EBoCUbTzGdLNkFC9xUpnqV329AIDclcD' },
   { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '1lE-hTcnTvAzFOvK5jUoMVqTDNeyqG6qj' },
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1SYJo0oIYb3Ut-ZQ7-IStIFyhe21yzLYA' },
+  // Second semester — run createFutureWeeklyFolders() to fill these in.
+  { label: 'Week 21 (Jan 5–Jan 8)',   start: '2027-01-05', end: '2027-01-08', folderId: '' },
+  { label: 'Week 22 (Jan 11–Jan 15)', start: '2027-01-11', end: '2027-01-15', folderId: '' },
+  { label: 'Week 23 (Jan 18–Jan 22)', start: '2027-01-18', end: '2027-01-22', folderId: '' },
+  { label: 'Week 24 (Jan 25–Jan 29)', start: '2027-01-25', end: '2027-01-29', folderId: '' },
+  { label: 'Week 25 (Feb 1–Feb 5)',   start: '2027-02-01', end: '2027-02-05', folderId: '' },
+  { label: 'Week 26 (Feb 8–Feb 12)',  start: '2027-02-08', end: '2027-02-12', folderId: '' },
+  { label: 'Week 27 (Feb 15–Feb 19)', start: '2027-02-15', end: '2027-02-19', folderId: '' },
+  { label: 'Week 28 (Feb 22–Feb 26)', start: '2027-02-22', end: '2027-02-26', folderId: '' },
+  { label: 'Week 29 (Mar 1–Mar 5)',   start: '2027-03-01', end: '2027-03-05', folderId: '' },
+  { label: 'Week 30 (Mar 8–Mar 12)',  start: '2027-03-08', end: '2027-03-12', folderId: '' },
+  { label: 'Week 31 (Mar 15–Mar 19)', start: '2027-03-15', end: '2027-03-19', folderId: '' },
+  { label: 'Week 32 (Mar 22–Mar 26)', start: '2027-03-22', end: '2027-03-26', folderId: '' },
+  { label: 'Week 33 (Mar 29–Apr 2)',  start: '2027-03-29', end: '2027-04-02', folderId: '' },
+  { label: 'Week 34 (Apr 5–Apr 9)',   start: '2027-04-05', end: '2027-04-09', folderId: '' },
+  { label: 'Week 35 (Apr 12–Apr 16)', start: '2027-04-12', end: '2027-04-16', folderId: '' },
+  { label: 'Week 36 (Apr 19–Apr 23)', start: '2027-04-19', end: '2027-04-23', folderId: '' },
+  { label: 'Week 37 (Apr 26–Apr 30)', start: '2027-04-26', end: '2027-04-30', folderId: '' },
+  { label: 'Week 38 (May 3–May 7)',   start: '2027-05-03', end: '2027-05-07', folderId: '' },
+  { label: 'Week 39 (May 10–May 14)', start: '2027-05-10', end: '2027-05-14', folderId: '' },
+  { label: 'Week 40 (May 17–May 21)', start: '2027-05-17', end: '2027-05-21', folderId: '' },
+  { label: 'Week 41 (May 24–May 28)', start: '2027-05-24', end: '2027-05-28', folderId: '' },
 ];
 
 // Same fallback logic as getCurrentYbWeek() on the website, so a submission
@@ -309,6 +332,28 @@ const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 18 (Nov 30–Dec 4)', start: '2026-11-30', end: '2026-12-04', folderId: '1pVHz1C2K0c1suLkgI0lWwKS4QhvvT_Uw' },
   { label: 'Week 19 (Dec 7–Dec 11)', start: '2026-12-07', end: '2026-12-11', folderId: '1tQhRtOsyNWHRZxRUxtxTmlUnL4ACzqnO' },
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1lcTgCRWGPm7ukqH2R_RTNdhgfmdZgr-B' },
+  // Second semester — run createFutureWeeklyFolders() to fill these in.
+  { label: 'Week 21 (Jan 5–Jan 8)', start: '2027-01-05', end: '2027-01-08', folderId: '' },
+  { label: 'Week 22 (Jan 11–Jan 15)', start: '2027-01-11', end: '2027-01-15', folderId: '' },
+  { label: 'Week 23 (Jan 18–Jan 22)', start: '2027-01-18', end: '2027-01-22', folderId: '' },
+  { label: 'Week 24 (Jan 25–Jan 29)', start: '2027-01-25', end: '2027-01-29', folderId: '' },
+  { label: 'Week 25 (Feb 1–Feb 5)', start: '2027-02-01', end: '2027-02-05', folderId: '' },
+  { label: 'Week 26 (Feb 8–Feb 12)', start: '2027-02-08', end: '2027-02-12', folderId: '' },
+  { label: 'Week 27 (Feb 15–Feb 19)', start: '2027-02-15', end: '2027-02-19', folderId: '' },
+  { label: 'Week 28 (Feb 22–Feb 26)', start: '2027-02-22', end: '2027-02-26', folderId: '' },
+  { label: 'Week 29 (Mar 1–Mar 5)', start: '2027-03-01', end: '2027-03-05', folderId: '' },
+  { label: 'Week 30 (Mar 8–Mar 12)', start: '2027-03-08', end: '2027-03-12', folderId: '' },
+  { label: 'Week 31 (Mar 15–Mar 19)', start: '2027-03-15', end: '2027-03-19', folderId: '' },
+  { label: 'Week 32 (Mar 22–Mar 26)', start: '2027-03-22', end: '2027-03-26', folderId: '' },
+  { label: 'Week 33 (Mar 29–Apr 2)', start: '2027-03-29', end: '2027-04-02', folderId: '' },
+  { label: 'Week 34 (Apr 5–Apr 9)', start: '2027-04-05', end: '2027-04-09', folderId: '' },
+  { label: 'Week 35 (Apr 12–Apr 16)', start: '2027-04-12', end: '2027-04-16', folderId: '' },
+  { label: 'Week 36 (Apr 19–Apr 23)', start: '2027-04-19', end: '2027-04-23', folderId: '' },
+  { label: 'Week 37 (Apr 26–Apr 30)', start: '2027-04-26', end: '2027-04-30', folderId: '' },
+  { label: 'Week 38 (May 3–May 7)', start: '2027-05-03', end: '2027-05-07', folderId: '' },
+  { label: 'Week 39 (May 10–May 14)', start: '2027-05-10', end: '2027-05-14', folderId: '' },
+  { label: 'Week 40 (May 17–May 21)', start: '2027-05-17', end: '2027-05-21', folderId: '' },
+  { label: 'Week 41 (May 24–May 28)', start: '2027-05-24', end: '2027-05-28', folderId: '' },
 ];
 
 // Run once from the Apps Script editor after setting/changing the weeks
@@ -327,6 +372,43 @@ function createAirWeeklyFolders() {
   const out = lines.join('\n');
   Logger.log(out);
   return out;
+}
+
+// One-click version of the above, callable from the Teacher Dashboard's
+// "Weekly Drive Folders" section via ?action=createFutureFolders. Scans
+// BOTH WEEKLY_FOLDERS (Yearbook) and AIR_WEEKLY_FOLDERS (Radio) and only
+// creates a subfolder for entries that don't have a folderId yet — safe
+// to click again later (e.g. next semester) as long as you've pasted the
+// previous output back into Code.gs first, since already-filled entries
+// are skipped.
+function createFutureWeeklyFolders() {
+  function fill(list, rootId) {
+    const root = DriveApp.getFolderById(rootId);
+    let created = 0;
+    list.forEach(w => {
+      if (!w.folderId) {
+        w.folderId = root.createFolder(w.label).getId();
+        created++;
+      }
+    });
+    return created;
+  }
+
+  function toSource(varName, list) {
+    const lines = [`const ${varName} = [`];
+    list.forEach(w => lines.push(`  { label: '${w.label}', start: '${w.start}', end: '${w.end}', folderId: '${w.folderId}' },`));
+    lines.push('];');
+    return lines.join('\n');
+  }
+
+  const ybCreated  = fill(WEEKLY_FOLDERS, WEEKLY_ROOT_FOLDER_ID);
+  const airCreated = fill(AIR_WEEKLY_FOLDERS, AIR_WEEKLY_DRIVE_ID);
+  const yb  = toSource('WEEKLY_FOLDERS', WEEKLY_FOLDERS);
+  const air = toSource('AIR_WEEKLY_FOLDERS', AIR_WEEKLY_FOLDERS);
+
+  Logger.log(yb);
+  Logger.log(air);
+  return { success: true, ybCreated, airCreated, yb, air };
 }
 
 // Same fallback logic as getCurrentAirWeek() on the website. Falls back to

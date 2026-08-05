@@ -5237,6 +5237,29 @@ const YB_WEEKLY_FOLDERS = [
   { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04', folderId: '1EBoCUbTzGdLNkFC9xUpnqV329AIDclcD' },
   { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11', folderId: '1lE-hTcnTvAzFOvK5jUoMVqTDNeyqG6qj' },
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1SYJo0oIYb3Ut-ZQ7-IStIFyhe21yzLYA' },
+  // Second semester — folderId filled in via the Teacher Dashboard's
+  // "Weekly Drive Folders" setup button (or createFutureWeeklyFolders()).
+  { label: 'Week 21 (Jan 5–Jan 8)',   start: '2027-01-05', end: '2027-01-08', folderId: '' },
+  { label: 'Week 22 (Jan 11–Jan 15)', start: '2027-01-11', end: '2027-01-15', folderId: '' },
+  { label: 'Week 23 (Jan 18–Jan 22)', start: '2027-01-18', end: '2027-01-22', folderId: '' },
+  { label: 'Week 24 (Jan 25–Jan 29)', start: '2027-01-25', end: '2027-01-29', folderId: '' },
+  { label: 'Week 25 (Feb 1–Feb 5)',   start: '2027-02-01', end: '2027-02-05', folderId: '' },
+  { label: 'Week 26 (Feb 8–Feb 12)',  start: '2027-02-08', end: '2027-02-12', folderId: '' },
+  { label: 'Week 27 (Feb 15–Feb 19)', start: '2027-02-15', end: '2027-02-19', folderId: '' },
+  { label: 'Week 28 (Feb 22–Feb 26)', start: '2027-02-22', end: '2027-02-26', folderId: '' },
+  { label: 'Week 29 (Mar 1–Mar 5)',   start: '2027-03-01', end: '2027-03-05', folderId: '' },
+  { label: 'Week 30 (Mar 8–Mar 12)',  start: '2027-03-08', end: '2027-03-12', folderId: '' },
+  { label: 'Week 31 (Mar 15–Mar 19)', start: '2027-03-15', end: '2027-03-19', folderId: '' },
+  { label: 'Week 32 (Mar 22–Mar 26)', start: '2027-03-22', end: '2027-03-26', folderId: '' },
+  { label: 'Week 33 (Mar 29–Apr 2)',  start: '2027-03-29', end: '2027-04-02', folderId: '' },
+  { label: 'Week 34 (Apr 5–Apr 9)',   start: '2027-04-05', end: '2027-04-09', folderId: '' },
+  { label: 'Week 35 (Apr 12–Apr 16)', start: '2027-04-12', end: '2027-04-16', folderId: '' },
+  { label: 'Week 36 (Apr 19–Apr 23)', start: '2027-04-19', end: '2027-04-23', folderId: '' },
+  { label: 'Week 37 (Apr 26–Apr 30)', start: '2027-04-26', end: '2027-04-30', folderId: '' },
+  { label: 'Week 38 (May 3–May 7)',   start: '2027-05-03', end: '2027-05-07', folderId: '' },
+  { label: 'Week 39 (May 10–May 14)', start: '2027-05-10', end: '2027-05-14', folderId: '' },
+  { label: 'Week 40 (May 17–May 21)', start: '2027-05-17', end: '2027-05-21', folderId: '' },
+  { label: 'Week 41 (May 24–May 28)', start: '2027-05-24', end: '2027-05-28', folderId: '' },
 ];
 
 function getCurrentYbWeek() {
@@ -6029,6 +6052,28 @@ const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 18 (Nov 30–Dec 4)',  start: '2026-11-30', end: '2026-12-04' },
   { label: 'Week 19 (Dec 7–Dec 11)',  start: '2026-12-07', end: '2026-12-11' },
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18' },
+  // Second semester — must stay in sync with AIR_WEEKLY_FOLDERS in Code.gs.
+  { label: 'Week 21 (Jan 5–Jan 8)',    start: '2027-01-05', end: '2027-01-08' },
+  { label: 'Week 22 (Jan 11–Jan 15)',  start: '2027-01-11', end: '2027-01-15' },
+  { label: 'Week 23 (Jan 18–Jan 22)',  start: '2027-01-18', end: '2027-01-22' },
+  { label: 'Week 24 (Jan 25–Jan 29)',  start: '2027-01-25', end: '2027-01-29' },
+  { label: 'Week 25 (Feb 1–Feb 5)',    start: '2027-02-01', end: '2027-02-05' },
+  { label: 'Week 26 (Feb 8–Feb 12)',   start: '2027-02-08', end: '2027-02-12' },
+  { label: 'Week 27 (Feb 15–Feb 19)',  start: '2027-02-15', end: '2027-02-19' },
+  { label: 'Week 28 (Feb 22–Feb 26)',  start: '2027-02-22', end: '2027-02-26' },
+  { label: 'Week 29 (Mar 1–Mar 5)',    start: '2027-03-01', end: '2027-03-05' },
+  { label: 'Week 30 (Mar 8–Mar 12)',   start: '2027-03-08', end: '2027-03-12' },
+  { label: 'Week 31 (Mar 15–Mar 19)',  start: '2027-03-15', end: '2027-03-19' },
+  { label: 'Week 32 (Mar 22–Mar 26)',  start: '2027-03-22', end: '2027-03-26' },
+  { label: 'Week 33 (Mar 29–Apr 2)',   start: '2027-03-29', end: '2027-04-02' },
+  { label: 'Week 34 (Apr 5–Apr 9)',    start: '2027-04-05', end: '2027-04-09' },
+  { label: 'Week 35 (Apr 12–Apr 16)',  start: '2027-04-12', end: '2027-04-16' },
+  { label: 'Week 36 (Apr 19–Apr 23)',  start: '2027-04-19', end: '2027-04-23' },
+  { label: 'Week 37 (Apr 26–Apr 30)',  start: '2027-04-26', end: '2027-04-30' },
+  { label: 'Week 38 (May 3–May 7)',    start: '2027-05-03', end: '2027-05-07' },
+  { label: 'Week 39 (May 10–May 14)',  start: '2027-05-10', end: '2027-05-14' },
+  { label: 'Week 40 (May 17–May 21)',  start: '2027-05-17', end: '2027-05-21' },
+  { label: 'Week 41 (May 24–May 28)',  start: '2027-05-24', end: '2027-05-28' },
 ];
 
 function getCurrentAirWeek() {
@@ -7246,6 +7291,27 @@ function attachListeners() {
         syncBtn.disabled = false;
         if (status) status.textContent = 'Could not reach sync script — check the URL in data.js.';
       });
+  });
+
+  const setupFoldersBtn = document.getElementById('setup-weekly-folders-btn');
+  if (setupFoldersBtn) setupFoldersBtn.addEventListener('click', async () => {
+    const out = document.getElementById('weekly-folders-result');
+    setupFoldersBtn.disabled = true;
+    setupFoldersBtn.textContent = 'Setting up…';
+    try {
+      const data = await fetchJsonp(`${SYNC_SCRIPT_URL}?action=createFutureFolders`);
+      if (!data.success) throw new Error(data.error || 'Unknown error');
+      if (out) out.innerHTML = `
+        <p style="font-size:0.85rem;color:var(--success);margin:0 0 10px">Created ${data.ybCreated} new Yearbook folder(s) and ${data.airCreated} new Radio folder(s). Paste each block below over the matching array in <code>Code.gs</code>, then redeploy (Deploy → Manage deployments → Edit → New version).</p>
+        <label style="font-size:0.78rem;color:var(--dim)">Yearbook — WEEKLY_FOLDERS</label>
+        <textarea readonly onclick="this.select()" style="width:100%;height:140px;font-family:monospace;font-size:0.75rem;margin:4px 0 12px">${esc(data.yb)}</textarea>
+        <label style="font-size:0.78rem;color:var(--dim)">Radio — AIR_WEEKLY_FOLDERS</label>
+        <textarea readonly onclick="this.select()" style="width:100%;height:140px;font-family:monospace;font-size:0.75rem;margin:4px 0">${esc(data.air)}</textarea>`;
+    } catch (err) {
+      if (out) out.innerHTML = `<p style="font-size:0.85rem;color:var(--error)">Could not reach the script: ${esc(err.message)}</p>`;
+    }
+    setupFoldersBtn.disabled = false;
+    setupFoldersBtn.textContent = '＋ Set Up Any New Weekly Folders';
   });
 
   document.querySelectorAll('.db-view-btn').forEach(btn =>
@@ -9814,6 +9880,15 @@ function renderDashboard() {
         `<h2>Talk Show Plans</h2>`,
         `<button class="btn-secondary" id="db-refresh-plans" style="font-size:0.8rem">Refresh</button>`,
         `<div class="db-plans-list" id="db-plans-list">${plansSection}</div>`
+      )}
+
+      ${dbSec('weekly_folders',
+        `<h2>🗂️ Weekly Drive Folders</h2>`,
+        SYNC_SCRIPT_URL ? `<button class="btn-primary" id="setup-weekly-folders-btn" style="font-size:0.8rem">＋ Set Up Any New Weekly Folders</button>` : '',
+        SYNC_SCRIPT_URL
+          ? `<p style="font-size:0.875rem;color:var(--dim);margin:0 0 12px;line-height:1.6">Creates a Drive folder — for both Yearbook and the Show Planner — for any week listed in <code>Code.gs</code> that doesn't have one yet (e.g. right after adding next semester's weeks). Already-filled weeks are skipped, so it's safe to click again later.</p>
+             <div id="weekly-folders-result"></div>`
+          : `<div style="font-size:0.85rem;color:var(--dim);background:var(--surface2);border-radius:8px;padding:12px 14px">Requires the Apps Script sync URL — see the Athletics Calendar Sync setup below.</div>`
       )}
 
       ${dbSec('athletics',
