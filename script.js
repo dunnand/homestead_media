@@ -6580,7 +6580,7 @@ function showSubmissionDetail(sub, parentModal) {
   const m = modal(`
     <h2>${esc(sub.studentName)} — ${esc(sub.showName || 'Untitled')} <span class="hint">(${esc(typeLabel)})</span></h2>
     <button class="btn-secondary" id="submission-download-btn" style="margin-bottom:14px">⬇️ Download</button>
-    ${bodyHTML}`);
+    ${bodyHTML}`, null, false);
   m.querySelector('#submission-download-btn')?.addEventListener('click', () => downloadPlanFile({ ...sub, showType }));
 }
 
