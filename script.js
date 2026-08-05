@@ -218,6 +218,8 @@ const S = {
   lessonSlide: 0,
   canvaLessons: {},
   showCanvaForm: false,
+  equipment: {},
+  equipmentUnsub: null,
   lessonOrder: {},
   lessonIcons: {},
   hiddenLessons: new Set(),
@@ -2790,6 +2792,7 @@ function renderRadio() {
           ${renderPointRecent()}
         </div>
         <div class="side-col">
+          ${renderEquipmentCard()}
           <section class="card action-card radio-action">
             <div class="action-icon">🎙️</div>
             <h3>DJ Panel</h3>
@@ -3589,6 +3592,7 @@ function renderLive() {
           </section>
         </div>
         <div class="side-col">
+          ${renderEquipmentCard()}
           ${renderLiveCalendar()}
           ${!S.teacherMode ? `
           <section class="card action-card live-action">
@@ -3945,6 +3949,7 @@ function renderSports() {
           </section>
         </div>
         <div class="side-col">
+          ${renderEquipmentCard()}
           <section class="card action-card" style="--ac:var(--sports)">
             <div class="action-icon">📅</div>
             <h3>Broadcast Schedule</h3>
@@ -4231,6 +4236,7 @@ function renderInDepth() {
           </section>
         </div>
         <div class="side-col">
+          ${renderEquipmentCard()}
           <section class="card action-card">
             <div class="action-icon">📋</div>
             <h3>Coverage Beats</h3>
@@ -5475,6 +5481,7 @@ function renderYearbook() {
 
         </div>
         <div class="side-col">
+          ${renderEquipmentCard()}
 
           <section class="card action-card">
             <div class="action-icon">📒</div>
@@ -7393,6 +7400,13 @@ function attachListeners() {
   const ybSaveBtn = document.getElementById('yb-save-event-btn');
   if (ybSaveBtn) ybSaveBtn.addEventListener('click', saveYbEvent);
 
+  const equipScan = document.getElementById('equip-scan');
+  if (equipScan) equipScan.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); handleEquipmentScan(equipScan.value); }
+  });
+  const equipName = document.getElementById('equip-name');
+  if (equipName) equipName.addEventListener('change', () => localStorage.setItem('hm_student_name', equipName.value.trim()));
+
   document.querySelectorAll('.yb-delete-event-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteYbEvent(btn.dataset.ybEventId)));
 
@@ -8403,6 +8417,95 @@ async function loadCanvaLessons() {
   }, map => { S.canvaLessons = map; });
 }
 
+// ── EQUIPMENT CHECK-IN / CHECK-OUT ──────────────────────────────
+function loadEquipment() {
+  const db = getDB();
+  if (!db) return;
+  if (S.equipmentUnsub) { S.equipmentUnsub(); S.equipmentUnsub = null; }
+  S.equipmentUnsub = db.collection('hm_equipment').onSnapshot(snap => {
+    const map = {};
+    snap.forEach(d => { map[d.id] = { id: d.id, ...d.data() }; });
+    S.equipment = map;
+    const list = document.getElementById('equipment-checked-out-list');
+    if (list) list.innerHTML = renderEquipmentCheckedOutList();
+  });
+}
+
+function renderEquipmentCheckedOutList() {
+  const items = Object.values(S.equipment || {})
+    .filter(i => i.status === 'checked_out')
+    .sort((a, b) => (b.checkedOutAt || '').localeCompare(a.checkedOutAt || ''));
+  if (!items.length) return `<p class="dim" style="font-size:0.8rem;margin-top:10px">Nothing currently checked out.</p>`;
+  return `
+    <p style="font-size:0.78rem;font-weight:600;margin:12px 0 6px;color:var(--dim)">Currently Checked Out (${items.length})</p>
+    ${items.map(i => `
+      <div style="display:flex;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid var(--border);font-size:0.82rem">
+        <span>${esc(i.name)}</span>
+        <span class="dim">${esc(i.currentHolder || '—')}</span>
+      </div>`).join('')}`;
+}
+
+function renderEquipmentCard() {
+  return `
+    <section class="card" id="equipment-card">
+      <h3>📦 Equipment Check-In / Check-Out</h3>
+      <p class="cal-section-sub" style="margin-top:0">Scan an item's barcode to check it out — scan the same barcode again to check it back in.</p>
+      <div class="form-group" style="margin-bottom:8px">
+        <label>Your Name</label>
+        <input id="equip-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
+      </div>
+      <div class="form-group" style="margin-bottom:4px">
+        <label>Scan Barcode</label>
+        <input id="equip-scan" type="text" placeholder="Click here, then scan" autocomplete="off">
+      </div>
+      <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>
+    </section>`;
+}
+
+async function handleEquipmentScan(rawBarcode) {
+  const barcode = (rawBarcode || '').trim();
+  if (!barcode) return;
+  const scanInput = document.getElementById('equip-scan');
+  const name = (val('equip-name') || localStorage.getItem('hm_student_name') || '').trim();
+  if (!name) {
+    showToast('Enter your name first.');
+    document.getElementById('equip-name')?.focus();
+    return;
+  }
+  localStorage.setItem('hm_student_name', name);
+
+  const db = getDB();
+  if (!db) { showToast('Offline — can\'t reach the equipment list.'); return; }
+
+  const existing = S.equipment[barcode];
+  const now = new Date().toISOString();
+  try {
+    if (!existing) {
+      const itemName = (prompt(`New item scanned (${barcode}). What is it?`) || '').trim();
+      if (!itemName) return;
+      await db.collection('hm_equipment').doc(barcode).set({
+        name: itemName, status: 'checked_out', currentHolder: name, checkedOutAt: now,
+      });
+      await db.collection('hm_checkout_log').add({ barcode, itemName, studentName: name, action: 'out', timestamp: now });
+      trackUsage('writes', 2);
+      showToast(`✅ Checked out: ${itemName} → ${name}`);
+    } else if (existing.status === 'checked_out') {
+      await db.collection('hm_equipment').doc(barcode).set({ status: 'available', currentHolder: '', checkedOutAt: null }, { merge: true });
+      await db.collection('hm_checkout_log').add({ barcode, itemName: existing.name, studentName: name, action: 'in', timestamp: now });
+      trackUsage('writes', 2);
+      showToast(`📥 Checked in: ${existing.name} (was with ${existing.currentHolder || 'someone'})`);
+    } else {
+      await db.collection('hm_equipment').doc(barcode).set({ status: 'checked_out', currentHolder: name, checkedOutAt: now }, { merge: true });
+      await db.collection('hm_checkout_log').add({ barcode, itemName: existing.name, studentName: name, action: 'out', timestamp: now });
+      trackUsage('writes', 2);
+      showToast(`✅ Checked out: ${existing.name} → ${name}`);
+    }
+  } catch (e) {
+    showToast('Something went wrong saving that scan.');
+  }
+  if (scanInput) { scanInput.value = ''; scanInput.focus(); }
+}
+
 async function loadLessonOrder() {
   const db = getDB();
   if (!db) return;
@@ -9210,6 +9313,7 @@ function initBellRingerAudio() {
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
   await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
+  loadEquipment();
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
 
   if (new URLSearchParams(location.search).get('board') === 'icebreaker') {
