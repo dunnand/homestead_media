@@ -116,7 +116,7 @@ const USE_GOOGLE_FORM_YEARBOOK = true;
 const YEARBOOK_FORM = {
   formUrl: 'https://docs.google.com/forms/d/1EVhVzfwxlXC0W7Evd70hH0pVZDcxW336zTTKcxnGopI/viewform',
   entryEvent: 'entry.124034746', // the "Event" question
-  csvUrl: '',     // TODO: publish the "Public" (filtered) tab to web as CSV and paste here
+  csvUrl: 'https://docs.google.com/spreadsheets/d/e/2PACX-1vSUoD8dNF8YJBdy_ft9vOMU2c2ySp5reYHTdLSBeZ2mdyddpjOlbmVV6kbi6Iw5vMVtnEKhbv6qDB0u/pub?output=csv',
 };
 
 function ybFormLink(ev) {
@@ -5611,6 +5611,15 @@ function roleLabel(role) {
 }
 
 async function loadYearbookCoverage() {
+  // Sign-ups come from the Google Form (see USE_GOOGLE_FORM_YEARBOOK) once
+  // configured — the Firestore path below is a dead end in that mode since
+  // the in-app sign-up UI is hidden, and would otherwise wipe out the
+  // Form-sourced list every time this re-runs on Dashboard/Yearbook nav.
+  if (USE_GOOGLE_FORM_YEARBOOK && YEARBOOK_FORM.csvUrl) {
+    await loadYbFormSignups();
+    if (S.view === 'yearbook' || S.view === 'dashboard') render();
+    return;
+  }
   const db = getDB();
   if (!db) return;
   await cachedLoad('yb_coverage', async () => {
