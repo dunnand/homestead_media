@@ -49,6 +49,14 @@ const DEFAULT_BELLRINGER_QUESTIONS = [
   "What's a video game you've played or watched someone play this week?",
   "What's one song, show, or video you'd recommend to the class right now?"
 ];
+const BELLRINGER_CLASSES = {
+  radio:    { name: 'Radio Broadcasting' },
+  live:     { name: 'Homestead Live' },
+  yearbook: { name: 'Yearbook' },
+  sports:   { name: 'Sports Broadcasting' },
+  indepth:  { name: 'HHS In-Depth' },
+  intro:    { name: 'Intro to Media' },
+};
 
 let _db = null;
 function getDB() {
@@ -254,9 +262,11 @@ const S = {
   calMonthOffset: 0,
   dashSections: {},
   quickLinks: {},
-  bellringerQuestions: [],
+  bellringerQuestionsByClass: {},
   bellringerAnswers: [],
   bellringerAnswersUnsub: null,
+  bellringerBoardClass: 'radio',
+  dbBrClass: 'radio',
   icebreakerEntries: [],
   icebreakerUnsub: null,
   icebreakerGame: 'menu',
@@ -2685,7 +2695,6 @@ function renderHome() {
       <header class="home-header">
         <img src="images/logo-homestead-media.png" alt="Homestead Media" class="home-logo-img">
       </header>
-      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner()}</div>
       <div class="class-grid">
         <div class="class-card radio-card" data-nav="radio">
           <div class="class-icon">📻</div>
@@ -2810,6 +2819,7 @@ function renderRadio() {
           <a class="class-header-lessons-link" data-lesson-course="radio">📚 Go to Lessons</a>
         </div>
       </div>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('radio')}</div>
       <div class="page-grid">
         <div class="main-col">
           <div class="station-grid">${stationCards}</div>
@@ -3560,6 +3570,7 @@ function renderLive() {
           <a class="class-header-lessons-link" data-lesson-course="live">📚 Go to Lessons</a>
         </div>
       </div>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('live')}</div>
       <div class="page-grid">
         <div class="main-col">
           ${countdownBlock}
@@ -3966,6 +3977,7 @@ function renderSports() {
           <a class="class-header-lessons-link" data-lesson-course="sports">📚 Go to Lessons</a>
         </div>
       </div>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('sports')}</div>
       <div class="page-grid">
         <div class="main-col">
           <section class="card coming-soon-card">
@@ -4145,6 +4157,7 @@ function renderIntro() {
           <a class="class-header-lessons-link" data-lesson-course="intro">📚 Go to Lessons</a>
         </div>
       </div>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('intro')}</div>
       <div class="page-grid">
         <div class="main-col">
           <section class="card coming-soon-card">
@@ -4233,6 +4246,7 @@ function renderInDepth() {
         </div>
       </div>
 
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('indepth')}</div>
       <section class="card" style="margin-bottom:24px;overflow-x:auto">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px">
           <h2 style="font-size:1rem;font-weight:700">${isPast ? 'Past Shows' : 'Show Rundown'}</h2>
@@ -5383,6 +5397,7 @@ function renderYearbook() {
           <a class="class-header-lessons-link" data-lesson-course="yearbook">📚 Go to Lessons</a>
         </div>
       </div>
+      <div id="bellringer-wrap" class="bellringer-wrap">${renderBellRingerBanner('yearbook')}</div>
       <div class="page-grid">
         <div class="main-col">
 
@@ -6887,13 +6902,19 @@ function attachListeners() {
   if (brSubmit) brSubmit.addEventListener('click', submitBellRinger);
 
   const brManage = document.getElementById('br-manage-questions');
-  if (brManage) brManage.addEventListener('click', brQStartEdit);
+  if (brManage) brManage.addEventListener('click', () => brQStartEdit(brManage.dataset.brClass));
 
   const brClear = document.getElementById('br-clear');
-  if (brClear) brClear.addEventListener('click', clearBellRingerWall);
+  if (brClear) brClear.addEventListener('click', () => clearBellRingerWall(brClear.dataset.brClass));
+
+  const dbBrClassSel = document.getElementById('db-br-class');
+  if (dbBrClassSel) dbBrClassSel.addEventListener('change', () => { S.dbBrClass = dbBrClassSel.value; render(); });
 
   const dbBrManage = document.getElementById('db-br-manage');
   if (dbBrManage) dbBrManage.addEventListener('click', dbManageBellRingerQuestions);
+
+  const dbBrClear = document.getElementById('db-br-clear');
+  if (dbBrClear) dbBrClear.addEventListener('click', () => clearBellRingerWall(S.dbBrClass || 'radio'));
 
   const ibSubmit = document.getElementById('ib-submit');
   if (ibSubmit) ibSubmit.addEventListener('click', submitIcebreaker);
@@ -9196,8 +9217,10 @@ function bellringerTodayStr() {
   return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
 }
 
-function bellringerQuestion() {
-  const list = S.bellringerQuestions.length ? S.bellringerQuestions : DEFAULT_BELLRINGER_QUESTIONS;
+function bellringerQuestion(classKey) {
+  const list = (S.bellringerQuestionsByClass[classKey] || []).length
+    ? S.bellringerQuestionsByClass[classKey]
+    : DEFAULT_BELLRINGER_QUESTIONS;
   const d = new Date();
   const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const days = Math.floor(localMidnight.getTime() / 86400000);
@@ -9207,24 +9230,29 @@ function bellringerQuestion() {
 
 async function loadBellRingerQuestions() {
   const db = getDB();
-  if (!db) { S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS; return; }
+  if (!db) { S.bellringerQuestionsByClass = {}; return; }
   const ok = await cachedLoad('br_questions', async () => {
     const doc = await db.collection('hm_bellringer_questions').doc('list').get();
     trackUsage('reads', 1);
-    if (doc.exists && (doc.data().questions || []).length) return doc.data().questions;
-    db.collection('hm_bellringer_questions').doc('list').set({ questions: DEFAULT_BELLRINGER_QUESTIONS });
+    if (doc.exists && doc.data().byClass) return doc.data().byClass;
+    // Migrate the old single shared question list into a per-class shape so
+    // every class starts from what the teacher already had, then diverges from there.
+    const legacy = (doc.exists && (doc.data().questions || []).length) ? doc.data().questions : DEFAULT_BELLRINGER_QUESTIONS;
+    const byClass = {};
+    Object.keys(BELLRINGER_CLASSES).forEach(k => { byClass[k] = legacy; });
+    db.collection('hm_bellringer_questions').doc('list').set({ byClass });
     trackUsage('writes', 1);
-    return DEFAULT_BELLRINGER_QUESTIONS;
-  }, questions => { S.bellringerQuestions = questions; });
-  if (!ok) S.bellringerQuestions = DEFAULT_BELLRINGER_QUESTIONS;
+    return byClass;
+  }, byClass => { S.bellringerQuestionsByClass = byClass; });
+  if (!ok) S.bellringerQuestionsByClass = {};
 }
 
-function renderBellRingerBanner() {
-  const isEditing = _brQDraft !== null;
-  if (isEditing) return renderBellRingerQuestionsEditor();
+function renderBellRingerBanner(classKey) {
+  const isEditing = _brQDraft !== null && _brQEditingClass === classKey;
+  if (isEditing) return renderBellRingerQuestionsEditor(classKey);
 
-  const question = bellringerQuestion();
-  const submittedDate = localStorage.getItem('hm_bellringer_date');
+  const question = bellringerQuestion(classKey);
+  const submittedDate = localStorage.getItem('hm_bellringer_date_' + classKey);
   const alreadySubmitted = submittedDate === bellringerTodayStr();
 
   return `
@@ -9233,9 +9261,9 @@ function renderBellRingerBanner() {
         <h2>🔔 Bell Ringer</h2>
         ${S.teacherMode ? `
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            <a href="?board=bellringer" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
-            <button class="btn-secondary" id="br-manage-questions" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
-            <button class="btn-secondary" id="br-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>
+            <a href="?board=bellringer&class=${classKey}" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+            <button class="btn-secondary" id="br-manage-questions" data-br-class="${classKey}" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
+            <button class="btn-secondary" id="br-clear" data-br-class="${classKey}" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>
           </div>` : ''}
       </div>
       <p class="br-question">${esc(question)}</p>
@@ -9245,7 +9273,7 @@ function renderBellRingerBanner() {
         <div class="br-form-row">
           <input id="br-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
           <input id="br-answer" type="text" placeholder="Type your answer here...">
-          <button class="btn-primary" id="br-submit">Submit</button>
+          <button class="btn-primary" id="br-submit" data-br-class="${classKey}">Submit</button>
         </div>
         <p id="br-msg" class="dim br-msg"></p>
       `}
@@ -9253,6 +9281,8 @@ function renderBellRingerBanner() {
 }
 
 async function submitBellRinger() {
+  const btn      = document.getElementById('br-submit');
+  const classKey = btn.dataset.brClass;
   const nameEl   = document.getElementById('br-name');
   const answerEl = document.getElementById('br-answer');
   const msg      = document.getElementById('br-msg');
@@ -9265,17 +9295,16 @@ async function submitBellRinger() {
   const db = getDB();
   if (!db) { msg.textContent = 'Could not connect — try again.'; msg.style.color = 'var(--danger)'; return; }
 
-  const btn = document.getElementById('br-submit');
   btn.disabled = true; btn.textContent = 'Submitting…';
   try {
     localStorage.setItem('hm_student_name', name);
     await db.collection('hm_bellringer_answers').add({
-      name, answer, question: bellringerQuestion(), createdAt: Date.now()
+      name, answer, question: bellringerQuestion(classKey), classKey, createdAt: Date.now()
     });
     trackUsage('writes', 1);
-    localStorage.setItem('hm_bellringer_date', bellringerTodayStr());
+    localStorage.setItem('hm_bellringer_date_' + classKey, bellringerTodayStr());
     const wrap = document.getElementById('bellringer-wrap');
-    if (wrap) wrap.innerHTML = renderBellRingerBanner();
+    if (wrap) wrap.innerHTML = renderBellRingerBanner(classKey);
   } catch(e) {
     msg.textContent = 'Something went wrong — try again.';
     msg.style.color = 'var(--danger)';
@@ -9285,18 +9314,23 @@ async function submitBellRinger() {
 
 // ── Bell Ringer: teacher question editor ────────────────────────
 let _brQDraft = null;
+let _brQEditingClass = null;
 
 function dbManageBellRingerQuestions() {
-  S.view = 'home';
-  brQStartEdit();
+  const classKey = S.dbBrClass || 'radio';
+  S.view = classKey;
+  brQStartEdit(classKey);
 }
 
-function brQStartEdit() {
-  _brQDraft = (S.bellringerQuestions.length ? S.bellringerQuestions : DEFAULT_BELLRINGER_QUESTIONS).slice();
+function brQStartEdit(classKey) {
+  _brQEditingClass = classKey;
+  _brQDraft = ((S.bellringerQuestionsByClass[classKey] || []).length
+    ? S.bellringerQuestionsByClass[classKey]
+    : DEFAULT_BELLRINGER_QUESTIONS).slice();
   render();
 }
 
-function brQCancel() { _brQDraft = null; render(); }
+function brQCancel() { _brQDraft = null; _brQEditingClass = null; render(); }
 
 function brQSyncFromDom() {
   if (!_brQDraft) return;
@@ -9318,24 +9352,27 @@ function brQRemove(idx) {
 function brQSave() {
   brQSyncFromDom();
   const questions = _brQDraft.map(q => q.trim()).filter(Boolean);
-  S.bellringerQuestions = questions.length ? questions : DEFAULT_BELLRINGER_QUESTIONS;
+  const classKey = _brQEditingClass;
+  S.bellringerQuestionsByClass[classKey] = questions.length ? questions : DEFAULT_BELLRINGER_QUESTIONS;
   _brQDraft = null;
+  _brQEditingClass = null;
   const db = getDB();
-  if (db) { db.collection('hm_bellringer_questions').doc('list').set({ questions: S.bellringerQuestions }); trackUsage('writes', 1); }
+  if (db) { db.collection('hm_bellringer_questions').doc('list').set({ byClass: S.bellringerQuestionsByClass }); trackUsage('writes', 1); }
   render();
 }
 
-function renderBellRingerQuestionsEditor() {
+function renderBellRingerQuestionsEditor(classKey) {
+  const label = BELLRINGER_CLASSES[classKey]?.name || classKey;
   return `
     <section class="card bellringer-card">
       <div class="card-header">
-        <h2>🔔 Manage Bell Ringer Questions</h2>
+        <h2>🔔 Manage Bell Ringer Questions — ${esc(label)}</h2>
         <div style="display:flex;gap:6px">
           <button class="btn-primary" onclick="brQSave()" style="padding:4px 12px;font-size:0.8rem">Save</button>
           <button class="btn-secondary" onclick="brQCancel()" style="padding:4px 12px;font-size:0.8rem">Cancel</button>
         </div>
       </div>
-      <p class="cal-section-sub">One question rotates in automatically each day. Edit, add, or remove questions below.</p>
+      <p class="cal-section-sub">One question rotates in automatically each day, just for this class. Edit, add, or remove questions below.</p>
       ${_brQDraft.map((q, i) => `
         <div class="br-q-row">
           <input value="${esc(q)}" placeholder="Question text">
@@ -9346,11 +9383,11 @@ function renderBellRingerQuestionsEditor() {
 }
 
 // ── Bell Ringer: teacher board (projector view) ─────────────────
-function loadBellRingerBoard() {
+function loadBellRingerBoard(classKey) {
   const db = getDB();
   if (!db) return;
   if (S.bellringerAnswersUnsub) { S.bellringerAnswersUnsub(); S.bellringerAnswersUnsub = null; }
-  S.bellringerAnswersUnsub = db.collection('hm_bellringer_answers').onSnapshot(snap => {
+  S.bellringerAnswersUnsub = db.collection('hm_bellringer_answers').where('classKey', '==', classKey).onSnapshot(snap => {
     S.bellringerAnswers = snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
@@ -9359,11 +9396,12 @@ function loadBellRingerBoard() {
   }, err => console.error('bellringer snapshot error', err));
 }
 
-async function clearBellRingerWall() {
-  if (!confirm('Clear all bell ringer answers? Do this between class periods.')) return;
+async function clearBellRingerWall(classKey) {
+  const label = BELLRINGER_CLASSES[classKey]?.name || classKey;
+  if (!confirm(`Clear all Bell Ringer answers for ${label}? Do this between class periods.`)) return;
   const db = getDB();
   if (!db) return;
-  const snap = await db.collection('hm_bellringer_answers').get();
+  const snap = await db.collection('hm_bellringer_answers').where('classKey', '==', classKey).get();
   const batch = db.batch();
   snap.docs.forEach(d => batch.delete(d.ref));
   await batch.commit();
@@ -9379,12 +9417,14 @@ function renderBellRingerAnswers(entries) {
 }
 
 function renderBellRingerBoard() {
+  const classKey = S.bellringerBoardClass || 'radio';
+  const label = BELLRINGER_CLASSES[classKey]?.name || classKey;
   return `
     <div class="ib-board">
       <a href="?" class="ib-board-exit" title="Exit board view">⤺ Exit</a>
       <div class="ib-board-header">
-        <h1>🔔 Bell Ringer</h1>
-        <p class="ib-board-question">${esc(bellringerQuestion())}</p>
+        <h1>🔔 Bell Ringer — ${esc(label)}</h1>
+        <p class="ib-board-question">${esc(bellringerQuestion(classKey))}</p>
       </div>
       <div id="br-answers-wall">${renderBellRingerAnswers(S.bellringerAnswers)}</div>
       <div class="br-audio-bar">
@@ -9428,8 +9468,10 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'bellringer') {
     S.view = 'bellringer-board';
+    const classParam = new URLSearchParams(location.search).get('class');
+    S.bellringerBoardClass = BELLRINGER_CLASSES[classParam] ? classParam : 'radio';
     render();
-    loadBellRingerBoard();
+    loadBellRingerBoard(S.bellringerBoardClass);
     initBellRingerAudio();
     return;
   }
@@ -9885,13 +9927,19 @@ function renderDashboard() {
         ${readPct >= 80 || writePct >= 80 ? `<p style="margin:10px 0 0;font-size:0.8rem;color:var(--error)">⚠️ Approaching daily limit — consider upgrading to Firebase Blaze plan.</p>` : ''}
       </section>
 
-      ${dbSec('bellringer',
-        `<h2>🔔 Bell Ringer</h2>`,
-        `<a href="?board=bellringer" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
-         <button class="btn-secondary" id="db-br-manage" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
-         <button class="btn-secondary" id="br-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>`,
-        `<p class="dim" style="font-size:0.85rem;margin:0">Today's question: <strong style="color:var(--text)">${esc(bellringerQuestion())}</strong></p>`
-      )}
+      ${(() => {
+        const dbBrClass = S.dbBrClass || 'radio';
+        const classOptions = Object.entries(BELLRINGER_CLASSES).map(([k, c]) =>
+          `<option value="${k}" ${k === dbBrClass ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+        return dbSec('bellringer',
+          `<h2>🔔 Bell Ringer</h2>`,
+          `<select id="db-br-class" class="btn-secondary" style="font-size:0.78rem;padding:4px 8px">${classOptions}</select>
+           <a href="?board=bellringer&class=${dbBrClass}" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Open Board View</a>
+           <button class="btn-secondary" id="db-br-manage" style="font-size:0.78rem;padding:4px 12px">✏️ Manage Questions</button>
+           <button class="btn-secondary" id="db-br-clear" style="font-size:0.78rem;padding:4px 12px">🔄 Clear Wall for Next Class</button>`,
+          `<p class="dim" style="font-size:0.85rem;margin:0">Today's question for ${esc(BELLRINGER_CLASSES[dbBrClass].name)}: <strong style="color:var(--text)">${esc(bellringerQuestion(dbBrClass))}</strong></p>`
+        );
+      })()}
 
       ${(() => {
         const { fridays, startYear } = getSchoolYearFridays();
