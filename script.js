@@ -9299,7 +9299,7 @@ async function submitBellRinger() {
   try {
     localStorage.setItem('hm_student_name', name);
     await db.collection('hm_bellringer_answers').add({
-      name, answer, question: bellringerQuestion(classKey), classKey, createdAt: Date.now()
+      name, answer, question: bellringerQuestion(classKey), classKey, dateStr: bellringerTodayStr(), createdAt: Date.now()
     });
     trackUsage('writes', 1);
     localStorage.setItem('hm_bellringer_date_' + classKey, bellringerTodayStr());
@@ -9387,8 +9387,18 @@ function loadBellRingerBoard(classKey) {
   const db = getDB();
   if (!db) return;
   if (S.bellringerAnswersUnsub) { S.bellringerAnswersUnsub(); S.bellringerAnswersUnsub = null; }
+  const today = bellringerTodayStr();
   S.bellringerAnswersUnsub = db.collection('hm_bellringer_answers').where('classKey', '==', classKey).onSnapshot(snap => {
+    // Answers from a prior day (or missing a date, from before this field existed)
+    // are stale — purge them so the wall resets automatically each day.
+    const stale = snap.docs.filter(d => d.data().dateStr !== today);
+    if (stale.length) {
+      const batch = db.batch();
+      stale.forEach(d => batch.delete(d.ref));
+      batch.commit().catch(() => {});
+    }
     S.bellringerAnswers = snap.docs
+      .filter(d => d.data().dateStr === today)
       .map(d => ({ id: d.id, ...d.data() }))
       .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
     const wall = document.getElementById('br-answers-wall');
