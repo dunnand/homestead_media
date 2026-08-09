@@ -45,6 +45,9 @@ const EVENT_TYPES = {
   other:           { label: 'Other',             color: '#6b7280' }
 };
 
+// Broadcast Rundown card (segment/PBP/color/GFX/cam table) on each broadcast's page
+const SHOW_BROADCAST_RUNDOWN = false; // set true to show the Broadcast Rundown card again
+
 // Weekly-updated production sheets (Google Docs), linked from each sport's broadcast rundown
 const SHOW_PRODUCTION_SHEETS = false; // set true to show the "Production Sheet" link again
 const PRODUCTION_SHEETS = {

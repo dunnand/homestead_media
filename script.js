@@ -9342,6 +9342,7 @@ function rdAddRow(bid) {
 }
 
 function renderRundownSection(b) {
+  if (!SHOW_BROADCAST_RUNDOWN) return '';
   const sport = b.type;
   const templateLoaded = sport in S.sportTemplates;
   const overrideLoaded = b.id in S.rundownOverrides;
