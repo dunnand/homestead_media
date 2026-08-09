@@ -233,6 +233,9 @@ const S = {
   hiddenLessons: new Set(),
   lessonEdits: {},
   lessonEditOpen: false,
+  unitEdits: {},
+  hiddenUnits: new Set(),
+  customUnits: {},
   introClassInfo: {},
   editingIntroClass: null,
   expandedIntroClass: null,
@@ -3575,7 +3578,10 @@ function renderLive() {
         <div class="main-col">
           ${countdownBlock}
           ${(() => {
-            const allLessons = getCourseLessonList('live').filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
+            const allLessons = getCourseLessonList('live')
+              .filter(l => S.teacherMode || !S.hiddenLessons.has(l.id))
+              .filter(l => S.teacherMode || !S.hiddenUnits.has(unitKey('live', l.unitId)));
+            const unitOptions = getCourseUnits('live').map(u => `<option value="${u.id}">${esc(u.title)}</option>`).join('');
             const renderLessonCard = (l, idx) => `
               <div class="lesson-item${S.hiddenLessons.has(l.id) ? ' lesson-item-off' : ''}" data-lesson-course="live" data-lesson-unit="${l.unitId}" data-lesson-id="${l.id}">
                 ${S.teacherMode ? `
@@ -3610,6 +3616,7 @@ function renderLive() {
                   <input id="canva-title" class="form-input" placeholder="Lesson title" style="font-size:0.9rem">
                   <input id="canva-duration" class="form-input" placeholder="Duration (e.g. 2 classes)" style="font-size:0.9rem">
                   <input id="canva-url" class="form-input" placeholder="Canva share link (canva.com/design/...)" style="font-size:0.9rem">
+                  <select id="canva-unit" class="form-input" style="font-size:0.9rem">${unitOptions}</select>
                   <div style="display:flex;gap:8px">
                     <button class="btn-primary" id="canva-save-btn" style="font-size:0.85rem">Add Lesson</button>
                     <button class="btn-secondary" id="canva-cancel-btn" style="font-size:0.85rem">Cancel</button>
@@ -7735,6 +7742,47 @@ function attachListeners() {
     });
   });
 
+  // ── Unit editing (teacher-only) ─────────────────────────────────
+  document.querySelectorAll('[data-edit-unit]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const unitId = el.dataset.editUnit;
+      const courseKey = S.lessonCourse;
+      const unit = getCourseUnits(courseKey).find(u => u.id === unitId);
+      if (!unit) return;
+      const newTitle = prompt('Rename this unit:', unit.title);
+      if (newTitle === null) return;
+      renameUnit(courseKey, unitId, newTitle.trim());
+    });
+  });
+
+  document.querySelectorAll('[data-toggle-unit]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      toggleUnitHidden(S.lessonCourse, btn.dataset.toggleUnit);
+    });
+  });
+
+  document.querySelectorAll('[data-delete-unit]').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      if (btn.disabled) return;
+      const unitId = btn.dataset.deleteUnit;
+      const unit = getCourseUnits(S.lessonCourse).find(u => u.id === unitId);
+      if (!confirm(`Delete the unit "${unit?.title || unitId}"?`)) return;
+      deleteCustomUnit(S.lessonCourse, unitId);
+    });
+  });
+
+  const addUnitBtn = document.getElementById('add-unit-btn');
+  if (addUnitBtn) addUnitBtn.addEventListener('click', () => {
+    const name = prompt('Name for the new unit:');
+    if (name === null) return;
+    const title = name.trim();
+    if (!title) return;
+    addCustomUnit(S.lessonCourse, title);
+  });
+
   // ── Canva lesson handlers ────────────────────────────────────
   const lsConnectCanva = document.getElementById('ls-connect-canva');
   if (lsConnectCanva) lsConnectCanva.addEventListener('click', async () => {
@@ -7771,8 +7819,9 @@ function attachListeners() {
     const db = getDB();
     if (!db) return;
     trackUsage('writes');
+    const unit = document.getElementById('canva-unit')?.value || 'u1';
     const ref  = db.collection('hm_canva_lessons').doc();
-    const data = { url, title, duration, course: S.lessonCourse || 'live', unit: 'u1', isCustom: true, order: Date.now() };
+    const data = { url, title, duration, course: S.lessonCourse || 'live', unit, isCustom: true, order: Date.now() };
     await ref.set(data);
     S.canvaLessons[ref.id] = data;
     S.showCanvaForm = false;
@@ -7873,46 +7922,76 @@ function renderLessonsHub() {
     </div>`;
 }
 
+function renderLessonItemRow(l, idx, unitLessons, courseKey, course) {
+  const icon = getLessonIcon(l, course.icon);
+  const isHidden = S.hiddenLessons.has(l.id);
+  return `
+    <div class="lesson-item${isHidden ? ' lesson-item-off' : ''}"
+         data-lesson-course="${courseKey}"
+         data-lesson-unit="${l.unitId}"
+         data-lesson-id="${l.id}">
+      ${S.teacherMode ? `
+      <div class="lesson-move-btns">
+        <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="top" ${idx === 0 ? 'disabled' : ''} title="Move to top">⏫</button>
+        <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
+        <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="down" ${idx === unitLessons.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
+        <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="bottom" ${idx === unitLessons.length - 1 ? 'disabled' : ''} title="Move to bottom">⏬</button>
+      </div>` : ''}
+      <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${icon}</div>
+      <div class="lesson-item-body">
+        <div class="lesson-item-num">${esc(l.unitTitle)}</div>
+        <div class="lesson-item-title${S.teacherMode ? ' lesson-item-title-edit' : ''}" ${S.teacherMode ? `data-edit-title="${l.id}" title="Click to edit title"` : ''}>${esc(l.title)}${S.teacherMode ? ' ✏️' : ''}</div>
+        <div class="lesson-item-summary">${esc(l.summary || '')}</div>
+      </div>
+      <div class="lesson-item-right">
+        ${isHidden ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
+        <span class="lesson-duration-chip">${esc(l.duration || '')}</span>
+        ${S.teacherMode
+          ? (l.isCustom
+              ? `<button class="lesson-delete-btn" data-delete-lesson="${l.id}" data-delete-type="canva" title="Delete lesson">✕</button>`
+              : `<button class="lesson-toggle${isHidden ? '' : ' on'}" data-toggle-lesson="${l.id}"
+                   title="${isHidden ? 'Hidden from students — click to show' : 'Visible to students — click to hide'}">${isHidden ? '' : '✓'}</button>`)
+          : `<span class="lesson-item-arrow">→</span>`}
+      </div>
+    </div>`;
+}
+
 function renderLessonCourse() {
   const course = LESSONS[S.lessonCourse];
   if (!course) return renderLessonsHub();
   const courseKey = S.lessonCourse;
 
   const fullList = getCourseLessonList(courseKey);
-  const list = fullList.filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
-  const items = list.map((l, idx) => {
-    const icon = getLessonIcon(l, course.icon);
-    const isHidden = S.hiddenLessons.has(l.id);
+  const units = getCourseUnits(courseKey);
+  const visibleUnits = units.filter(u => S.teacherMode || !S.hiddenUnits.has(unitKey(courseKey, u.id)));
+
+  const unitBlocks = visibleUnits.map(u => {
+    const uKey = unitKey(courseKey, u.id);
+    const unitHidden = S.hiddenUnits.has(uKey);
+    const unitLessons = fullList
+      .filter(l => l.unitId === u.id)
+      .filter(l => S.teacherMode || !S.hiddenLessons.has(l.id));
+    const items = unitLessons.map((l, idx) => renderLessonItemRow(l, idx, unitLessons, courseKey, course)).join('');
+
     return `
-      <div class="lesson-item${isHidden ? ' lesson-item-off' : ''}"
-           data-lesson-course="${courseKey}"
-           data-lesson-unit="${l.unitId}"
-           data-lesson-id="${l.id}">
-        ${S.teacherMode ? `
-        <div class="lesson-move-btns">
-          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="top" ${idx === 0 ? 'disabled' : ''} title="Move to top">⏫</button>
-          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="up" ${idx === 0 ? 'disabled' : ''} title="Move up">▲</button>
-          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="down" ${idx === list.length - 1 ? 'disabled' : ''} title="Move down">▼</button>
-          <button class="lesson-move-btn" data-move-lesson="${l.id}" data-move-course="${courseKey}" data-move-dir="bottom" ${idx === list.length - 1 ? 'disabled' : ''} title="Move to bottom">⏬</button>
-        </div>` : ''}
-        <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${icon}</div>
-        <div class="lesson-item-body">
-          <div class="lesson-item-num">${esc(l.unitTitle)}</div>
-          <div class="lesson-item-title${S.teacherMode ? ' lesson-item-title-edit' : ''}" ${S.teacherMode ? `data-edit-title="${l.id}" title="Click to edit title"` : ''}>${esc(l.title)}${S.teacherMode ? ' ✏️' : ''}</div>
-          <div class="lesson-item-summary">${esc(l.summary || '')}</div>
+      <div class="lesson-unit-block${unitHidden ? ' lesson-unit-hidden' : ''}">
+        <div class="lesson-unit-header">
+          <div class="lesson-unit-title${S.teacherMode ? ' lesson-unit-title-edit' : ''}" ${S.teacherMode ? `data-edit-unit="${u.id}" title="Click to rename unit"` : ''}>${esc(u.title)}${S.teacherMode ? ' ✏️' : ''}</div>
+          ${S.teacherMode ? `
+            <div class="lesson-unit-actions">
+              ${unitHidden ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
+              <button class="lesson-toggle${unitHidden ? '' : ' on'}" data-toggle-unit="${u.id}"
+                title="${unitHidden ? 'Hidden from students — click to show' : 'Visible to students — click to hide'}">${unitHidden ? '' : '✓'}</button>
+              ${u.isCustom ? `<button class="lesson-delete-btn" data-delete-unit="${u.id}" title="${unitLessons.length ? 'Move or delete its lessons first' : 'Delete unit'}" ${unitLessons.length ? 'disabled' : ''}>✕</button>` : ''}
+            </div>` : ''}
         </div>
-        <div class="lesson-item-right">
-          ${isHidden ? `<span class="lesson-hidden-chip">Hidden</span>` : ''}
-          <span class="lesson-duration-chip">${esc(l.duration || '')}</span>
-          ${S.teacherMode
-            ? (l.isCustom
-                ? `<button class="lesson-delete-btn" data-delete-lesson="${l.id}" data-delete-type="canva" title="Delete lesson">✕</button>`
-                : `<button class="lesson-toggle${isHidden ? '' : ' on'}" data-toggle-lesson="${l.id}"
-                     title="${isHidden ? 'Hidden from students — click to show' : 'Visible to students — click to hide'}">${isHidden ? '' : '✓'}</button>`)
-            : `<span class="lesson-item-arrow">→</span>`}
+        <div class="lesson-items-list">
+          ${items || (S.teacherMode ? `<p class="le-hint" style="padding:6px 4px">No lessons in this unit yet.</p>` : '')}
         </div>
       </div>`;
   }).join('');
+
+  const unitOptions = units.map(u => `<option value="${u.id}">${esc(u.title)}</option>`).join('');
 
   return `
     ${navBar('lessons')}
@@ -7922,25 +8001,25 @@ function renderLessonCourse() {
         <div class="lesson-course-header-icon">${course.icon}</div>
         <div>
           <h1 style="color:${course.color}">${course.name}</h1>
-          <p>${course.units.length} unit${course.units.length !== 1 ? 's' : ''} · ${fullList.length} lesson${fullList.length !== 1 ? 's' : ''}</p>
+          <p>${units.length} unit${units.length !== 1 ? 's' : ''} · ${fullList.length} lesson${fullList.length !== 1 ? 's' : ''}</p>
         </div>
       </div>
       <div class="lesson-units-list">
-        <div class="lesson-unit-block">
-          <div class="lesson-items-list">${items}</div>
-          ${S.teacherMode ? (S.showCanvaForm ? `
-            <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:10px">
-              <input id="canva-title" class="form-input" placeholder="Lesson title" style="font-size:0.9rem">
-              <input id="canva-duration" class="form-input" placeholder="Duration (e.g. 2 classes)" style="font-size:0.9rem">
-              <input id="canva-url" class="form-input" placeholder="Canva share link (canva.com/design/...)" style="font-size:0.9rem">
-              <div style="display:flex;gap:8px">
-                <button class="btn-primary" id="canva-save-btn" style="font-size:0.85rem">Add Lesson</button>
-                <button class="btn-secondary" id="canva-cancel-btn" style="font-size:0.85rem">Cancel</button>
-              </div>
-            </div>` : `
-            <button class="btn-secondary" id="canva-add-btn" style="margin-top:10px;font-size:0.82rem;width:100%">+ Add Canva Lesson</button>`)
-          : ''}
-        </div>
+        ${unitBlocks}
+        ${S.teacherMode ? `<button class="btn-secondary" id="add-unit-btn" style="width:100%;margin-top:4px;font-size:0.82rem">+ Add Unit</button>` : ''}
+        ${S.teacherMode ? (S.showCanvaForm ? `
+          <div style="margin-top:12px;padding:14px;background:var(--surface2);border-radius:10px;display:flex;flex-direction:column;gap:10px">
+            <input id="canva-title" class="form-input" placeholder="Lesson title" style="font-size:0.9rem">
+            <input id="canva-duration" class="form-input" placeholder="Duration (e.g. 2 classes)" style="font-size:0.9rem">
+            <input id="canva-url" class="form-input" placeholder="Canva share link (canva.com/design/...)" style="font-size:0.9rem">
+            <select id="canva-unit" class="form-input" style="font-size:0.9rem">${unitOptions}</select>
+            <div style="display:flex;gap:8px">
+              <button class="btn-primary" id="canva-save-btn" style="font-size:0.85rem">Add Lesson</button>
+              <button class="btn-secondary" id="canva-cancel-btn" style="font-size:0.85rem">Cancel</button>
+            </div>
+          </div>` : `
+          <button class="btn-secondary" id="canva-add-btn" style="margin-top:10px;font-size:0.82rem;width:100%">+ Add Canva Lesson</button>`)
+        : ''}
       </div>
     </div>`;
 }
@@ -8652,18 +8731,38 @@ async function loadLessonOrder() {
   }, map => { S.lessonOrder = map; });
 }
 
+// A unit's identity is scoped to its course, since built-in unit ids (u1, u2…) repeat across courses
+function unitKey(courseKey, unitId) { return `${courseKey}::${unitId}`; }
+
+// Built-in units (with any teacher title override) + any teacher-created custom units, in display order
+function getCourseUnits(courseKey) {
+  const course = LESSONS[courseKey];
+  if (!course) return [];
+  const builtIn = (course.units || []).map(u => ({
+    id: u.id, title: S.unitEdits[unitKey(courseKey, u.id)]?.title || u.title, isCustom: false,
+  }));
+  const custom = (S.customUnits[courseKey] || []).map(u => ({
+    id: u.id, title: S.unitEdits[unitKey(courseKey, u.id)]?.title || u.title, isCustom: true,
+  }));
+  return [...builtIn, ...custom];
+}
+
+function unitTitleFor(courseKey, unitId) {
+  return getCourseUnits(courseKey).find(u => u.id === unitId)?.title || unitId;
+}
+
 // Flat, ordered list of a course's built-in + Canva lessons (custom order override applied)
 function getCourseLessonList(courseKey) {
   const course = LESSONS[courseKey];
   if (!course) return [];
   const builtIn = course.units.flatMap(u =>
-    u.lessons.map(l => ({ ...mergedLesson(l), unitId: u.id, unitTitle: u.title, isCustom: false })));
+    u.lessons.map(l => ({ ...mergedLesson(l), unitId: u.id, unitTitle: unitTitleFor(courseKey, u.id), isCustom: false })));
   const canva = Object.entries(S.canvaLessons)
     .filter(([, d]) => d.isCustom && d.course === courseKey)
     .sort((a, b) => (a[1].order || 0) - (b[1].order || 0))
     .map(([id, d]) => ({
       id, title: d.title || 'Untitled', duration: d.duration || '', summary: d.summary || '',
-      unitId: d.unit || 'u1', unitTitle: 'Canva Lesson', isCustom: true, sections: [],
+      unitId: d.unit || 'u1', unitTitle: unitTitleFor(courseKey, d.unit || 'u1'), isCustom: true, sections: [],
     }));
   const all = [...builtIn, ...canva];
   const orderIds = S.lessonOrder[courseKey];
@@ -8763,6 +8862,100 @@ async function renameLessonTitle(lesson, title) {
     if (empty) await db.collection('hm_lesson_edits').doc(lesson.id).delete();
     else await db.collection('hm_lesson_edits').doc(lesson.id).set(cur);
   } catch(e) { console.error('lesson title save failed', e); }
+}
+
+async function loadUnitEdits() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('unit_edits', async () => {
+    const snap = await db.collection('hm_unit_edits').get();
+    trackUsage('reads', snap.size || 1);
+    const map = {};
+    snap.forEach(doc => { map[doc.id] = doc.data(); });
+    return map;
+  }, map => { S.unitEdits = map; });
+}
+
+async function loadHiddenUnits() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('hidden_units', async () => {
+    const snap = await db.collection('hm_hidden_units').get();
+    trackUsage('reads', snap.size || 1);
+    return snap.docs.map(d => d.id);
+  }, ids => { S.hiddenUnits = new Set(ids); });
+}
+
+async function loadCustomUnits() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('custom_units', async () => {
+    const snap = await db.collection('hm_custom_units').get();
+    trackUsage('reads', snap.size || 1);
+    const map = {};
+    snap.forEach(doc => {
+      const d = doc.data();
+      (map[d.course] = map[d.course] || []).push({ id: doc.id, title: d.title, order: d.order || 0 });
+    });
+    Object.values(map).forEach(list => list.sort((a, b) => a.order - b.order));
+    return map;
+  }, map => { S.customUnits = map; });
+}
+
+async function renameUnit(courseKey, unitId, title) {
+  const db = getDB();
+  if (!db) return;
+  const key = unitKey(courseKey, unitId);
+  if (title) S.unitEdits[key] = { title }; else delete S.unitEdits[key];
+  render();
+  try {
+    trackUsage('writes');
+    if (title) await db.collection('hm_unit_edits').doc(key).set({ title });
+    else await db.collection('hm_unit_edits').doc(key).delete();
+  } catch (e) { console.error('unit title save failed', e); }
+}
+
+async function toggleUnitHidden(courseKey, unitId) {
+  const db = getDB();
+  if (!db) return;
+  const key = unitKey(courseKey, unitId);
+  const hiding = !S.hiddenUnits.has(key);
+  if (hiding) S.hiddenUnits.add(key); else S.hiddenUnits.delete(key);
+  render();
+  try {
+    trackUsage('writes');
+    if (hiding) await db.collection('hm_hidden_units').doc(key).set({ hidden: true });
+    else await db.collection('hm_hidden_units').doc(key).delete();
+  } catch (e) { console.error('unit hide toggle failed', e); }
+}
+
+async function addCustomUnit(courseKey, title) {
+  const db = getDB();
+  if (!db) return;
+  const ref = db.collection('hm_custom_units').doc();
+  const data = { course: courseKey, title, order: Date.now() };
+  (S.customUnits[courseKey] = S.customUnits[courseKey] || []).push({ id: ref.id, title: data.title, order: data.order });
+  render();
+  try {
+    trackUsage('writes');
+    await ref.set(data);
+  } catch (e) { console.error('unit create failed', e); }
+}
+
+async function deleteCustomUnit(courseKey, unitId) {
+  const db = getDB();
+  if (!db) return;
+  const key = unitKey(courseKey, unitId);
+  S.customUnits[courseKey] = (S.customUnits[courseKey] || []).filter(u => u.id !== unitId);
+  delete S.unitEdits[key];
+  S.hiddenUnits.delete(key);
+  render();
+  try {
+    trackUsage('writes');
+    await db.collection('hm_custom_units').doc(unitId).delete();
+    await db.collection('hm_unit_edits').doc(key).delete();
+    await db.collection('hm_hidden_units').doc(key).delete();
+  } catch (e) { console.error('unit delete failed', e); }
 }
 
 async function loadIntroClassInfo() {
@@ -9503,7 +9696,7 @@ function initBellRingerAudio() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
+  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadUnitEdits(), loadHiddenUnits(), loadCustomUnits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
   loadEquipment();
   loadEquipmentState();
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first

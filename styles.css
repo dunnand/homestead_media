@@ -2490,11 +2490,17 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-radius: 14px; overflow: hidden;
 }
 .lesson-unit-header {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
   font-size: 0.85rem; font-weight: 800; text-transform: uppercase;
   letter-spacing: 0.1em; padding: 16px 24px;
   border-bottom: 1px solid var(--border);
   background: rgba(255,255,255,0.02);
 }
+.lesson-unit-title { min-width: 0; }
+.lesson-unit-title-edit { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: -2px -4px; }
+.lesson-unit-title-edit:hover { background: var(--surface3, rgba(255,255,255,0.06)); }
+.lesson-unit-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.lesson-unit-block.lesson-unit-hidden { opacity: 0.55; }
 .lesson-items-list { display: flex; flex-direction: column; }
 
 .lesson-item {
