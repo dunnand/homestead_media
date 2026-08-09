@@ -1350,6 +1350,43 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 
 .review-purpose-tags { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 
+/* ── Show Formula Builder ────────────────────────────────── */
+.sb-summary-header {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  margin-bottom: 24px;
+}
+.sb-summary-stat {
+  display: flex; align-items: center; gap: 12px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 12px 16px; flex: 1; min-width: 200px;
+}
+.sb-summary-icon { font-size: 1.5rem; flex-shrink: 0; }
+
+.sb-formula-flow {
+  display: flex; align-items: stretch; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 24px;
+}
+.sb-formula-step {
+  flex: 1; min-width: 140px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 14px 12px; text-align: center;
+}
+.sb-formula-num {
+  width: 26px; height: 26px; border-radius: 50%; margin: 0 auto 8px;
+  background: var(--radio); color: #000; font-weight: 700; font-size: 0.85rem;
+  display: flex; align-items: center; justify-content: center;
+}
+.sb-formula-title { font-weight: 700; font-size: 0.92rem; margin-bottom: 4px; }
+.sb-formula-desc { font-size: 0.78rem; color: var(--dim); line-height: 1.4; }
+.sb-formula-arrow {
+  display: flex; align-items: center; justify-content: center;
+  color: var(--dim); font-size: 1.1rem; flex-shrink: 0; padding: 0 2px;
+}
+@media (max-width: 640px) {
+  .sb-formula-flow { flex-direction: column; }
+  .sb-formula-arrow { transform: rotate(90deg); padding: 4px 0; }
+}
+
 /* ── Planner: Song Library Picker ────────────────────────── */
 #song-picker-search {
   width: 100%; background: var(--surface2); border: 1px solid var(--border);
@@ -1552,7 +1589,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 
 /* ── Print ───────────────────────────────────────────────── */
 @media print {
-  .top-nav, .planner-nav, .back-btn,
+  .top-nav, .planner-nav, .planner-progress, .back-btn,
   .btn-primary, .btn-secondary { display: none !important; }
   body { background: white; color: black; }
   .card { border: 1px solid #ccc; }

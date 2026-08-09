@@ -215,6 +215,8 @@ const S = {
   broadcasts: [],
   plannerStep: 0,
   plannerData: null,
+  showBuilderStep: 0,
+  showBuilderData: null,
   submissions: [],
   iasbEntries: [],
   iasbCategory: null,
@@ -395,6 +397,7 @@ function go(view, extra) {
   S.view = view;
   if (extra) Object.assign(S, extra);
   if (view === 'icebreaker' && S.icebreakerGame === 'bingo') loadBingoState();
+  if (view === 'showbuilder' && !S.showBuilderData) S.showBuilderData = loadShowBuilderDraft() || emptyShowBuilderData();
   render();
   window.scrollTo(0, 0);
   if (view === 'radio') startPointRecentPolling();
@@ -424,6 +427,7 @@ function render() {
     case 'home':      app.innerHTML = renderHome();      break;
     case 'radio':     app.innerHTML = renderRadio();     break;
     case 'planner':   app.innerHTML = renderPlanner();   break;
+    case 'showbuilder': app.innerHTML = renderShowBuilder(); break;
     case 'live':      app.innerHTML = renderLive();      break;
     case 'broadcast': app.innerHTML = renderBroadcast(); break;
     case 'schedule':  app.innerHTML = renderSchedule();  break;
@@ -2838,6 +2842,12 @@ function renderRadio() {
             <a class="btn-primary" href="https://wcyt.org/dj" target="_blank" rel="noopener">Open DJ Panel ↗</a>
           </section>
           <section class="card action-card radio-action">
+            <div class="action-icon">🧩</div>
+            <h3>Build Your Weekly Show</h3>
+            <p>Plan the basics of your show before you write a Talk Show script — topic, five episode ideas, a news segment, and a signature bit.</p>
+            <button class="btn-primary" id="start-showbuilder">Start Building →</button>
+          </section>
+          <section class="card action-card radio-action">
             <div class="action-icon">✍️</div>
             <h3>Show Planner</h3>
             <p>Plan your talk show, air personality breaks, or radio show — step by step. Submitting files your plan into this week's shared folder automatically.</p>
@@ -2961,6 +2971,8 @@ function renderPlannerStep0(p) {
         </button>`).join('')}
     </div>
     ${type ? `
+      ${type === 'talk' ? `
+      <div class="break-purpose">📋 Haven't planned your show's basics yet? <a data-nav="showbuilder" style="color:var(--radio);font-weight:600;cursor:pointer">Build Your Weekly Show</a> first — topic, five episode ideas, news, and a signature segment — then come back here to write this week's script.</div>` : ''}
       <div class="form-group">
         <label>First and Last Name</label>
         <input id="p-name" type="text" value="${esc(p.studentName || '')}" placeholder="First and last name">
@@ -3437,6 +3449,401 @@ function renderPlanner() {
         </div>
       </div>
     </div>`;
+}
+
+// ── BUILD YOUR WEEKLY RADIO SHOW ────────────────────────────────
+// A Talk-Show-only prerequisite activity: before a student fills out the
+// Talk Show Planner above, this helps them prove their show idea can
+// sustain many different weekly episodes (not just one). Same wizard
+// pattern as renderPlanner() — progress bar, planner-card, planner-nav —
+// with its own localStorage draft key so a refresh mid-activity doesn't
+// lose work.
+const SHOWBUILDER_STEP_LABELS = ['Show Idea', 'Five-Week Test', 'News', 'Fun Segment', 'Show Plan'];
+
+const SHOWBUILDER_TOPIC_CHIPS = [
+  'Video Games', 'Sports', 'Movies', 'Music', 'Cars', 'Technology',
+  'Food', 'Fashion', 'School Life', 'Pop Culture', 'Outdoors', 'Entertainment',
+];
+
+const SHOWBUILDER_NEWS_EXAMPLES = [
+  { topic: 'Video Games', examples: 'releases, announcements, updates, industry news' },
+  { topic: 'Sports',      examples: 'scores, trades, injuries, standings' },
+  { topic: 'Movies',      examples: 'trailers, releases, casting announcements' },
+  { topic: 'Music',       examples: 'new songs, albums, tours' },
+];
+
+const SHOWBUILDER_FUN_CHIPS = [
+  'Hot Take of the Week', 'Top 3', 'Would You Rather?', 'Overrated or Underrated',
+  'Guess That ___', 'The Draft', 'Listener Question', 'One Has to Go',
+  'Trivia Challenge', 'Best vs. Worst',
+];
+
+const SHOWBUILDER_EXAMPLE = {
+  show: 'Video Games',
+  weeks: [
+    'Indie Games Worth Playing',
+    'Hidden Gems Nobody Talks About',
+    'Gaming Systems Through the Years',
+    'The Best and Worst Games This Year',
+    'Online Gaming: What Makes It Fun?',
+  ],
+};
+
+function emptyShowBuilderData() {
+  return {
+    studentName: '',
+    topic: '', showName: '', showDesc: '',
+    weeks: Array.from({ length: 5 }, () => ({ topic: '', discuss: '' })),
+    newsName: '', newsWhat: '',
+    funName: '', funHow: '', funChange: '',
+    reflectExcited: '', reflectTen: '', reflectListen: '',
+  };
+}
+
+const SHOWBUILDER_DRAFT_KEY = 'hm_showbuilder_draft';
+function loadShowBuilderDraft() {
+  try { return JSON.parse(localStorage.getItem(SHOWBUILDER_DRAFT_KEY) || 'null'); } catch(e) { return null; }
+}
+function saveShowBuilderDraft() {
+  try { localStorage.setItem(SHOWBUILDER_DRAFT_KEY, JSON.stringify(S.showBuilderData)); } catch(e) {}
+}
+function clearShowBuilderDraft() {
+  try { localStorage.removeItem(SHOWBUILDER_DRAFT_KEY); } catch(e) {}
+}
+
+function readShowBuilderStepFields(step) {
+  const d = S.showBuilderData = S.showBuilderData || emptyShowBuilderData();
+  if (step === 0) {
+    d.topic    = val('sb-topic');
+    d.showName = val('sb-showname');
+    d.showDesc = val('sb-showdesc');
+  } else if (step === 1) {
+    d.weeks = Array.from({ length: 5 }, (_, i) => ({
+      topic:   val(`sb-week-${i}-topic`),
+      discuss: val(`sb-week-${i}-discuss`),
+    }));
+  } else if (step === 2) {
+    d.newsName = val('sb-news-name');
+    d.newsWhat = val('sb-news-what');
+  } else if (step === 3) {
+    d.funName   = val('sb-fun-name');
+    d.funHow    = val('sb-fun-how');
+    d.funChange = val('sb-fun-change');
+  } else if (step === 4) {
+    d.reflectExcited = val('sb-reflect-excited');
+    d.reflectTen     = val('sb-reflect-ten');
+    d.reflectListen  = val('sb-reflect-listen');
+  }
+  return d;
+}
+
+function renderShowBuilderStep0(d) {
+  return `
+    <h2>What Is Your Show About?</h2>
+    <p>Every good weekly show starts with a broad topic — something big enough to talk about in a totally different way every single week. Pick something that could realistically last all semester.</p>
+    <div class="talkpoint-idea-bank">
+      <div class="talkpoint-idea-label">💡 Some topic ideas (not required):</div>
+      <div class="talkpoint-idea-tags">
+        ${SHOWBUILDER_TOPIC_CHIPS.map(t => `<span class="idea-tag">${esc(t)}</span>`).join('')}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Show Topic</label>
+      <input id="sb-topic" class="sb-field" type="text" value="${esc(d.topic || '')}" placeholder="e.g. Video Games">
+    </div>
+    <div class="form-group">
+      <label>Show Name</label>
+      <input id="sb-showname" class="sb-field" type="text" value="${esc(d.showName || '')}" placeholder="e.g. Respawn Radio">
+    </div>
+    <div class="form-group">
+      <label>Show Description <span class="hint">(one sentence)</span></label>
+      <textarea id="sb-showdesc" class="sb-field" rows="2" placeholder="Sum up your show in one sentence.">${esc(d.showDesc || '')}</textarea>
+    </div>`;
+}
+
+function renderShowBuilderStep1(d) {
+  const weeks = (d.weeks && d.weeks.length === 5) ? d.weeks : Array.from({ length: 5 }, () => ({ topic: '', discuss: '' }));
+  return `
+    <h2>Can Your Show Last?</h2>
+    <p>A good weekly show can generate lots of different conversations. Prove it — come up with <strong>five different main episode topics</strong> that all fit under your show idea. Don't just repeat the same topic five times.</p>
+    ${weeks.map((w, i) => `
+      <div class="air-break-card">
+        <div class="air-break-header">Week ${i + 1}</div>
+        <div class="form-group">
+          <label>Main Episode Topic</label>
+          <input id="sb-week-${i}-topic" class="sb-field" type="text" value="${esc(w.topic || '')}" placeholder="What's this week's episode about?">
+        </div>
+        <div class="form-group">
+          <label>What could you discuss during this episode?</label>
+          <textarea id="sb-week-${i}-discuss" class="sb-field" rows="2" placeholder="A few things you'd actually talk about...">${esc(w.discuss || '')}</textarea>
+        </div>
+      </div>`).join('')}
+    <div class="break-purpose">🤔 <strong>Could you make a Week 6?</strong> If coming up with five episodes felt extremely difficult, your idea might be too narrow. Think about Week 10 — or even Week 20. Could you keep this going all semester?</div>
+    <details class="shot-cat">
+      <summary class="shot-cat-summary">
+        <span class="shot-cat-label">See an Example</span>
+        <span class="shot-cat-sub">SHOW: Video Games</span>
+      </summary>
+      <ul class="shot-cat-list">
+        ${SHOWBUILDER_EXAMPLE.weeks.map((w, i) => `<li><strong>Week ${i + 1}:</strong> ${esc(w)}</li>`).join('')}
+      </ul>
+      <p style="padding:0 14px 14px 30px;margin:0;font-size:0.82rem;color:var(--dim);line-height:1.6">Every episode still relates to video games, but each week has a completely different main conversation — that's what makes it a show you can keep making, not just a one-time idea.</p>
+    </details>`;
+}
+
+function renderShowBuilderStep2(d) {
+  return `
+    <h2>What's New This Week?</h2>
+    <div class="break-purpose">Your <strong>Main Topic</strong> is a deeper conversation. Your <strong>News</strong> segment is different — it's something new or timely that's happened since your last show.</div>
+    <div class="form-group">
+      <label>News Segment Name</label>
+      <input id="sb-news-name" class="sb-field" type="text" value="${esc(d.newsName || '')}" placeholder="e.g. This Week in Gaming">
+    </div>
+    <div class="form-group">
+      <label>What kind of news would your show cover each week?</label>
+      <textarea id="sb-news-what" class="sb-field" rows="3" placeholder="What kinds of updates, releases, or headlines fit your show?">${esc(d.newsWhat || '')}</textarea>
+    </div>
+    <div class="talkpoint-idea-bank">
+      <div class="talkpoint-idea-label">💡 Examples by topic (not required):</div>
+      <div class="talkpoint-idea-tags">
+        ${SHOWBUILDER_NEWS_EXAMPLES.map(n => `<span class="idea-tag">${esc(n.topic)}: ${esc(n.examples)}</span>`).join('')}
+      </div>
+    </div>`;
+}
+
+function renderShowBuilderStep3(d) {
+  return `
+    <h2>Give Your Show a Signature Segment</h2>
+    <div class="break-purpose">A recurring segment keeps its <strong>format</strong> the same every week — but the <strong>content</strong> changes. Think of it as a recognizable bit listeners look forward to.</div>
+    <div class="talkpoint-idea-bank">
+      <div class="talkpoint-idea-label">💡 Some segment ideas (not required):</div>
+      <div class="talkpoint-idea-tags">
+        ${SHOWBUILDER_FUN_CHIPS.map(c => `<span class="idea-tag">${esc(c)}</span>`).join('')}
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Fun Segment Name</label>
+      <input id="sb-fun-name" class="sb-field" type="text" value="${esc(d.funName || '')}" placeholder="e.g. Hot Take of the Week">
+    </div>
+    <div class="form-group">
+      <label>How does the segment work?</label>
+      <textarea id="sb-fun-how" class="sb-field" rows="2" placeholder="Explain the format — what happens every week?">${esc(d.funHow || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>How could the content change each week?</label>
+      <textarea id="sb-fun-change" class="sb-field" rows="2" placeholder="What would actually be different show to show?">${esc(d.funChange || '')}</textarea>
+    </div>`;
+}
+
+function renderShowBuilderFormula(d) {
+  return `
+    <div class="sb-summary-header">
+      <div class="sb-summary-stat"><span class="sb-summary-icon">🎙️</span><div><div class="review-label">Show Name</div><div class="review-value">${esc(d.showName || '—')}</div></div></div>
+      <div class="sb-summary-stat"><span class="sb-summary-icon">🎯</span><div><div class="review-label">Show Topic</div><div class="review-value">${esc(d.topic || '—')}</div></div></div>
+    </div>
+    <div class="sb-formula-flow">
+      <div class="sb-formula-step"><div class="sb-formula-num">1</div><div class="sb-formula-title">Main Topic</div><div class="sb-formula-desc">A different major conversation each week</div></div>
+      <div class="sb-formula-arrow">→</div>
+      <div class="sb-formula-step"><div class="sb-formula-num">2</div><div class="sb-formula-title">Weekly News</div><div class="sb-formula-desc">What's new in the world of your show?</div></div>
+      <div class="sb-formula-arrow">→</div>
+      <div class="sb-formula-step"><div class="sb-formula-num">3</div><div class="sb-formula-title">Fun Segment</div><div class="sb-formula-desc">Your recurring, recognizable bit</div></div>
+      <div class="sb-formula-arrow">→</div>
+      <div class="sb-formula-step"><div class="sb-formula-num">4</div><div class="sb-formula-title">Next Week Tease</div><div class="sb-formula-desc">Give listeners a reason to come back</div></div>
+    </div>
+    <div class="review-block">
+      <div class="review-section">
+        <div class="review-label">News Segment</div>
+        <div class="review-value"><strong>${esc(d.newsName || '—')}</strong>${d.newsWhat ? `<br>${esc(d.newsWhat)}` : ''}</div>
+      </div>
+      <div class="review-section">
+        <div class="review-label">Fun Segment</div>
+        <div class="review-value"><strong>${esc(d.funName || '—')}</strong>${d.funHow ? `<br>${esc(d.funHow)}` : ''}${d.funChange ? `<br><em>Changes weekly:</em> ${esc(d.funChange)}` : ''}</div>
+      </div>
+      ${(d.weeks || []).map((w, i) => (w.topic || w.discuss) ? `
+      <div class="review-section">
+        <div class="review-label">Week ${i + 1}</div>
+        <div class="review-value"><strong>${esc(w.topic || '—')}</strong>${w.discuss ? `<br>${esc(w.discuss)}` : ''}</div>
+      </div>` : '').join('')}
+    </div>`;
+}
+
+function renderShowBuilderStep4(d) {
+  return `
+    <h2>Your Weekly Show Formula</h2>
+    <p>Here's your show, built from everything you planned.</p>
+    ${renderShowBuilderFormula(d)}
+    <div style="margin:28px 0 8px"><strong>Final Reflection</strong></div>
+    <div class="form-group">
+      <label>Which of your five episode ideas are you most excited about?</label>
+      <textarea id="sb-reflect-excited" class="sb-field" rows="2">${esc(d.reflectExcited || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>Do you think you could create 10 episodes of this show? Why or why not?</label>
+      <textarea id="sb-reflect-ten" class="sb-field" rows="2">${esc(d.reflectTen || '')}</textarea>
+    </div>
+    <div class="form-group">
+      <label>What would make someone want to listen to your show every week?</label>
+      <textarea id="sb-reflect-listen" class="sb-field" rows="2">${esc(d.reflectListen || '')}</textarea>
+    </div>`;
+}
+
+function renderShowBuilder() {
+  const d = S.showBuilderData = S.showBuilderData || loadShowBuilderDraft() || emptyShowBuilderData();
+  const step = S.showBuilderStep;
+  const total = SHOWBUILDER_STEP_LABELS.length;
+
+  const progress = `
+    <div class="planner-progress">
+      ${SHOWBUILDER_STEP_LABELS.map((label, i) => `
+        ${i > 0 ? '<div class="progress-line"></div>' : ''}
+        <div class="progress-step ${i < step ? 'done' : i === step ? 'active' : ''}">
+          <div class="step-dot">${i < step ? '✓' : i + 1}</div>
+          <div class="step-label">${label}</div>
+        </div>`).join('')}
+    </div>`;
+
+  let content = '';
+  switch (step) {
+    case 0: content = renderShowBuilderStep0(d); break;
+    case 1: content = renderShowBuilderStep1(d); break;
+    case 2: content = renderShowBuilderStep2(d); break;
+    case 3: content = renderShowBuilderStep3(d); break;
+    case 4: content = renderShowBuilderStep4(d); break;
+  }
+
+  const isFirst = step === 0;
+  const isLast  = step === total - 1;
+
+  return `
+    ${navBar('radio')}
+    <div class="class-page">
+      <div class="planner-header" style="display:flex;align-items:flex-start;justify-content:space-between;flex-wrap:wrap;gap:12px">
+        <div>
+          <button class="back-btn" data-nav="radio">← Back to Radio</button>
+          <h1>Build Your Weekly Radio Show</h1>
+        </div>
+        <button class="btn-secondary" id="sb-start-over">Start Over</button>
+      </div>
+      ${progress}
+      <div class="planner-card card">
+        ${content}
+        <div class="planner-nav">
+          ${!isFirst ? `<button class="btn-secondary" id="sb-back">← Back</button>` : '<div></div>'}
+          ${!isLast
+            ? `<button class="btn-primary" id="sb-next">Continue →</button>`
+            : `<div class="planner-submit-row">
+                <button class="btn-secondary" id="sb-print">🖨️ Print</button>
+                <button class="btn-secondary" id="sb-download">⬇️ Download</button>
+                <button class="btn-primary" id="sb-submit">Submit Show Plan ✓</button>
+               </div>`}
+        </div>
+      </div>
+    </div>`;
+}
+
+function showBuilderStudentName() {
+  if (S.teacherMode) return 'Teacher';
+  let n = localStorage.getItem('hm_student_name') || '';
+  while (!n) {
+    n = shortenName((prompt("Your first and last name? So your teacher knows whose show plan this is.") || '').trim());
+    if (!n) alert('Please enter your first and last name to continue.');
+  }
+  localStorage.setItem('hm_student_name', n);
+  return n;
+}
+
+function buildShowBuilderText(d) {
+  const date = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  const lines = [
+    'WEEKLY SHOW FORMULA',
+    '====================',
+    `Student:  ${d.studentName || ''}`,
+    `Show:     ${d.showName || ''}`,
+    `Topic:    ${d.topic || ''}`,
+    `Date:     ${date}`,
+    '',
+    'DESCRIPTION',
+    d.showDesc || '',
+    '',
+    'FIVE-WEEK TEST',
+  ];
+  (d.weeks || []).forEach((w, i) => {
+    lines.push(`Week ${i + 1}: ${w.topic || ''}`);
+    if (w.discuss) lines.push(`  ${w.discuss}`);
+  });
+  lines.push(
+    '',
+    `NEWS SEGMENT: ${d.newsName || ''}`,
+    d.newsWhat || '',
+    '',
+    `FUN SEGMENT: ${d.funName || ''}`,
+    d.funHow || '',
+    d.funChange ? `Changes weekly: ${d.funChange}` : null,
+    '',
+    'REFLECTION',
+    `Most excited about: ${d.reflectExcited || ''}`,
+    `Could make 10 episodes? ${d.reflectTen || ''}`,
+    `Why listen every week? ${d.reflectListen || ''}`,
+  );
+  return lines.filter(l => l !== null).join('\n');
+}
+
+function downloadShowBuilderFile(d) {
+  const blob = new Blob([buildShowBuilderText(d)], { type: 'text/plain' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const safeShow = (d.showName || 'weekly-show-formula').replace(/[^a-z0-9]+/gi, '-').toLowerCase();
+  a.href = url;
+  a.download = `${safeShow}-formula.txt`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+async function submitShowBuilder() {
+  const d = S.showBuilderData = S.showBuilderData || emptyShowBuilderData();
+  d.studentName = showBuilderStudentName();
+  const submission = { ...d, submittedAt: new Date().toISOString() };
+  const db = getDB();
+  if (db) {
+    try { trackUsage('writes'); await db.collection('hm_show_formulas').add(submission); }
+    catch(e) {}
+  }
+  clearShowBuilderDraft();
+
+  const m = modal(`
+    <div style="text-align:center;padding:8px 0 4px">
+      <div style="font-size:2.5rem;margin-bottom:12px">✓</div>
+      <h2 style="margin-bottom:8px">Show Plan Submitted!</h2>
+      <p style="color:var(--dim);font-size:0.875rem;line-height:1.6;margin-bottom:24px">
+        Your weekly show formula for <strong>${esc(d.showName || 'your show')}</strong> is turned in.
+        Now you're ready to use it as the foundation for this week's Talk Show plan.
+      </p>
+      <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+        <button class="btn-secondary" id="sb-confirm-download" style="padding:10px 20px;font-weight:600;font-size:0.875rem">⬇️ Download a Copy</button>
+        <button class="btn-primary" id="sb-confirm-planner" style="padding:10px 20px;font-weight:600;font-size:0.875rem">Start Talk Show Plan →</button>
+      </div>
+    </div>`, null, false);
+
+  m.querySelector('#sb-confirm-download')?.addEventListener('click', () => downloadShowBuilderFile(d));
+  m.querySelector('#sb-confirm-planner')?.addEventListener('click', () => {
+    m.remove();
+    S.showBuilderData = null;
+    S.showBuilderStep = 0;
+    S.plannerData = { showType: 'talk' };
+    S.plannerStep = 0;
+    go('planner');
+  });
+
+  const doneBtn = m.querySelector('#modal-cancel');
+  doneBtn.textContent = 'Done';
+  doneBtn.addEventListener('click', () => {
+    m.remove();
+    S.showBuilderData = null;
+    S.showBuilderStep = 0;
+    go('radio');
+  });
 }
 
 // ── HOMESTEAD LIVE ────────────────────────────────────────────
@@ -6851,6 +7258,53 @@ function attachListeners() {
 
   const pd = document.getElementById('planner-download');
   if (pd) pd.addEventListener('click', () => downloadPlanFile(S.plannerData || {}));
+
+  const sbStart = document.getElementById('start-showbuilder');
+  if (sbStart) sbStart.addEventListener('click', () => {
+    S.showBuilderData = loadShowBuilderDraft() || emptyShowBuilderData();
+    S.showBuilderStep = 0;
+    go('showbuilder');
+  });
+
+  const sbn = document.getElementById('sb-next');
+  if (sbn) sbn.addEventListener('click', () => {
+    readShowBuilderStepFields(S.showBuilderStep);
+    saveShowBuilderDraft();
+    S.showBuilderStep++;
+    render();
+  });
+
+  const sbb = document.getElementById('sb-back');
+  if (sbb) sbb.addEventListener('click', () => {
+    readShowBuilderStepFields(S.showBuilderStep);
+    saveShowBuilderDraft();
+    S.showBuilderStep--;
+    render();
+  });
+
+  const sbStartOver = document.getElementById('sb-start-over');
+  if (sbStartOver) sbStartOver.addEventListener('click', () => {
+    if (!confirm("Start over? This clears everything you've entered for your show plan.")) return;
+    clearShowBuilderDraft();
+    S.showBuilderData = emptyShowBuilderData();
+    S.showBuilderStep = 0;
+    render();
+  });
+
+  const sbSubmit = document.getElementById('sb-submit');
+  if (sbSubmit) sbSubmit.addEventListener('click', submitShowBuilder);
+
+  const sbDownload = document.getElementById('sb-download');
+  if (sbDownload) sbDownload.addEventListener('click', () => downloadShowBuilderFile(S.showBuilderData || {}));
+
+  const sbPrint = document.getElementById('sb-print');
+  if (sbPrint) sbPrint.addEventListener('click', () => window.print());
+
+  document.querySelectorAll('.sb-field').forEach(el =>
+    el.addEventListener('blur', () => {
+      readShowBuilderStepFields(S.showBuilderStep);
+      saveShowBuilderDraft();
+    }));
 
   document.querySelectorAll('.showtype-btn').forEach(btn =>
     btn.addEventListener('click', () => {
