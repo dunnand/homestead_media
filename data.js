@@ -45,6 +45,14 @@ const EVENT_TYPES = {
   other:           { label: 'Other',             color: '#6b7280' }
 };
 
+// Weekly-updated production sheets (Google Docs), linked from each sport's broadcast rundown
+const PRODUCTION_SHEETS = {
+  football:         'https://docs.google.com/document/d/1Bp_Yg7c97YroLEQ264LyM2G7qDAuBgrFn27TrM0Ont8/edit?tab=t.0',
+  volleyball:       'https://docs.google.com/document/d/1fkT8ySHm13vNjJWUsjT0vj6lf1_vEt4XxH0c7t7ceCY/edit',
+  basketball_boys:  'https://docs.google.com/document/d/1vGGuJxumEk0B6Br0VR4iZt4GV3A6LAm0Ebg-uZ67IBQ/edit?tab=t.0',
+  basketball_girls: 'https://docs.google.com/document/d/1lp7vD4rdBB18dNg9VU99TwFGxw4y8dz5bsM0wVtIxjQ/edit?tab=t.0',
+};
+
 
 // ── Radio Stations & Schedule ────────────────────────────────
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
