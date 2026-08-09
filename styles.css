@@ -2533,6 +2533,8 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .lesson-move-btn:disabled { opacity: 0.25; cursor: default; }
 .lesson-item-icon-edit { cursor: pointer; border: 1px dashed transparent; }
 .lesson-item-icon-edit:hover { border-color: var(--dim); background: var(--surface3, rgba(255,255,255,0.06)); }
+.lesson-item-title-edit { cursor: pointer; border-radius: 6px; padding: 2px 4px; margin: -2px -4px 3px; }
+.lesson-item-title-edit:hover { background: var(--surface3, rgba(255,255,255,0.06)); }
 
 /* ── Lesson Slideshow ────────────────────────────────────────── */
 .ls-show {

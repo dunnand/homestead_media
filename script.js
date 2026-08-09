@@ -3588,7 +3588,7 @@ function renderLive() {
                 <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${getLessonIcon(l, '🎬')}</div>
                 <div class="lesson-item-body">
                   <div class="lesson-item-num">${esc(l.unitTitle)}</div>
-                  <div class="lesson-item-title">${esc(l.title)}</div>
+                  <div class="lesson-item-title${S.teacherMode ? ' lesson-item-title-edit' : ''}" ${S.teacherMode ? `data-edit-title="${l.id}" title="Click to edit title"` : ''}>${esc(l.title)}${S.teacherMode ? ' ✏️' : ''}</div>
                   <div class="lesson-item-summary">${esc(l.summary || '')}</div>
                 </div>
                 <div class="lesson-item-right">
@@ -7720,6 +7720,21 @@ function attachListeners() {
     });
   });
 
+  // ── Lesson title editing (teacher-only) ─────────────────────────
+  document.querySelectorAll('[data-edit-title]').forEach(el => {
+    el.addEventListener('click', e => {
+      e.stopPropagation();
+      const id = el.dataset.editTitle;
+      const lesson = getAllLessonsFlat().find(l => l.id === id);
+      if (!lesson) return;
+      const newTitle = prompt(
+        lesson.isCustom ? 'Edit this lesson\'s title:' : 'Edit this lesson\'s title (leave blank to reset to the default):',
+        lesson.title);
+      if (newTitle === null) return;
+      renameLessonTitle(lesson, newTitle.trim());
+    });
+  });
+
   // ── Canva lesson handlers ────────────────────────────────────
   const lsConnectCanva = document.getElementById('ls-connect-canva');
   if (lsConnectCanva) lsConnectCanva.addEventListener('click', async () => {
@@ -7883,7 +7898,7 @@ function renderLessonCourse() {
         <div class="lesson-item-icon${S.teacherMode ? ' lesson-item-icon-edit' : ''}" ${S.teacherMode ? `data-edit-icon="${l.id}" title="Click to change icon"` : ''}>${icon}</div>
         <div class="lesson-item-body">
           <div class="lesson-item-num">${esc(l.unitTitle)}</div>
-          <div class="lesson-item-title">${esc(l.title)}</div>
+          <div class="lesson-item-title${S.teacherMode ? ' lesson-item-title-edit' : ''}" ${S.teacherMode ? `data-edit-title="${l.id}" title="Click to edit title"` : ''}>${esc(l.title)}${S.teacherMode ? ' ✏️' : ''}</div>
           <div class="lesson-item-summary">${esc(l.summary || '')}</div>
         </div>
         <div class="lesson-item-right">
@@ -8720,6 +8735,34 @@ async function setLessonIcon(lessonId, icon) {
     delete S.lessonIcons[lessonId];
   }
   render();
+}
+
+async function renameLessonTitle(lesson, title) {
+  const db = getDB();
+  if (!db) return;
+
+  // Canva lessons store their own title directly rather than through the
+  // built-in-lesson override system, since they have no data.js entry to override.
+  if (lesson.isCustom) {
+    if (!title) { showToast('Custom lessons need a title.'); return; }
+    trackUsage('writes');
+    await db.collection('hm_canva_lessons').doc(lesson.id).set({ title }, { merge: true });
+    S.canvaLessons[lesson.id] = { ...(S.canvaLessons[lesson.id] || {}), title };
+    render();
+    return;
+  }
+
+  const cur = S.lessonEdits[lesson.id] || {};
+  if (title) cur.title = title; else delete cur.title;
+  const empty = !Object.keys(cur).length;
+  if (empty) delete S.lessonEdits[lesson.id]; else S.lessonEdits[lesson.id] = cur;
+  render();
+
+  try {
+    trackUsage('writes');
+    if (empty) await db.collection('hm_lesson_edits').doc(lesson.id).delete();
+    else await db.collection('hm_lesson_edits').doc(lesson.id).set(cur);
+  } catch(e) { console.error('lesson title save failed', e); }
 }
 
 async function loadIntroClassInfo() {
