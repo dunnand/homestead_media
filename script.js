@@ -3792,6 +3792,7 @@ function renderBroadcast() {
           </div>
         </div>` : ''}
       </div>
+      ${renderProductionSheetLink(b)}
       <div class="page-grid">
         <div class="main-col">
           <section class="card">
@@ -3858,7 +3859,6 @@ function renderBroadcast() {
           </section>
         </div>
       </div>
-      ${renderProductionSheetLink(b)}
       ${renderRundownSection(b)}
     </div>`;
 }
