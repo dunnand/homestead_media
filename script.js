@@ -9369,7 +9369,7 @@ function renderRundownSection(b) {
       <div class="card-header">
         <h2>📋 Broadcast Rundown</h2>
         <div class="rd-actions">
-          ${PRODUCTION_SHEETS[sport] ? `<a class="btn-secondary" href="${PRODUCTION_SHEETS[sport]}" target="_blank" rel="noopener" title="Weekly ${sportLabel} production sheet (Google Doc)">📄 Production Sheet</a>` : ''}
+          ${SHOW_PRODUCTION_SHEETS && PRODUCTION_SHEETS[sport] ? `<a class="btn-secondary" href="${PRODUCTION_SHEETS[sport]}" target="_blank" rel="noopener" title="Weekly ${sportLabel} production sheet (Google Doc)">📄 Production Sheet</a>` : ''}
           <button class="btn-secondary" id="rd-print-btn" data-rd-bid="${b.id}">🖨️ Print</button>
           ${!editing ? `
             ${S.teacherMode ? `
