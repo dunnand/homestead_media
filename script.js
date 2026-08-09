@@ -3858,6 +3858,7 @@ function renderBroadcast() {
           </section>
         </div>
       </div>
+      ${renderProductionSheetLink(b)}
       ${renderRundownSection(b)}
     </div>`;
 }
@@ -9341,6 +9342,19 @@ function rdAddRow(bid) {
   render();
 }
 
+function renderProductionSheetLink(b) {
+  if (!SHOW_PRODUCTION_SHEETS) return '';
+  const url = PRODUCTION_SHEETS[b.type];
+  if (!url) return '';
+  const sportLabel = (EVENT_TYPES[b.type] || EVENT_TYPES.other).label;
+  return `
+    <section class="card">
+      <div class="card-header"><h2>📄 Production Sheet</h2></div>
+      <a class="btn-primary" href="${url}" target="_blank" rel="noopener"
+        title="Weekly ${sportLabel} production sheet (Google Doc)">Open Production Sheet ↗</a>
+    </section>`;
+}
+
 function renderRundownSection(b) {
   if (!SHOW_BROADCAST_RUNDOWN) return '';
   const sport = b.type;
@@ -9370,7 +9384,6 @@ function renderRundownSection(b) {
       <div class="card-header">
         <h2>📋 Broadcast Rundown</h2>
         <div class="rd-actions">
-          ${SHOW_PRODUCTION_SHEETS && PRODUCTION_SHEETS[sport] ? `<a class="btn-secondary" href="${PRODUCTION_SHEETS[sport]}" target="_blank" rel="noopener" title="Weekly ${sportLabel} production sheet (Google Doc)">📄 Production Sheet</a>` : ''}
           <button class="btn-secondary" id="rd-print-btn" data-rd-bid="${b.id}">🖨️ Print</button>
           ${!editing ? `
             ${S.teacherMode ? `

@@ -49,7 +49,7 @@ const EVENT_TYPES = {
 const SHOW_BROADCAST_RUNDOWN = false; // set true to show the Broadcast Rundown card again
 
 // Weekly-updated production sheets (Google Docs), linked from each sport's broadcast rundown
-const SHOW_PRODUCTION_SHEETS = false; // set true to show the "Production Sheet" link again
+const SHOW_PRODUCTION_SHEETS = true; // set false to hide the "Production Sheet" link
 const PRODUCTION_SHEETS = {
   football:         'https://docs.google.com/document/d/1Bp_Yg7c97YroLEQ264LyM2G7qDAuBgrFn27TrM0Ont8/edit?tab=t.0',
   volleyball:       'https://docs.google.com/document/d/1fkT8ySHm13vNjJWUsjT0vj6lf1_vEt4XxH0c7t7ceCY/edit',
