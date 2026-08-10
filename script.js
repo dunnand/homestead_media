@@ -406,7 +406,7 @@ function go(view, extra) {
   if (view === 'beats')   loadBeatAssignments();
   if (view === 'storyplans') loadStoryPlans();
   if (view === 'indepth') loadRundownData();
-  if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadRundownData(S.broadcastId); }
+  if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadBroadcastRundownData(S.broadcastId); }
   if (view === 'icebreaker') loadIcebreakerGame(S.icebreakerGame);
 }
 
@@ -9622,7 +9622,7 @@ function getRundownTemplate(type) {
 }
 
 // Loads both the sport master template and any per-game override
-async function loadRundownData(bid) {
+async function loadBroadcastRundownData(bid) {
   S.editingRundown = false;
   S.rundownEditBackup = null;
   const b = (S.broadcasts || []).find(x => x.id === bid);
