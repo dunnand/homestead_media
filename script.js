@@ -1313,7 +1313,7 @@ async function newSpeedQuestion() {
   if (!db) return;
   let next = Math.floor(Math.random() * SPEED_QUESTIONS.length);
   if (SPEED_QUESTIONS.length > 1 && next === S.speedIndex) next = (next + 1) % SPEED_QUESTIONS.length;
-  await db.collection('hm_speed_state').doc('current').set({ index: next, timerStartedAt: null, updatedAt: Date.now() });
+  await db.collection('hm_speed_state').doc('current').set({ index: next, timerStartedAt: Date.now(), updatedAt: Date.now() });
 }
 
 async function startSpeedTimer() {
@@ -3461,13 +3461,12 @@ function renderPlanner() {
 const SHOWBUILDER_STEP_LABELS = ['Show Idea', 'Five-Week Test', 'News', 'Fun Segment', 'Show Plan'];
 
 const SHOWBUILDER_TOPIC_CHIPS = [
-  'Video Games', 'Sports', 'Movies', 'Music', 'Cars', 'Technology',
+  'Video Games', 'Movies', 'Music', 'Cars', 'Technology',
   'Food', 'Fashion', 'School Life', 'Pop Culture', 'Outdoors', 'Entertainment',
 ];
 
 const SHOWBUILDER_NEWS_EXAMPLES = [
   { topic: 'Video Games', examples: 'releases, announcements, updates, industry news' },
-  { topic: 'Sports',      examples: 'scores, trades, injuries, standings' },
   { topic: 'Movies',      examples: 'trailers, releases, casting announcements' },
   { topic: 'Music',       examples: 'new songs, albums, tours' },
 ];
@@ -3556,7 +3555,7 @@ function renderShowBuilderStep0(d) {
       <input id="sb-showname" class="sb-field" type="text" value="${esc(d.showName || '')}" placeholder="e.g. Respawn Radio">
     </div>
     <div class="form-group">
-      <label>Show Description <span class="hint">(one sentence)</span></label>
+      <label>Tagline <span class="hint">(one sentence)</span></label>
       <textarea id="sb-showdesc" class="sb-field" rows="2" placeholder="Sum up your show in one sentence.">${esc(d.showDesc || '')}</textarea>
     </div>`;
 }
@@ -4695,7 +4694,7 @@ function renderInDepth() {
           <section class="card action-card">
             <div class="action-icon">📋</div>
             <h3>Coverage Beats</h3>
-            <p>15 beats assigned in pairs — see who covers what.</p>
+            <p style="font-size:0.92rem;color:var(--text)">15 beats assigned in pairs — see who covers what.</p>
             <button class="btn-primary" style="background:var(--indepth)" data-nav="beats">View Beats →</button>
           </section>
           <section class="card action-card">
