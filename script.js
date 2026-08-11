@@ -6598,23 +6598,31 @@ function getCurrentAirWeek() {
   return { week: AIR_WEEKLY_FOLDERS[AIR_WEEKLY_FOLDERS.length - 1], status: 'past' };
 }
 
-// Fire-and-forget — files a Doc named "Student Name — Show Name — Date"
-// into the current week's shared-drive folder. Same pattern as the
-// Athletics Calendar sync button (no-cors POST, response not read).
-function fileAirPlanToDrive(p) {
+// Files a Doc named "Student Name — Show Name — Date" into the current
+// week's shared-drive folder. Uses no-cors (Apps Script POST responses
+// aren't reliably readable cross-origin), so this can't know whether the
+// filing itself succeeded — Code.gs reports that back by writing directly
+// onto the hm_radio_plans/{subId} doc (see updateSubmissionStatus in
+// Code.gs), which the Teacher Dashboard's Talk Show Plans list reads.
+// Awaited (rather than fire-and-forget) so the request has left the
+// browser before the page can navigate away or be closed.
+async function fileAirPlanToDrive(p, subId) {
   if (!SYNC_SCRIPT_URL) return;
-  fetch(SYNC_SCRIPT_URL, {
-    method: 'POST',
-    mode: 'no-cors',
-    body: JSON.stringify({
-      action: 'submitAirPlan',
-      studentName: p.studentName || '',
-      showName: p.showName || '',
-      showType: p.showType || '',
-      planText: buildPlanText(p),
-      submittedAt: new Date().toISOString(),
-    }),
-  }).catch(() => {});
+  try {
+    await fetch(SYNC_SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      body: JSON.stringify({
+        action: 'submitAirPlan',
+        subId: subId || '',
+        studentName: p.studentName || '',
+        showName: p.showName || '',
+        showType: p.showType || '',
+        planText: buildPlanText(p),
+        submittedAt: new Date().toISOString(),
+      }),
+    });
+  } catch (e) {}
 }
 
 async function submitPlan() {
@@ -6622,14 +6630,26 @@ async function submitPlan() {
   if (!p.studentName) { showToast('Please enter your name first.'); return; }
   const submission = { ...p, submittedAt: new Date().toISOString() };
   const db = getDB();
+  let subId = '';
   if (db) {
     // partnerEmails is only used for the local "email a copy" mailto link —
     // never stored server-side.
     const { partnerEmails, ...dbSubmission } = submission;
-    try { trackUsage('writes'); await db.collection('hm_radio_plans').add(dbSubmission); }
-    catch(e) {}
+    dbSubmission.driveFiled = false;
+    dbSubmission.driveFileUrl = '';
+    dbSubmission.driveFileError = '';
+    try {
+      trackUsage('writes');
+      // Explicit ID (rather than .add()'s auto ID) so Code.gs can report
+      // Drive-filing status back onto this exact doc once it's done.
+      const ref = db.collection('hm_radio_plans').doc();
+      subId = ref.id;
+      await ref.set(dbSubmission);
+    } catch(e) {}
   }
-  fileAirPlanToDrive(p);
+  // Attempted regardless of whether the Firestore write above succeeded —
+  // Drive filing shouldn't depend on it.
+  await fileAirPlanToDrive(p, subId);
   localStorage.setItem('hm_plan_' + p.studentName, JSON.stringify(submission));
 
   const typeLabel   = (PLANNER_TYPES[p.showType] || {}).label || 'show';
@@ -7923,6 +7943,19 @@ function attachListeners() {
     btn.addEventListener('click', () => {
       const sub = (S.submissions || []).find(s => s.id === btn.dataset.subId);
       if (sub) showSubmissionDetail(sub, null);
+    });
+  });
+
+  document.querySelectorAll('.db-plan-retry').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sub = (S.submissions || []).find(s => s.id === btn.dataset.subId);
+      if (!sub) return;
+      btn.disabled = true;
+      btn.textContent = 'Filing…';
+      await fileAirPlanToDrive(sub, sub.id);
+      showToast('Retried — refresh in a moment to see the updated status.');
+      btn.disabled = false;
+      btn.textContent = 'Retry';
     });
   });
 
@@ -10665,7 +10698,12 @@ function renderDashboard() {
 
   // Talk Show plans section
   const plansSection = plans.length
-    ? plans.map(s => `
+    ? plans.map(s => {
+        const filedBadge = s.driveFiled
+          ? `<a href="${esc(s.driveFileUrl || '#')}" target="_blank" rel="noopener" class="db-drive-badge db-drive-ok" title="Open in Drive">✅ In Drive</a>`
+          : `<span class="db-drive-badge db-drive-missing" title="${esc(s.driveFileError || 'Never confirmed as filed')}">⚠️ Not in Drive</span>
+             <button class="btn-secondary db-btn db-plan-retry" data-sub-id="${esc(s.id)}" style="font-size:0.72rem">Retry</button>`;
+        return `
         <div class="db-plan-row">
           <div class="db-plan-main">
             <div class="db-entry-student">${esc(s.studentName || 'Unknown')}</div>
@@ -10674,9 +10712,11 @@ function renderDashboard() {
           </div>
           <div class="db-entry-meta">
             <span class="dim" style="font-size:0.75rem">${s.submittedAt ? new Date(s.submittedAt).toLocaleDateString() : ''}</span>
+            ${filedBadge}
             <button class="btn-secondary db-btn db-plan-detail" data-sub-id="${esc(s.id)}" style="font-size:0.75rem">View Plan →</button>
           </div>
-        </div>`).join('')
+        </div>`;
+      }).join('')
     : `<p class="dim" style="padding:16px 0;font-size:0.875rem">No plans submitted yet.</p>`;
 
   const usage = getUsage();

@@ -10,6 +10,38 @@
 const SOURCE_CAL_ID     = 'fd9gn9o6bq5lfvsaiqkt4gs4n1gneqc6@import.calendar.google.com';
 const TARGET_CAL_ID     = '2b9bdfdee65f7330d8d5d2fd1d4877c1b709289fa0b0747427f57fd62516bed5@group.calendar.google.com';
 
+// Same public project/key the website's client-side Firebase SDK uses —
+// already public in script.js, and Firestore access is governed by the
+// project's security rules either way, not by keeping this secret.
+const FIREBASE_PROJECT_ID = 'audioaficionados-21ba0';
+const FIREBASE_API_KEY    = 'AIzaSyADo4bTrSIgnLwQkYXsIIbivyZSPcNHATM';
+
+// Writes Drive-filing status directly onto the submission's own Firestore
+// doc, so the Teacher Dashboard can show which plans actually made it to
+// Drive without depending on the browser ever reading this script's
+// response (which no-cors POSTs can't do reliably cross-origin).
+function updateSubmissionStatus(subId, fields) {
+  if (!subId) return;
+  const firestoreFields = {};
+  const maskPaths = [];
+  Object.keys(fields).forEach(key => {
+    const val = fields[key];
+    maskPaths.push('updateMask.fieldPaths=' + encodeURIComponent(key));
+    if (typeof val === 'boolean') firestoreFields[key] = { booleanValue: val };
+    else firestoreFields[key] = { stringValue: String(val) };
+  });
+  const url = `https://firestore.googleapis.com/v1/projects/${FIREBASE_PROJECT_ID}/databases/(default)/documents/hm_radio_plans/${subId}`
+    + `?key=${FIREBASE_API_KEY}&` + maskPaths.join('&');
+  try {
+    UrlFetchApp.fetch(url, {
+      method: 'patch',
+      contentType: 'application/json',
+      payload: JSON.stringify({ fields: firestoreFields }),
+      muteHttpExceptions: true,
+    });
+  } catch (e) {}
+}
+
 function respond(obj) {
   return ContentService.createTextOutput(JSON.stringify(obj))
     .setMimeType(ContentService.MimeType.JSON);
@@ -511,22 +543,29 @@ function airWeeklyFolderForDate(dateStr) {
 }
 
 function fileAirPlan(data) {
-  const tz = 'America/Indiana/Indianapolis';
-  const submitted = data.submittedAt ? new Date(data.submittedAt) : new Date();
-  const todayStr  = Utilities.formatDate(submitted, tz, 'yyyy-MM-dd');
-  const dateLabel = Utilities.formatDate(submitted, tz, 'MMM d, yyyy');
-  const folder    = DriveApp.getFolderById(airWeeklyFolderForDate(todayStr));
+  try {
+    const tz = 'America/Indiana/Indianapolis';
+    const submitted = data.submittedAt ? new Date(data.submittedAt) : new Date();
+    const todayStr  = Utilities.formatDate(submitted, tz, 'yyyy-MM-dd');
+    const dateLabel = Utilities.formatDate(submitted, tz, 'MMM d, yyyy');
+    const folder    = DriveApp.getFolderById(airWeeklyFolderForDate(todayStr));
 
-  const studentName = data.studentName || 'Unknown Student';
-  const showName    = data.showName || '';
-  const fileName = showName ? `${studentName} — ${showName} — ${dateLabel}` : `${studentName} — ${dateLabel}`;
+    const studentName = data.studentName || 'Unknown Student';
+    const showName    = data.showName || '';
+    const fileName = showName ? `${studentName} — ${showName} — ${dateLabel}` : `${studentName} — ${dateLabel}`;
 
-  const doc = DocumentApp.create(fileName);
-  const body = doc.getBody();
-  body.appendParagraph(fileName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
-  (data.planText || '').split('\n').forEach(line => body.appendParagraph(line));
-  doc.saveAndClose();
+    const doc = DocumentApp.create(fileName);
+    const body = doc.getBody();
+    body.appendParagraph(fileName).setHeading(DocumentApp.ParagraphHeading.HEADING1);
+    (data.planText || '').split('\n').forEach(line => body.appendParagraph(line));
+    doc.saveAndClose();
 
-  DriveApp.getFileById(doc.getId()).moveTo(folder);
+    const file = DriveApp.getFileById(doc.getId());
+    file.moveTo(folder);
+
+    updateSubmissionStatus(data.subId, { driveFiled: true, driveFileUrl: file.getUrl(), driveFileError: '' });
+  } catch (err) {
+    updateSubmissionStatus(data.subId, { driveFiled: false, driveFileError: err.toString() });
+  }
 }
 
