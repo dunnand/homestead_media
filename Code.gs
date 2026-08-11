@@ -335,28 +335,28 @@ const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 18 (Nov 30–Dec 4)', start: '2026-11-30', end: '2026-12-04', folderId: '1pVHz1C2K0c1suLkgI0lWwKS4QhvvT_Uw' },
   { label: 'Week 19 (Dec 7–Dec 11)', start: '2026-12-07', end: '2026-12-11', folderId: '1tQhRtOsyNWHRZxRUxtxTmlUnL4ACzqnO' },
   { label: 'Week 20 (Dec 14–Dec 18)', start: '2026-12-14', end: '2026-12-18', folderId: '1lcTgCRWGPm7ukqH2R_RTNdhgfmdZgr-B' },
-  // Second semester — run createFutureWeeklyFolders() to fill these in.
-  { label: 'Week 21 (Jan 5–Jan 8)', start: '2027-01-05', end: '2027-01-08', folderId: '' },
-  { label: 'Week 22 (Jan 11–Jan 15)', start: '2027-01-11', end: '2027-01-15', folderId: '' },
-  { label: 'Week 23 (Jan 18–Jan 22)', start: '2027-01-18', end: '2027-01-22', folderId: '' },
-  { label: 'Week 24 (Jan 25–Jan 29)', start: '2027-01-25', end: '2027-01-29', folderId: '' },
-  { label: 'Week 25 (Feb 1–Feb 5)', start: '2027-02-01', end: '2027-02-05', folderId: '' },
-  { label: 'Week 26 (Feb 8–Feb 12)', start: '2027-02-08', end: '2027-02-12', folderId: '' },
-  { label: 'Week 27 (Feb 15–Feb 19)', start: '2027-02-15', end: '2027-02-19', folderId: '' },
-  { label: 'Week 28 (Feb 22–Feb 26)', start: '2027-02-22', end: '2027-02-26', folderId: '' },
-  { label: 'Week 29 (Mar 1–Mar 5)', start: '2027-03-01', end: '2027-03-05', folderId: '' },
-  { label: 'Week 30 (Mar 8–Mar 12)', start: '2027-03-08', end: '2027-03-12', folderId: '' },
-  { label: 'Week 31 (Mar 15–Mar 19)', start: '2027-03-15', end: '2027-03-19', folderId: '' },
-  { label: 'Week 32 (Mar 22–Mar 26)', start: '2027-03-22', end: '2027-03-26', folderId: '' },
-  { label: 'Week 33 (Mar 29–Apr 2)', start: '2027-03-29', end: '2027-04-02', folderId: '' },
-  { label: 'Week 34 (Apr 5–Apr 9)', start: '2027-04-05', end: '2027-04-09', folderId: '' },
-  { label: 'Week 35 (Apr 12–Apr 16)', start: '2027-04-12', end: '2027-04-16', folderId: '' },
-  { label: 'Week 36 (Apr 19–Apr 23)', start: '2027-04-19', end: '2027-04-23', folderId: '' },
-  { label: 'Week 37 (Apr 26–Apr 30)', start: '2027-04-26', end: '2027-04-30', folderId: '' },
-  { label: 'Week 38 (May 3–May 7)', start: '2027-05-03', end: '2027-05-07', folderId: '' },
-  { label: 'Week 39 (May 10–May 14)', start: '2027-05-10', end: '2027-05-14', folderId: '' },
-  { label: 'Week 40 (May 17–May 21)', start: '2027-05-17', end: '2027-05-21', folderId: '' },
-  { label: 'Week 41 (May 24–May 28)', start: '2027-05-24', end: '2027-05-28', folderId: '' },
+  // Second semester
+  { label: 'Week 21 (Jan 5–Jan 8)', start: '2027-01-05', end: '2027-01-08', folderId: '115ArJ9BZBQ6GMb6jYU1EsGi0PKAls50C' },
+  { label: 'Week 22 (Jan 11–Jan 15)', start: '2027-01-11', end: '2027-01-15', folderId: '1TkSprMa4TLyLVdkFfvfSCCmsqEbLp6ic' },
+  { label: 'Week 23 (Jan 18–Jan 22)', start: '2027-01-18', end: '2027-01-22', folderId: '1SrGjleINf5Iytyind1T-cULBk-n2G6in' },
+  { label: 'Week 24 (Jan 25–Jan 29)', start: '2027-01-25', end: '2027-01-29', folderId: '1O3EhYPUy1QAf4AuRuXOU-Dp7CJxP6XAN' },
+  { label: 'Week 25 (Feb 1–Feb 5)', start: '2027-02-01', end: '2027-02-05', folderId: '11v02VYl44pmKfHCtINCp-mXmxACXkIH0' },
+  { label: 'Week 26 (Feb 8–Feb 12)', start: '2027-02-08', end: '2027-02-12', folderId: '1N_rQ-DpOJdi7xA7kUdhTx7AvoVyQ_Jmn' },
+  { label: 'Week 27 (Feb 15–Feb 19)', start: '2027-02-15', end: '2027-02-19', folderId: '1yIpvaoZFZiVN6-OgxJTg8OXU0xeNXGcB' },
+  { label: 'Week 28 (Feb 22–Feb 26)', start: '2027-02-22', end: '2027-02-26', folderId: '1iHihBwVstXwpc7htGzXSj1Zmn8YXdSgm' },
+  { label: 'Week 29 (Mar 1–Mar 5)', start: '2027-03-01', end: '2027-03-05', folderId: '1cKlC0WlKWVuj_ORwKrS8i7K6atFHpDnv' },
+  { label: 'Week 30 (Mar 8–Mar 12)', start: '2027-03-08', end: '2027-03-12', folderId: '1OUt8nyi5qcBsBtDZXG0t_3n7YKz4csoS' },
+  { label: 'Week 31 (Mar 15–Mar 19)', start: '2027-03-15', end: '2027-03-19', folderId: '1HtBSlkXz7nlyyiosXmHPh8H8pOJAElXG' },
+  { label: 'Week 32 (Mar 22–Mar 26)', start: '2027-03-22', end: '2027-03-26', folderId: '1uFoPLgkA_X14gqfvxb0M5jOEaHxMd1h1' },
+  { label: 'Week 33 (Mar 29–Apr 2)', start: '2027-03-29', end: '2027-04-02', folderId: '1v-lZ5Ws4Oq-VN0ch-Ll82-1lV_2VcoKF' },
+  { label: 'Week 34 (Apr 5–Apr 9)', start: '2027-04-05', end: '2027-04-09', folderId: '1Cnrj_Hzp18V9yyGXSBdACvHN6UFOQDAs' },
+  { label: 'Week 35 (Apr 12–Apr 16)', start: '2027-04-12', end: '2027-04-16', folderId: '1bXCfKaSkFkHcLh06Pa6Z6m5OPXtkKJSh' },
+  { label: 'Week 36 (Apr 19–Apr 23)', start: '2027-04-19', end: '2027-04-23', folderId: '1fcUzGIEhqCUQN4SC5RW_XO7PqhDQswWb' },
+  { label: 'Week 37 (Apr 26–Apr 30)', start: '2027-04-26', end: '2027-04-30', folderId: '19zqdDvBtB4PAN41t_qMaVJTgnUXOZizP' },
+  { label: 'Week 38 (May 3–May 7)', start: '2027-05-03', end: '2027-05-07', folderId: '1Lou_r0A8IH3JlaIlFDlB1-0ImElwZLGk' },
+  { label: 'Week 39 (May 10–May 14)', start: '2027-05-10', end: '2027-05-14', folderId: '1758ElOP-XGoVirAThqcvIQd1TvBANs9v' },
+  { label: 'Week 40 (May 17–May 21)', start: '2027-05-17', end: '2027-05-21', folderId: '1FVlwgA0G9wX2-qbjnYhns0CPhWnDDK_s' },
+  { label: 'Week 41 (May 24–May 28)', start: '2027-05-24', end: '2027-05-28', folderId: '1kYTsoTQuNtT6nHB84aEblLbsWV1CXicz' },
 ];
 
 // Run once from the Apps Script editor after setting/changing the weeks
@@ -407,6 +407,36 @@ function createAirWeeklySubfolder() {
   if (failed.length) Logger.log('Failed to move: ' + failed.join('; '));
 
   return { success: true, rootFolderId: sub.getId(), url: sub.getUrl(), moved, failed };
+}
+
+// ONE-TIME FOLLOW-UP to createAirWeeklySubfolder(): a batch of Week N
+// folders (weeks 21-41) had already been created directly in the shared
+// drive's root by an earlier createFutureWeeklyFolders() run whose logged
+// IDs never got pasted back into AIR_WEEKLY_FOLDERS above, so the first
+// cleanup pass skipped them. Run this once, after AIR_WEEKLY_ROOT_FOLDER_ID
+// is set, to sweep any remaining "Week N ..." folders sitting loose in the
+// shared drive's root into the subfolder. Safe to re-run — folders already
+// inside the subfolder won't be found by this scan (it only looks at the
+// shared drive's top level), so nothing gets moved twice.
+function moveStrayAirWeeklyFolders() {
+  if (!AIR_WEEKLY_ROOT_FOLDER_ID) {
+    return { success: false, error: 'AIR_WEEKLY_ROOT_FOLDER_ID is not set — run createAirWeeklySubfolder() first.' };
+  }
+  const drive = DriveApp.getFolderById(AIR_WEEKLY_DRIVE_ID);
+  const sub = DriveApp.getFolderById(AIR_WEEKLY_ROOT_FOLDER_ID);
+  const folders = drive.getFolders();
+  let moved = 0, movedNames = [];
+  while (folders.hasNext()) {
+    const f = folders.next();
+    if (f.getId() === AIR_WEEKLY_ROOT_FOLDER_ID) continue;
+    if (/^Week \d+/.test(f.getName())) {
+      f.moveTo(sub);
+      moved++;
+      movedNames.push(f.getName());
+    }
+  }
+  Logger.log('Moved ' + moved + ' stray week folders: ' + movedNames.join(', '));
+  return { success: true, moved, movedNames };
 }
 
 function createAirWeeklyFolders() {
