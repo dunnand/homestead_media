@@ -6541,11 +6541,9 @@ function savePlannerStep() {
 // Code.gs. Must stay in sync with AIR_WEEKLY_FOLDERS in Code.gs if weeks
 // are added/changed. Folder IDs live server-side only; this list is just
 // for the "this is week X" status shown to students.
-// TODO: once createAirWeeklySubfolder() has been run in Code.gs (see that
-// function), update this to https://drive.google.com/drive/u/2/folders/<AIR_WEEKLY_ROOT_FOLDER_ID>
-// so "Browse Submitted Plans" opens the tidy "Weekly Show Plans" subfolder
-// instead of the shared drive's cluttered main section.
-const AIR_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/u/2/folders/0AGI4ogJFHfYTUk9PVA';
+// Points at the "Weekly Show Plans" subfolder (AIR_WEEKLY_ROOT_FOLDER_ID
+// in Code.gs), not the shared drive's main section.
+const AIR_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/u/2/folders/10D3p4gXFXyd3QQqtTBEkbm4WUCbVnl0Q';
 const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)',    start: '2026-08-05', end: '2026-08-07' },
   { label: 'Week 2 (Aug 10–Aug 14)',  start: '2026-08-10', end: '2026-08-14' },

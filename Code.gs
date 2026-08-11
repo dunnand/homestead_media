@@ -312,10 +312,9 @@ function onWeeklyFormSubmit(e) {
 //    push a new version.)
 // Must stay in sync with AIR_WEEKLY_FOLDERS in script.js if weeks change.
 const AIR_WEEKLY_DRIVE_ID = '0AGI4ogJFHfYTUk9PVA'; // shared drive — not a regular folder
-// Subfolder inside the shared drive above that holds all the Week N
-// folders, so the shared drive's main section stays clean. Empty until
-// createAirWeeklySubfolder() has been run once — see that function.
-const AIR_WEEKLY_ROOT_FOLDER_ID = '';
+// "Weekly Show Plans" subfolder inside the shared drive above, holding
+// all the Week N folders so the shared drive's main section stays clean.
+const AIR_WEEKLY_ROOT_FOLDER_ID = '10D3p4gXFXyd3QQqtTBEkbm4WUCbVnl0Q';
 const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)', start: '2026-08-05', end: '2026-08-07', folderId: '1hebPTfmH4X3q6WCkDmWW9Ur_7hEVbHpQ' },
   { label: 'Week 2 (Aug 10–Aug 14)', start: '2026-08-10', end: '2026-08-14', folderId: '1l4A1zTOr5k48NBy2PFYOB7F_3RMNcDAg' },
