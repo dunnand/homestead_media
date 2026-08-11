@@ -1122,6 +1122,31 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   .station-grid { grid-template-columns: 1fr; }
 }
 
+/* ── After-School Strip ─────────────────────────────────── */
+.as-strip { margin-top: 16px; padding: 12px 14px; }
+.as-strip-head {
+  display: flex; align-items: baseline; justify-content: space-between;
+  margin-bottom: 8px;
+}
+.as-strip-head h3 { font-size: 0.85rem; font-weight: 700; }
+.as-strip-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.as-pill {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  padding: 6px 8px; text-align: center; min-width: 0;
+}
+.as-pill.empty .as-pill-show { opacity: 0.4; }
+[data-as-day] { cursor: pointer; transition: border-color 0.12s; }
+[data-as-day]:hover { border-color: var(--accent); }
+.as-pill-day {
+  font-size: 0.65rem; font-weight: 700; color: var(--dim);
+  text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 2px;
+}
+.as-pill-show { font-size: 0.78rem; font-weight: 600; overflow-wrap: anywhere; }
+.as-pill-host { font-size: 0.68rem; color: var(--dim); margin-top: 2px; overflow-wrap: anywhere; }
+@media (max-width: 700px) {
+  .as-strip-row { grid-template-columns: repeat(3, 1fr); }
+}
+
 /* ── Recently Played (The Point) ────────────────────────── */
 .point-recent-card { margin-top: 16px; padding: 16px; }
 .point-recent-loading { font-size: 0.85rem; color: var(--dim); }

@@ -312,6 +312,10 @@ function onWeeklyFormSubmit(e) {
 //    push a new version.)
 // Must stay in sync with AIR_WEEKLY_FOLDERS in script.js if weeks change.
 const AIR_WEEKLY_DRIVE_ID = '0AGI4ogJFHfYTUk9PVA'; // shared drive — not a regular folder
+// Subfolder inside the shared drive above that holds all the Week N
+// folders, so the shared drive's main section stays clean. Empty until
+// createAirWeeklySubfolder() has been run once — see that function.
+const AIR_WEEKLY_ROOT_FOLDER_ID = '';
 const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)', start: '2026-08-05', end: '2026-08-07', folderId: '1hebPTfmH4X3q6WCkDmWW9Ur_7hEVbHpQ' },
   { label: 'Week 2 (Aug 10–Aug 14)', start: '2026-08-10', end: '2026-08-14', folderId: '1l4A1zTOr5k48NBy2PFYOB7F_3RMNcDAg' },
@@ -361,8 +365,53 @@ const AIR_WEEKLY_FOLDERS = [
 // an AIR_WEEKLY_FOLDERS array (with real folderIds) to paste back in here
 // and into script.js. Re-running it will create duplicate folders, so
 // don't run it twice without clearing the ones it already made.
+// ONE-TIME CLEANUP: the shared drive's main section was getting cluttered
+// with a Week N folder for every week, sitting right alongside everything
+// else. This creates a single "Weekly Show Plans" subfolder inside the
+// shared drive, moves every existing Week N folder into it, and logs the
+// new subfolder's ID + URL.
+//
+// After running it:
+// 1. Paste the logged ID into AIR_WEEKLY_ROOT_FOLDER_ID above.
+// 2. Paste the same ID into script.js's AIR_WEEKLY_DRIVE_URL (as
+//    https://drive.google.com/drive/u/2/folders/<that ID>) so "Browse
+//    Submitted Plans" opens the tidy subfolder instead of the shared
+//    drive's cluttered root.
+// 3. Deploy → Manage deployments → Edit → New version, so future
+//    submissions file into the subfolder too (fileAirPlan uses the
+//    updated airWeeklyFolderForDate() fallback below).
+// Safe to run once — running it again creates a second "Weekly Show
+// Plans" folder, so don't re-run without checking AIR_WEEKLY_ROOT_FOLDER_ID
+// is still empty first.
+function createAirWeeklySubfolder() {
+  if (AIR_WEEKLY_ROOT_FOLDER_ID) {
+    return { success: false, error: 'AIR_WEEKLY_ROOT_FOLDER_ID is already set — refusing to create a duplicate subfolder.' };
+  }
+  const drive = DriveApp.getFolderById(AIR_WEEKLY_DRIVE_ID);
+  const sub = drive.createFolder('Weekly Show Plans');
+
+  let moved = 0, failed = [];
+  AIR_WEEKLY_FOLDERS.forEach(w => {
+    if (!w.folderId) return;
+    try {
+      DriveApp.getFolderById(w.folderId).moveTo(sub);
+      moved++;
+    } catch (err) {
+      failed.push(w.label + ': ' + err);
+    }
+  });
+
+  Logger.log('Paste this above, replacing the empty AIR_WEEKLY_ROOT_FOLDER_ID:');
+  Logger.log("const AIR_WEEKLY_ROOT_FOLDER_ID = '" + sub.getId() + "';");
+  Logger.log('Subfolder URL (also paste into script.js AIR_WEEKLY_DRIVE_URL): ' + sub.getUrl());
+  Logger.log('Moved ' + moved + ' of ' + AIR_WEEKLY_FOLDERS.length + ' week folders.');
+  if (failed.length) Logger.log('Failed to move: ' + failed.join('; '));
+
+  return { success: true, rootFolderId: sub.getId(), url: sub.getUrl(), moved, failed };
+}
+
 function createAirWeeklyFolders() {
-  const root = DriveApp.getFolderById(AIR_WEEKLY_DRIVE_ID);
+  const root = DriveApp.getFolderById(AIR_WEEKLY_ROOT_FOLDER_ID || AIR_WEEKLY_DRIVE_ID);
   const lines = ['const AIR_WEEKLY_FOLDERS = ['];
   AIR_WEEKLY_FOLDERS.forEach(w => {
     const folder = root.createFolder(w.label);
@@ -412,7 +461,7 @@ function createFutureWeeklyFolders() {
   }
 
   const ybCreated  = fill(WEEKLY_FOLDERS, WEEKLY_ROOT_FOLDER_ID, 'yb:');
-  const airCreated = fill(AIR_WEEKLY_FOLDERS, AIR_WEEKLY_DRIVE_ID, 'air:');
+  const airCreated = fill(AIR_WEEKLY_FOLDERS, AIR_WEEKLY_ROOT_FOLDER_ID || AIR_WEEKLY_DRIVE_ID, 'air:');
   const yb  = toSource('WEEKLY_FOLDERS', WEEKLY_FOLDERS);
   const air = toSource('AIR_WEEKLY_FOLDERS', AIR_WEEKLY_FOLDERS);
 
@@ -422,13 +471,14 @@ function createFutureWeeklyFolders() {
 }
 
 // Same fallback logic as getCurrentAirWeek() on the website. Falls back to
-// filing straight into the shared drive root if a week's folderId hasn't
-// been filled in yet (e.g. before createAirWeeklyFolders() has been run).
+// filing into the "Weekly Show Plans" subfolder (not the shared drive's
+// main section) if a week's folderId hasn't been filled in yet (e.g.
+// before createAirWeeklyFolders() has been run for that week).
 function airWeeklyFolderForDate(dateStr) {
   const current  = AIR_WEEKLY_FOLDERS.find(w => dateStr >= w.start && dateStr <= w.end);
   const upcoming = AIR_WEEKLY_FOLDERS.find(w => w.start > dateStr);
   const pick = current || upcoming || AIR_WEEKLY_FOLDERS[AIR_WEEKLY_FOLDERS.length - 1];
-  return (pick && pick.folderId) || AIR_WEEKLY_DRIVE_ID;
+  return (pick && pick.folderId) || AIR_WEEKLY_ROOT_FOLDER_ID || AIR_WEEKLY_DRIVE_ID;
 }
 
 function fileAirPlan(data) {

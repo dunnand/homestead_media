@@ -206,12 +206,17 @@ function emptyStationSchedule() {
   return { point: blank(), two: blank() };
 }
 
+function emptyAfterSchoolSchedule() {
+  return DAYS.map(() => ({ show: '', host: '' }));
+}
+
 const S = {
   view: 'home',
   broadcastId: null,
   teacherMode: false,
   showTeacherPin: false,
   stationSchedule: emptyStationSchedule(),
+  afterSchoolSchedule: emptyAfterSchoolSchedule(),
   broadcasts: [],
   plannerStep: 0,
   plannerData: null,
@@ -2809,6 +2814,29 @@ function renderPointRecent() {
     </section>`;
 }
 
+function renderAfterSchoolStrip() {
+  const slots = S.afterSchoolSchedule || emptyAfterSchoolSchedule();
+  const pills = DAYS.map((day, i) => {
+    const slot = slots[i] || { show: '', host: '' };
+    const hasShow = slot.show && slot.show.trim();
+    return `
+      <div class="as-pill ${hasShow ? 'filled' : 'empty'}" ${S.teacherMode ? `data-as-day="${i}"` : ''}>
+        <div class="as-pill-day">${day.slice(0,3)}</div>
+        <div class="as-pill-show">${hasShow ? esc(slot.show) : '<span class="dim">TBD</span>'}</div>
+        ${slot.host ? `<div class="as-pill-host">${esc(slot.host)}</div>` : ''}
+      </div>`;
+  }).join('');
+
+  return `
+    <section class="card as-strip">
+      <div class="as-strip-head">
+        <h3>After-School Shows</h3>
+        ${S.teacherMode ? '<span class="dim" style="font-size:0.72rem">Click a day to edit</span>' : ''}
+      </div>
+      <div class="as-strip-row">${pills}</div>
+    </section>`;
+}
+
 function renderRadio() {
   const stationCards = STATIONS.map(renderStationCard).join('');
 
@@ -2830,6 +2858,7 @@ function renderRadio() {
       <div class="page-grid">
         <div class="main-col">
           <div class="station-grid">${stationCards}</div>
+          ${renderAfterSchoolStrip()}
           ${renderPointRecent()}
         </div>
         <div class="side-col">
@@ -6512,6 +6541,10 @@ function savePlannerStep() {
 // Code.gs. Must stay in sync with AIR_WEEKLY_FOLDERS in Code.gs if weeks
 // are added/changed. Folder IDs live server-side only; this list is just
 // for the "this is week X" status shown to students.
+// TODO: once createAirWeeklySubfolder() has been run in Code.gs (see that
+// function), update this to https://drive.google.com/drive/u/2/folders/<AIR_WEEKLY_ROOT_FOLDER_ID>
+// so "Browse Submitted Plans" opens the tidy "Weekly Show Plans" subfolder
+// instead of the shared drive's cluttered main section.
 const AIR_WEEKLY_DRIVE_URL = 'https://drive.google.com/drive/u/2/folders/0AGI4ogJFHfYTUk9PVA';
 const AIR_WEEKLY_FOLDERS = [
   { label: 'Week 1 (Aug 5–Aug 7)',    start: '2026-08-05', end: '2026-08-07' },
@@ -6846,7 +6879,7 @@ function showEditStationSlot(stationId, dayIdx) {
     if (!S.stationSchedule[stationId]) S.stationSchedule[stationId] = DAYS.map(() => ({ show: '', djs: [] }));
     S.stationSchedule[stationId][dayIdx] = { show, djs };
     const db = getDB();
-    if (db) { trackUsage('writes'); await db.collection('hm_radio').doc('station_schedule').set(S.stationSchedule).catch(() => {}); }
+    if (db) { trackUsage('writes'); await db.collection('hm_radio').doc('station_schedule').set(S.stationSchedule, { merge: true }).catch(() => {}); }
     m.remove(); render();
   };
 
@@ -6855,6 +6888,37 @@ function showEditStationSlot(stationId, dayIdx) {
 
   const clearBtn = m.querySelector('#modal-extra');
   if (clearBtn) clearBtn.addEventListener('click', () => save('', []));
+}
+
+// ── Teacher: After-School Schedule ──────────────────────────────
+function showEditAfterSchoolSlot(dayIdx) {
+  const slot = (S.afterSchoolSchedule || [])[dayIdx] || { show: '', host: '' };
+  const dayName = DAYS[dayIdx];
+  const hasContent = slot.show && slot.show.trim();
+  const m = modal(`
+    <h2>After School — ${dayName}</h2>
+    <div class="form-group">
+      <label>Show Name</label>
+      <input id="m-as-show" type="text" value="${esc(slot.show || '')}" placeholder="e.g. Homework Hour">
+    </div>
+    <div class="form-group">
+      <label>Host(s) <span class="hint">(comma separated)</span></label>
+      <input id="m-as-host" type="text" value="${esc(slot.host || '')}" placeholder="Alex, Jordan">
+    </div>`, hasContent ? 'Clear' : null);
+
+  const save = async (show, host) => {
+    if (!S.afterSchoolSchedule) S.afterSchoolSchedule = emptyAfterSchoolSchedule();
+    S.afterSchoolSchedule[dayIdx] = { show, host };
+    const db = getDB();
+    if (db) { trackUsage('writes'); await db.collection('hm_radio').doc('station_schedule').set({ afterschool: S.afterSchoolSchedule }, { merge: true }).catch(() => {}); }
+    m.remove(); render();
+  };
+
+  m.querySelector('#modal-save').addEventListener('click', () =>
+    save(val('m-as-show'), val('m-as-host')));
+
+  const clearBtn = m.querySelector('#modal-extra');
+  if (clearBtn) clearBtn.addEventListener('click', () => save('', ''));
 }
 
 // ── Teacher: Broadcasts ───────────────────────────────────────
@@ -7352,6 +7416,9 @@ function attachListeners() {
 
   document.querySelectorAll('.slot-edit-btn').forEach(btn =>
     btn.addEventListener('click', () => showEditStationSlot(btn.dataset.station, parseInt(btn.dataset.day))));
+
+  document.querySelectorAll('[data-as-day]').forEach(el =>
+    el.addEventListener('click', () => showEditAfterSchoolSlot(parseInt(el.dataset.asDay))));
 
   document.querySelectorAll('.check-item').forEach(cb =>
     cb.addEventListener('change', saveChecklist));
@@ -8900,6 +8967,7 @@ async function loadFromFirebase() {
     ]);
     trackUsage('reads', 1 + bcastSnap.size + iasbSnap.size + availSnap.size);
     let stationSchedule = null;
+    let afterSchoolSchedule = null;
     if (schedSnap.exists) {
       const data = schedSnap.data() || {};
       const blank = () => DAYS.map(() => ({ show: '', djs: [] }));
@@ -8907,6 +8975,7 @@ async function loadFromFirebase() {
         point: data.point || blank(),
         two:   data.two   || blank(),
       };
+      afterSchoolSchedule = data.afterschool || emptyAfterSchoolSchedule();
     }
     const broadcasts = [];
     bcastSnap.forEach(doc => broadcasts.push({ id: doc.id, ...doc.data() }));
@@ -8962,9 +9031,10 @@ async function loadFromFirebase() {
     iasbSnap.forEach(doc => iasbEntries.push({ id: doc.id, ...doc.data() }));
     const availabilities = [];
     availSnap.forEach(doc => availabilities.push({ id: doc.id, ...doc.data() }));
-    return { stationSchedule, broadcasts: finalBroadcasts, iasbEntries, availabilities };
+    return { stationSchedule, afterSchoolSchedule, broadcasts: finalBroadcasts, iasbEntries, availabilities };
   }, data => {
     if (data.stationSchedule) S.stationSchedule = data.stationSchedule;
+    if (data.afterSchoolSchedule) S.afterSchoolSchedule = data.afterSchoolSchedule;
     S.broadcasts     = data.broadcasts     || [];
     S.iasbEntries    = data.iasbEntries    || [];
     S.availabilities = data.availabilities || [];
@@ -9921,13 +9991,19 @@ function bellringerTodayStr() {
   return new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD, local time
 }
 
+function bellringerClassOffset(classKey) {
+  let h = 0;
+  for (let i = 0; i < classKey.length; i++) h = (h * 31 + classKey.charCodeAt(i)) >>> 0;
+  return h;
+}
+
 function bellringerQuestion(classKey) {
   const list = (S.bellringerQuestionsByClass[classKey] || []).length
     ? S.bellringerQuestionsByClass[classKey]
     : DEFAULT_BELLRINGER_QUESTIONS;
   const d = new Date();
   const localMidnight = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-  const days = Math.floor(localMidnight.getTime() / 86400000);
+  const days = Math.floor(localMidnight.getTime() / 86400000) + bellringerClassOffset(classKey);
   const idx = ((days % list.length) + list.length) % list.length;
   return list[idx];
 }
