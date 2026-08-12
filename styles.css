@@ -2272,12 +2272,35 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .db-plan-row:hover { background: var(--surface2); }
 .db-plan-main { flex: 1; min-width: 160px; }
 
+/* ── Dashboard Live Crew Sign-Ups ────────────────────────────── */
+.ls-list { display: flex; flex-direction: column; gap: 14px; }
+.ls-card {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 14px 16px;
+}
+.ls-card-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.ls-card-title { display: flex; align-items: center; gap: 8px; }
+.ls-type-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+.ls-card-actions { display: flex; align-items: center; gap: 8px; }
+.ls-fill-count { font-size: 0.75rem; color: var(--dim); white-space: nowrap; }
+.ls-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.ls-chip {
+  font-size: 0.72rem; font-weight: 600; padding: 3px 9px;
+  border-radius: 999px; background: var(--surface); border: 1px solid var(--border);
+  color: var(--text);
+}
+.ls-role-grid { margin-top: 0; }
+
 @media (max-width: 800px) {
   .db-header { flex-direction: column; }
   .db-stats { gap: 16px; }
   .db-stat { align-items: flex-start; }
   .db-entry-row, .db-plan-row { flex-direction: column; align-items: flex-start; }
   .db-entry-meta { width: 100%; justify-content: flex-start; }
+  .ls-card-head { flex-direction: column; align-items: flex-start; }
 }
 
 /* ── Broadcast Sign-Up Page ──────────────────────────────────── */

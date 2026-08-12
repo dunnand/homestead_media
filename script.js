@@ -6990,6 +6990,22 @@ async function saveRoleAssignments() {
   render();
 }
 
+// Same as saveRoleAssignments(), but scoped to one card on the "all
+// sign-ups" dashboard view, where multiple broadcasts' role grids exist in
+// the DOM at once — so it can't rely on the global S.broadcastId or an
+// unscoped .role-input query.
+async function saveLiveSignupCardRoles(broadcastId, cardEl) {
+  const b = (S.broadcasts || []).find(x => x.id === broadcastId);
+  if (!b) return;
+  const roles = {};
+  cardEl.querySelectorAll('.role-input').forEach(el => { roles[el.dataset.role] = shortenName(el.value.trim()); });
+  b.roles = roles;
+  const db = getDB();
+  if (db) { trackUsage('writes'); await db.collection('hm_broadcasts').doc(b.id).update({ roles }).catch(() => {}); }
+  showToast(`Roles saved — ${b.title}`);
+  render();
+}
+
 async function saveBroadcastNotes() {
   const b = (S.broadcasts || []).find(x => x.id === S.broadcastId);
   if (!b) return;
@@ -7956,6 +7972,20 @@ function attachListeners() {
       showToast('Retried — refresh in a moment to see the updated status.');
       btn.disabled = false;
       btn.textContent = 'Retry';
+    });
+  });
+
+  document.querySelectorAll('.ls-save-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const card = btn.closest('.ls-card');
+      if (card) saveLiveSignupCardRoles(btn.dataset.broadcastId, card);
+    });
+  });
+
+  document.querySelectorAll('.ls-open-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      S.broadcastId = btn.dataset.broadcastId;
+      go('broadcast');
     });
   });
 
@@ -10719,6 +10749,52 @@ function renderDashboard() {
       }).join('')
     : `<p class="dim" style="padding:16px 0;font-size:0.875rem">No plans submitted yet.</p>`;
 
+  // Live crew sign-ups — every upcoming broadcast in one place, so roles can
+  // be assigned without opening each broadcast individually.
+  const lsToday = new Date().toISOString().slice(0, 10);
+  const upcomingBroadcasts = (S.broadcasts || [])
+    .filter(b => b.date >= lsToday)
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const openCrewCount = upcomingBroadcasts.filter(b => LIVE_ROLES.some(r => !(b.roles || {})[r])).length;
+
+  const liveSignupsSection = upcomingBroadcasts.length
+    ? upcomingBroadcasts.map(b => {
+        const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
+        const avails = (S.availabilities || []).filter(a => a.broadcastId === b.id);
+        const roles = b.roles || {};
+        const filledCount = LIVE_ROLES.filter(r => roles[r]).length;
+        const chips = avails.length
+          ? avails.map(a => `<span class="ls-chip" title="${esc((a.interestedRoles || []).join(', ') || 'No position preference')}">${esc(a.studentName)}</span>`).join('')
+          : `<span class="dim" style="font-size:0.8rem">No sign-ups yet.</span>`;
+        return `
+          <div class="ls-card" data-broadcast-id="${esc(b.id)}">
+            <div class="ls-card-head">
+              <div class="ls-card-title">
+                <span class="ls-type-dot" style="background:${et.color}"></span>
+                <strong>${esc(b.title)}</strong>
+                <span class="dim" style="font-size:0.8rem">— ${fmtDate(b.date)}</span>
+              </div>
+              <div class="ls-card-actions">
+                <span class="ls-fill-count">${filledCount}/${LIVE_ROLES.length} filled</span>
+                <button class="btn-primary db-btn ls-save-btn" data-broadcast-id="${esc(b.id)}" style="font-size:0.75rem">Save Roles</button>
+                <button class="btn-secondary db-btn ls-open-btn" data-broadcast-id="${esc(b.id)}" style="font-size:0.75rem">Open →</button>
+              </div>
+            </div>
+            <div class="ls-chips">${chips}</div>
+            <div class="role-grid ls-role-grid">
+              ${LIVE_ROLES.map(role => `
+                <div class="role-row">
+                  <div class="role-name">${role}</div>
+                  <input class="role-input" type="text" data-role="${role}" value="${esc(roles[role] || '')}" placeholder="Student name" list="ls-names-${esc(b.id)}">
+                </div>`).join('')}
+            </div>
+            <datalist id="ls-names-${esc(b.id)}">
+              ${avails.map(a => `<option value="${esc(a.studentName)}">`).join('')}
+            </datalist>
+          </div>`;
+      }).join('')
+    : `<p class="dim" style="padding:16px 0;font-size:0.875rem">No upcoming broadcasts scheduled.</p>`;
+
   const usage = getUsage();
   const READ_LIMIT = 50000, WRITE_LIMIT = 20000;
   const readPct  = Math.min(100, Math.round(usage.reads  / READ_LIMIT  * 100));
@@ -10734,6 +10810,7 @@ function renderDashboard() {
           <div class="db-stat"><span class="db-stat-num">${entries.length}</span><span>IASB entries</span></div>
           <div class="db-stat"><span class="db-stat-num" style="color:var(--success)">${submitted}</span><span>submitted to portal</span></div>
           <div class="db-stat"><span class="db-stat-num" style="color:var(--radio)">${plans.length}</span><span>talk show plans</span></div>
+          <div class="db-stat"><span class="db-stat-num" style="color:${openCrewCount ? 'var(--live)' : 'var(--success)'}">${openCrewCount}</span><span>broadcasts need crew</span></div>
         </div>
       </div>
 
@@ -10809,6 +10886,12 @@ function renderDashboard() {
         `<h2>Talk Show Plans</h2>`,
         `<button class="btn-secondary" id="db-refresh-plans" style="font-size:0.8rem">Refresh</button>`,
         `<div class="db-plans-list" id="db-plans-list">${plansSection}</div>`
+      )}
+
+      ${dbSec('live_signups',
+        `<h2>🎥 Live Crew Sign-Ups</h2>`,
+        `<span class="dim" style="font-size:0.8rem">${openCrewCount} of ${upcomingBroadcasts.length} upcoming need crew</span>`,
+        `<div class="ls-list">${liveSignupsSection}</div>`
       )}
 
       ${dbSec('weekly_folders',
