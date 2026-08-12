@@ -450,6 +450,7 @@ function render() {
     case 'icebreaker':       app.innerHTML = renderIcebreaker();      break;
     case 'icebreaker-board': app.innerHTML = renderIcebreakerBoard(); break;
     case 'bellringer-board': app.innerHTML = renderBellRingerBoard(); break;
+    case 'equipment-kiosk':  app.innerHTML = renderEquipmentKiosk();  break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -457,7 +458,13 @@ function render() {
 
 // ── Nav Bar ───────────────────────────────────────────────────
 function navBar(active) {
+  const overdueCount = S.teacherMode ? Object.values(S.equipment || {}).filter(i =>
+    i.status === 'checked_out' && i.checkedOutAt &&
+    (Date.now() - new Date(i.checkedOutAt).getTime()) > 7 * 24 * 60 * 60 * 1000
+  ).length : 0;
   return `
+    ${overdueCount ? `
+    <div class="equip-overdue-banner">⚠️ ${overdueCount} item${overdueCount === 1 ? '' : 's'} checked out for over a week — see the Equipment section on the Dashboard.</div>` : ''}
     <nav class="top-nav">
       <span class="nav-logo" data-nav="home">Homestead Media</span>
       <div class="nav-links">
@@ -2862,7 +2869,7 @@ function renderRadio() {
           ${renderPointRecent()}
         </div>
         <div class="side-col">
-          ${renderEquipmentCard()}
+          ${renderEquipmentStatusCard()}
           <section class="card action-card radio-action">
             <div class="action-icon">🎙️</div>
             <h3>DJ Panel</h3>
@@ -4071,7 +4078,7 @@ function renderLive() {
           </section>
         </div>
         <div class="side-col">
-          ${renderEquipmentCard()}
+          ${renderEquipmentStatusCard()}
           ${renderLiveCalendar()}
           ${!S.teacherMode ? `
           <section class="card action-card live-action">
@@ -4430,7 +4437,7 @@ function renderSports() {
           </section>
         </div>
         <div class="side-col">
-          ${renderEquipmentCard()}
+          ${renderEquipmentStatusCard()}
           <section class="card action-card" style="--ac:var(--sports)">
             <div class="action-icon">📅</div>
             <h3>Broadcast Schedule</h3>
@@ -4719,7 +4726,7 @@ function renderInDepth() {
           </section>
         </div>
         <div class="side-col">
-          ${renderEquipmentCard()}
+          ${renderEquipmentStatusCard()}
           <section class="card action-card">
             <div class="action-icon">📋</div>
             <h3>Coverage Beats</h3>
@@ -6007,7 +6014,7 @@ function renderYearbook() {
 
         </div>
         <div class="side-col">
-          ${renderEquipmentCard()}
+          ${renderEquipmentStatusCard()}
 
           <section class="card action-card">
             <div class="action-icon">📒</div>
@@ -8036,12 +8043,10 @@ function attachListeners() {
   const ybSaveBtn = document.getElementById('yb-save-event-btn');
   if (ybSaveBtn) ybSaveBtn.addEventListener('click', saveYbEvent);
 
-  const equipScan = document.getElementById('equip-scan');
-  if (equipScan) equipScan.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { e.preventDefault(); handleEquipmentScan(equipScan.value); }
+  const kioskScan = document.getElementById('kiosk-scan');
+  if (kioskScan) kioskScan.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); handleEquipmentScan(kioskScan.value); }
   });
-  const equipName = document.getElementById('equip-name');
-  if (equipName) equipName.addEventListener('change', () => localStorage.setItem('hm_student_name', shortenName(equipName.value.trim())));
 
   const equipGoLiveBtn = document.getElementById('equip-go-live-btn');
   if (equipGoLiveBtn) equipGoLiveBtn.addEventListener('click', goLiveEquipment);
@@ -9237,40 +9242,56 @@ function renderEquipmentCheckedOutList() {
       </div>`).join('')}`;
 }
 
-function renderEquipmentWidget() {
-  return `
-    <div class="form-group" style="margin-bottom:8px">
-      <label>Your Name</label>
-      <input id="equip-name" type="text" placeholder="First and last name" value="${esc(localStorage.getItem('hm_student_name') || '')}">
-    </div>
-    <div class="form-group" style="margin-bottom:4px">
-      <label>Scan Barcode</label>
-      <input id="equip-scan" type="text" placeholder="Click here, then scan" autocomplete="off">
-    </div>
-    <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>`;
-}
-
-function renderEquipmentCard(forceShow) {
+// Read-only "what's checked out" display for regular class pages — the
+// actual scanning happens only on the kiosk page (renderEquipmentKiosk).
+function renderEquipmentStatusCard(forceShow) {
   if (!S.equipmentLive && !forceShow) return '';
   return `
-    <section class="card" id="equipment-card">
-      <h3>📦 Equipment Check-In / Check-Out</h3>
-      <p class="cal-section-sub" style="margin-top:0">Scan an item's barcode to check it out — scan the same barcode again to check it back in.</p>
-      ${renderEquipmentWidget()}
+    <section class="card" id="equipment-status-card">
+      <h3>📦 Equipment Checked Out</h3>
+      <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>
     </section>`;
+}
+
+// Standalone kiosk page (?board=equipment) — meant to be left open on a
+// shared classroom computer so any student can check items in/out. The name
+// field is intentionally never read from or written to localStorage: on a
+// shared computer, remembering the last name typed would leak one student's
+// name to the next person who walks up.
+function renderEquipmentKiosk() {
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit kiosk view">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>📦 Equipment Check-In / Check-Out</h1>
+        <p>Type your name, then scan the item's barcode. Scan the same barcode again to check it back in.</p>
+      </div>
+      <div class="kiosk-card">
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Your Name</label>
+          <input id="kiosk-name" type="text" placeholder="First and last name" autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>Scan Barcode</label>
+          <input id="kiosk-scan" type="text" placeholder="Click here, then scan" autocomplete="off">
+        </div>
+      </div>
+      <div class="kiosk-card">
+        <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>
+      </div>
+    </div>`;
 }
 
 async function handleEquipmentScan(rawBarcode) {
   const barcode = (rawBarcode || '').trim();
   if (!barcode) return;
-  const scanInput = document.getElementById('equip-scan');
-  const name = shortenName((val('equip-name') || localStorage.getItem('hm_student_name') || '').trim());
+  const scanInput = document.getElementById('kiosk-scan');
+  const name = shortenName((val('kiosk-name') || '').trim());
   if (!name) {
     showToast('Enter your name first.');
-    document.getElementById('equip-name')?.focus();
+    document.getElementById('kiosk-name')?.focus();
     return;
   }
-  localStorage.setItem('hm_student_name', name);
 
   const db = getDB();
   if (!db) { showToast('Offline — can\'t reach the equipment list.'); return; }
@@ -10327,6 +10348,12 @@ async function init() {
     return;
   }
 
+  if (new URLSearchParams(location.search).get('board') === 'equipment') {
+    S.view = 'equipment-kiosk';
+    render();
+    return;
+  }
+
   render();
 
   document.addEventListener('keydown', e => {
@@ -11031,11 +11058,12 @@ function renderDashboard() {
 
       ${dbSec('equipment',
         `<h2>📦 Equipment Check-In/Out</h2>`,
-        S.equipmentLive ? '' : `<button class="btn-primary" id="equip-go-live-btn" style="font-size:0.8rem">🚀 Go Live</button>`,
-        `${S.equipmentLive
-            ? `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🟢 Live — visible on every class page.</p>`
-            : `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">🧪 Test mode — try scanning below. Students won't see this on their class pages until you click Go Live.</p>`}
-        ${renderEquipmentWidget()}
+        `<a href="?board=equipment" target="_blank" class="btn-primary" style="font-size:0.8rem;padding:4px 12px;text-decoration:none">🖥️ Open Kiosk Page ↗</a>
+         ${S.equipmentLive ? '' : `<button class="btn-primary" id="equip-go-live-btn" style="font-size:0.8rem">🚀 Go Live</button>`}`,
+        `<p style="font-size:0.85rem;color:var(--dim);margin:0 0 14px">Open the Kiosk Page on a shared classroom computer — students type their name there and scan barcodes to check items in/out. ${S.equipmentLive
+            ? `🟢 The checked-out list below is also visible on every class page.`
+            : `🧪 Not live yet — the checked-out list won't show on class pages until you click Go Live.`}</p>
+        <div id="equipment-checked-out-list">${renderEquipmentCheckedOutList()}</div>
         <h3 style="margin:22px 0 8px;font-size:0.95rem">All Registered Items</h3>
         <p style="font-size:0.8rem;color:var(--dim);margin:0 0 10px">Shows the exact barcode behind each item — use this to spot a mis-scanned or duplicate barcode and delete it.</p>
         <div id="equipment-admin-list">${renderEquipmentAdminList()}</div>`
