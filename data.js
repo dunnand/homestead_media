@@ -1112,8 +1112,8 @@ const INDEPTH_BEATS = [
   {
     id: 1, name: 'Academic Admin & Counseling', icon: '🎓', color: '#6366f1',
     seasons: ['fall','winter','spring'],
-    covers: ['AP Programs','Dual Credit','Graduation','NHS','Academic Awards','Counseling','Student Services','Spartan Ambassadors','Student Learning Alliance','Academic Teams (Spell Bowl, Quiz Bowl, Super Bowl)'],
-    contacts: ['Emily Ford (NHS)','Alyssa Braman (Spartan Ambassadors)','Steve Pickett (Student Learning Alliance)','Raymond Colglazier (Academic Teams)','Rob Dillman (Academic Teams)','Tom Maher (Academic Teams)','Junior Stailey (Academic Teams)','Dominick Manco (Academic Teams)','Tara Olivero (Academic Teams)'],
+    covers: ['AP Programs','Dual Credit','Graduation','NHS','Academic Awards','Counseling','Student Services','Spartan Ambassadors','Student Learning Alliance'],
+    contacts: ['Emily Ford (NHS)','Alyssa Braman (Spartan Ambassadors)','Steve Pickett (Student Learning Alliance)'],
   },
   {
     id: 2, name: 'Student Government & Spirit', icon: '🏛️', color: '#0ea5e9',
@@ -1194,10 +1194,10 @@ const INDEPTH_BEATS = [
     contacts: ['Josh Eme (Ski Club)','Rachel Swing (Ski Club)','Jamie Smith (Equestrian)','Ellen Robinson (Fright Club)','Melanie Busch (Travel Club)','Kim Brown (Travel Club)'],
   },
   {
-    id: 19, name: 'Faith, Service & Student Identity Clubs', icon: '🕊️', color: '#d97706',
+    id: 19, name: 'Faith, Service & Academic Teams', icon: '🧭', color: '#d97706',
     seasons: ['fall','winter','spring'],
-    covers: ['SADD','FCA','Bible Club','New & Emerging Clubs'],
-    contacts: ['Baylee Stonger (SADD)','Greg Davis (FCA)','Jackson Zvers (Bible Club)'],
+    covers: ['SADD','FCA','Bible Club','New & Emerging Clubs','Spell Bowl','Quiz Bowl','Super Bowl'],
+    contacts: ['Baylee Stonger (SADD)','Greg Davis (FCA)','Jackson Zvers (Bible Club)','Raymond Colglazier (Spell Bowl / Quiz Bowl / Super Bowl)'],
   },
   {
     id: 15, name: 'Library, Tech & Campus Operations', icon: '🏫', color: '#475569',
