@@ -4919,6 +4919,7 @@ function renderBeats() {
         <div>
           <h1>Coverage Beats</h1>
           <p>16 beats — each pair covers one beat all year. ${S.teacherMode ? 'Click a row to expand, assign students, and track advisor check-ins.' : 'Click a row to see what it covers and check off your advisor meetings.'}</p>
+          <a class="class-header-lessons-link" href="?board=beat-survey">📋 Submit Your Top 3 Beat Picks</a>
         </div>
       </div>
       ${surveyResultsHtml}
