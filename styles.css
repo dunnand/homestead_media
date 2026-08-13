@@ -2072,6 +2072,7 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .beat-meet-item:hover .beat-contact-editbtn { opacity: 1; }
 .beat-contact-editbtn:hover { background: var(--border); }
+.beat-contact-delbtn:hover { background: rgba(239, 68, 68, 0.15); color: var(--error); }
 .beat-meet-empty { font-size: 0.82rem; color: var(--dim); line-height: 1.5; }
 .beat-contact-form {
   grid-column: 1 / -1;

@@ -4799,6 +4799,7 @@ function renderBeats() {
             <span>${nameHtml}</span>
           </label>
           <button class="beat-contact-editbtn" title="Edit contact" onclick="beatContactEdit(${b.id},${i})">✎</button>
+          <button class="beat-contact-editbtn beat-contact-delbtn" title="Remove contact" onclick="beatContactDelete(${b.id},${i})">🗑</button>
         </div>`;
     }).join('');
 
@@ -5618,6 +5619,41 @@ async function beatContactSave() {
       }
       showToast('Contact saved.');
     } catch(e) { showToast('Save failed.'); console.error(e); }
+  }
+}
+
+async function beatContactDelete(beatId, idx) {
+  const contacts = (getBeat(beatId).contacts || []).map(c =>
+    typeof c === 'string'
+      ? { name: c, email: c.includes('@') ? c : '' }
+      : { name: c.name || '', email: c.email || '' });
+  const removed = contacts[idx];
+  if (!removed) return;
+  if (!confirm(`Remove "${removed.name}" as a contact for this beat?`)) return;
+  contacts.splice(idx, 1);
+
+  S.beatOverrides[beatId] = { ...(S.beatOverrides[beatId] || {}), contacts };
+  if (_contactDraft && _contactDraft.beatId === beatId && _contactDraft.idx === idx) _contactDraft = null;
+  render();
+
+  const db = getDB();
+  if (db) {
+    try {
+      await db.collection('hm_beat_info').doc(String(beatId)).set({ contacts }, { merge: true });
+      trackUsage('writes', 1);
+      // clear any check-in mark so a future contact with the same name
+      // doesn't inherit a stale "met" status
+      const a = S.beatAssignments[beatId];
+      const k = metKey(removed.name);
+      if (a?.met?.[k]) {
+        const met = { ...a.met };
+        delete met[k];
+        S.beatAssignments[beatId] = { ...a, met };
+        await db.collection('hm_indepth_beats').doc(String(beatId)).set({ met }, { merge: true });
+        render();
+      }
+      showToast('Contact removed.');
+    } catch (e) { showToast('Remove failed.'); console.error(e); }
   }
 }
 
