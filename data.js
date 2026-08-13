@@ -1118,32 +1118,26 @@ const INDEPTH_BEATS = [
   {
     id: 2, name: 'Student Government & Spirit', icon: '🏛️', color: '#0ea5e9',
     seasons: ['fall','winter','spring'],
-    covers: ['Student Government','Spartan Army','Homecoming & Dances','Spirit Store','Class Sponsors','S.A.L.T.','Spartan Girls Flag Football'],
-    contacts: ['Justin Peeper (Student Government)','Chuck Werth (Spartan Army)','Kris Teusch (S.A.L.T.)','Robert Irwin (Athletics Director)','Jamie Arnold (Athletic Office)','TJ DeHerrera (Class Sponsor)','Jacob Dunn (Class Sponsor)','Tracy Schill (Class Sponsor)','Nick Byall (Class Sponsor)','Kent Mitchell (Class Sponsor)'],
+    covers: ['Student Government','Spartan Army','Homecoming & Dances','Spirit Store','Class Sponsors','S.A.L.T.','Spartan Girls Flag Football','Taste of Homestead'],
+    contacts: ['Justin Peeper (Student Government / Taste of Homestead)','Chuck Werth (Spartan Army)','Kris Teusch (S.A.L.T.)','Robert Irwin (Athletics Director)','Jamie Arnold (Athletic Office)','TJ DeHerrera (Class Sponsor)','Jacob Dunn (Class Sponsor)','Tracy Schill (Class Sponsor)','Nick Byall (Class Sponsor)','Kent Mitchell (Class Sponsor)','Megan Beckman (Taste of Homestead)'],
   },
   {
-    id: 3, name: 'Band, Orchestra, Guard, Dance & Cheer', icon: '🎺', color: '#d97706',
+    id: 16, name: 'Performing Arts', icon: '🎭', color: '#ec4899',
     seasons: ['fall','winter','spring'],
-    covers: ['Marching Band','Jazz Ensemble','Indoor Percussion','Color Guard','Winter Guard','Orchestra','Dance Team','Cheer'],
-    contacts: ['Jordan Cain (Band / Orchestra / Guard)','Jason Witzigreuter (Band / Jazz)','Alexander Shilling (Band / Jazz)','Nick Hardy (Guard)','Britney Lombardo (Dance Team)'],
-  },
-  {
-    id: 4, name: 'Theater, Show Choir & Choir', icon: '🎭', color: '#ec4899',
-    seasons: ['fall','winter','spring'],
-    covers: ['Theater & Drama','Show Choir','Choral Music','Class Royale','Anonymous Blue','Songwriting Club'],
-    contacts: ['Curtis Shaw (Theater / Show Choir / Choral)','Andrew Sherman (Show Choir)','Karen Hirschy (Class Royale)','Brian Nicholson (Songwriting Club)'],
+    covers: ['Marching Band','Jazz Ensemble','Indoor Percussion','Color Guard','Winter Guard','Orchestra','Dance Team','Cheer','Theater & Drama','Show Choir','Choral Music','Class Royale','Anonymous Blue','Songwriting Club'],
+    contacts: ['Jordan Cain (Band / Orchestra / Guard)','Jason Witzigreuter (Band / Jazz)','Alexander Shilling (Band / Jazz)','Nick Hardy (Guard)','Britney Lombardo (Dance Team)','Curtis Shaw (Theater / Show Choir / Choral)','Andrew Sherman (Show Choir)','Karen Hirschy (Class Royale)','Brian Nicholson (Songwriting Club)'],
   },
   {
     id: 5, name: 'Visual Arts & Film', icon: '🎨', color: '#c026d3',
     seasons: ['fall','winter','spring'],
-    covers: ['Art Department','Art Club','Architecture Club','Fashion Club','Film Club','Spartana','Photojournalism Club','Basket Weaving Club'],
-    contacts: ['Sarah Jones (Art Club)','Dawn Todor (Architecture Club)','Ashley Hennessey (Fashion Club)','Alex Leavell (Film Club)','Lisa Baltes (Spartana)','Dominick Manco (Photojournalism / Yearbook)','Samantha Lamont (Basket Weaving)'],
+    covers: ['Art Department','Art Club','Architecture Club','Fashion Club','Film Club','Photojournalism Club','Basket Weaving Club'],
+    contacts: ['Sarah Jones (Art Club)','Dawn Todor (Architecture Club)','Ashley Hennessey (Fashion Club)','Alex Leavell (Film Club)','Dominick Manco (Photojournalism / Yearbook)','Samantha Lamont (Basket Weaving)'],
   },
   {
     id: 6, name: 'English, Speech & Creative Writing', icon: '📝', color: '#2563eb',
     seasons: ['fall','winter','spring'],
-    covers: ['English Department','Speech & Debate','Poetry Out Loud','Creative Writing Club','Book Club'],
-    contacts: ['Marcus Trice (Speech & Debate)','Sally Rauber (Poetry Out Loud)','Tara Olivero (Creative Writing)'],
+    covers: ['English Department','Speech & Debate','Poetry Out Loud','Creative Writing Club','Book Club','Spartana'],
+    contacts: ['Marcus Trice (Speech & Debate)','Sally Rauber (Poetry Out Loud)','Tara Olivero (Creative Writing)','Lisa Baltes (Spartana)'],
   },
   {
     id: 7, name: 'History, Civics & Social Issues', icon: '⚖️', color: '#7c3aed',
@@ -1154,8 +1148,8 @@ const INDEPTH_BEATS = [
   {
     id: 8, name: 'Languages, Culture & Global Identity', icon: '🌍', color: '#0d9488',
     seasons: ['fall','winter','spring'],
-    covers: ['Spanish (Dept, Club, Honors, Charlemos, Latinos Unidos)','Latin Club (JCL)','French Club (Francofanas)','German Club','ASL Club','Asian Alliance','K-Pop Club','Knowledge of the Nations','Taste of Homestead'],
-    contacts: ['Joanne Perez (Spanish Club)','Cristal Galicia (Spanish Honors)','Elise Chadwick (Charlemos)','Angela Bailey (Latinos Unidos)','Megan Beckman (Latin Club / Taste of Homestead)','Brigitte Martin (French Club)','Ashley Kas (ASL Club)','Baylee Stonger (Asian Alliance)','Sally Rauber (K-Pop Club)','Erin Tembras (Knowledge of the Nations)','Justin Peeper (Taste of Homestead)'],
+    covers: ['Spanish (Dept, Club, Honors, Charlemos, Latinos Unidos)','Latin Club (JCL)','French Club (Francofanas)','German Club','ASL Club','Asian Alliance','K-Pop Club','Knowledge of the Nations'],
+    contacts: ['Joanne Perez (Spanish Club)','Cristal Galicia (Spanish Honors)','Elise Chadwick (Charlemos)','Angela Bailey (Latinos Unidos)','Megan Beckman (Latin Club)','Brigitte Martin (French Club)','Ashley Kas (ASL Club)','Baylee Stonger (Asian Alliance)','Sally Rauber (K-Pop Club)','Erin Tembras (Knowledge of the Nations)'],
   },
   {
     id: 9, name: 'Science & Environment', icon: '🔬', color: '#16a34a',
@@ -1188,10 +1182,22 @@ const INDEPTH_BEATS = [
     contacts: ['Dawn Todor (HOSA)','Erin Whitt (NOW)','Camille Bartel (SODA)','Scott Hill (GSA)','Ellen Robinson (Minority Student Union)','Chuck Werth (Brothers of Unity)','Lisa Hoffer (Best Buddies)','Tim Decker (Psychology Club)'],
   },
   {
-    id: 14, name: 'Student Clubs & Identity', icon: '🎮', color: '#8b5cf6',
+    id: 17, name: 'Games & Hobby Clubs', icon: '🎮', color: '#8b5cf6',
     seasons: ['fall','winter','spring'],
-    covers: ['Anime Club','Dungeons & Dragons','Tabletop Club','Chess Club','Ping Pong Club','Euchre Club','Plush Club','Ski Club','Equestrian Club','Fright Club','UFC Club','Chicken Nugget Club','Get A Hobby Club','SADD','Travel Club','FCA','Bible Club','New & Emerging Clubs'],
-    contacts: ['Holly Lyne (Anime Club)','Kevin Cogdell (Tabletop Club)','Nathan Arata (Chess / Euchre / Plush)','Logan Tuckey (Ping Pong)','Josh Eme (Ski Club)','Rachel Swing (Ski Club)','Jamie Smith (Equestrian)','Ellen Robinson (Fright Club)','Jill Grote (Get A Hobby)','Baylee Stonger (SADD)','Melanie Busch (Travel Club)','Kim Brown (Travel Club)','Greg Davis (FCA)','Jackson Zvers (Bible Club)'],
+    covers: ['Anime Club','Dungeons & Dragons','Tabletop Club','Chess Club','Ping Pong Club','Euchre Club','Plush Club','Chicken Nugget Club','Get A Hobby Club'],
+    contacts: ['Holly Lyne (Anime Club)','Kevin Cogdell (Tabletop Club)','Nathan Arata (Chess / Euchre / Plush)','Logan Tuckey (Ping Pong)','Jill Grote (Get A Hobby)'],
+  },
+  {
+    id: 18, name: 'Outdoor & Adventure Clubs', icon: '🏕️', color: '#84cc16',
+    seasons: ['fall','winter','spring'],
+    covers: ['Ski Club','Equestrian Club','Fright Club','UFC Club','Travel Club'],
+    contacts: ['Josh Eme (Ski Club)','Rachel Swing (Ski Club)','Jamie Smith (Equestrian)','Ellen Robinson (Fright Club)','Melanie Busch (Travel Club)','Kim Brown (Travel Club)'],
+  },
+  {
+    id: 19, name: 'Faith, Service & Student Identity Clubs', icon: '🕊️', color: '#d97706',
+    seasons: ['fall','winter','spring'],
+    covers: ['SADD','FCA','Bible Club','New & Emerging Clubs'],
+    contacts: ['Baylee Stonger (SADD)','Greg Davis (FCA)','Jackson Zvers (Bible Club)'],
   },
   {
     id: 15, name: 'Library, Tech & Campus Operations', icon: '🏫', color: '#475569',
