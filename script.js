@@ -263,6 +263,8 @@ const S = {
   beatOverrides: {},
   expandedBeat: null,
   beatAssignments: {},
+  beatSurvey: [],
+  beatSurveySubmitted: false,
   storyPlans: [],
   expandedStoryPlan: null,
   storyPlanFilter: 'active',
@@ -408,7 +410,7 @@ function go(view, extra) {
   if (view === 'radio') startPointRecentPolling();
   if (view === 'dashboard') { dashboardLoadPlans(); loadYearbookCoverage(); loadShowSchedule(); }
   if (view === 'yearbook')  loadYearbookCoverage();
-  if (view === 'beats')   loadBeatAssignments();
+  if (view === 'beats')   { loadBeatAssignments(); loadBeatSurveyResponses(); }
   if (view === 'storyplans') loadStoryPlans();
   if (view === 'indepth') loadRundownData();
   if (view === 'broadcast' && S.broadcastId) { loadBroadcastChecklist(S.broadcastId); loadBroadcastRundownData(S.broadcastId); }
@@ -451,6 +453,7 @@ function render() {
     case 'icebreaker-board': app.innerHTML = renderIcebreakerBoard(); break;
     case 'bellringer-board': app.innerHTML = renderBellRingerBoard(); break;
     case 'equipment-kiosk':  app.innerHTML = renderEquipmentKiosk();  break;
+    case 'beat-survey-board': app.innerHTML = renderBeatSurveyBoard(); break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -4878,6 +4881,36 @@ function renderBeats() {
       </div>`;
   }).join('');
 
+  const surveyResultsHtml = S.teacherMode ? (() => {
+    const rows = INDEPTH_BEATS.map(base => {
+      const picks = { 1: [], 2: [], 3: [] };
+      S.beatSurvey.forEach(r => {
+        if (r.choice1 === base.id) picks[1].push(r.name);
+        if (r.choice2 === base.id) picks[2].push(r.name);
+        if (r.choice3 === base.id) picks[3].push(r.name);
+      });
+      if (!picks[1].length && !picks[2].length && !picks[3].length) return '';
+      return `
+        <div class="beat-survey-row">
+          <div class="beat-survey-row-head"><span style="color:${base.color}">${base.icon}</span> ${esc(base.name)}</div>
+          <div class="beat-survey-row-picks">
+            ${picks[1].length ? `<div><span class="beat-survey-rank">1st:</span> ${picks[1].map(esc).join(', ')}</div>` : ''}
+            ${picks[2].length ? `<div><span class="beat-survey-rank">2nd:</span> ${picks[2].map(esc).join(', ')}</div>` : ''}
+            ${picks[3].length ? `<div><span class="beat-survey-rank">3rd:</span> ${picks[3].map(esc).join(', ')}</div>` : ''}
+          </div>
+        </div>`;
+    }).filter(Boolean).join('');
+    const link = location.origin + location.pathname + '?board=beat-survey';
+    return `
+      <section class="card beat-survey-results">
+        <div class="beat-meet-head">Student Beat Preferences
+          <span class="beat-meet-count">${S.beatSurvey.length} submitted</span>
+        </div>
+        <p style="font-size:0.85rem;color:var(--dim);margin:4px 0 12px">Share this link with students: <a href="${esc(link)}">${esc(link)}</a></p>
+        ${rows || `<div class="beat-survey-empty">No survey responses yet.</div>`}
+      </section>`;
+  })() : '';
+
   return `
     ${navBar('indepth')}
     <div class="class-page">
@@ -4885,9 +4918,10 @@ function renderBeats() {
       <div class="class-header" style="margin-top:16px">
         <div>
           <h1>Coverage Beats</h1>
-          <p>15 beats — each pair covers one beat all year. ${S.teacherMode ? 'Click a row to expand, assign students, and track advisor check-ins.' : 'Click a row to see what it covers and check off your advisor meetings.'}</p>
+          <p>16 beats — each pair covers one beat all year. ${S.teacherMode ? 'Click a row to expand, assign students, and track advisor check-ins.' : 'Click a row to see what it covers and check off your advisor meetings.'}</p>
         </div>
       </div>
+      ${surveyResultsHtml}
       <section class="card beat-howto">
         <div class="beat-howto-grid">
           <div class="beat-howto-step"><span class="beat-howto-num">1</span><div><strong>Meet every advisor.</strong> Sit down with each teacher listed on your beat, introduce yourselves as the pair covering their area, and check them off as you go. If your beat is missing an advisor — find out who it is and add them as a contact.</div></div>
@@ -5497,6 +5531,17 @@ async function loadBeatAssignments(force = false) {
     S.beatsLoadedAt = Date.now();
     if (S.view === 'indepth' || S.view === 'beat') render();
   } catch(e) { console.error('beat load failed', e); }
+}
+
+async function loadBeatSurveyResponses() {
+  const db = getDB();
+  if (!db) return;
+  try {
+    const snap = await db.collection('hm_beat_survey').get();
+    trackUsage('reads', snap.size || 1);
+    S.beatSurvey = snap.docs.map(d => d.data()).sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+    if (S.view === 'beats') render();
+  } catch(e) { console.error('beat survey load failed', e); }
 }
 
 async function saveBeatAssignment(beatId, student1, student2) {
@@ -8087,6 +8132,11 @@ function attachListeners() {
   const equipGoLiveBtn = document.getElementById('equip-go-live-btn');
   if (equipGoLiveBtn) equipGoLiveBtn.addEventListener('click', goLiveEquipment);
 
+  const bsSubmit = document.getElementById('bs-submit');
+  if (bsSubmit) bsSubmit.addEventListener('click', submitBeatSurvey);
+  const bsResubmit = document.getElementById('bs-resubmit');
+  if (bsResubmit) bsResubmit.addEventListener('click', () => { S.beatSurveySubmitted = false; render(); });
+
   document.querySelectorAll('.equip-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
 
@@ -9361,6 +9411,79 @@ async function handleEquipmentScan(rawBarcode) {
   if (scanInput) { scanInput.value = ''; scanInput.focus(); }
 }
 
+// Standalone survey page (?board=beat-survey) for students to rank their
+// top 3 In-Depth beat picks. Submissions save to hm_beat_survey (one doc
+// per student, keyed by name, so resubmitting updates rather than duplicates)
+// and are compiled into a per-beat breakdown on the teacher-mode Beats page.
+function renderBeatSurveyBoard() {
+  if (S.beatSurveySubmitted) {
+    return `
+      <div class="ib-board">
+        <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
+        <div class="ib-board-header">
+          <h1>✅ Picks Submitted</h1>
+          <p>Thanks — your top 3 beat picks are saved. You can close this page.</p>
+        </div>
+        <div class="kiosk-card">
+          <button class="btn-secondary" id="bs-resubmit" style="width:100%">Submit Again / Change My Picks</button>
+        </div>
+      </div>`;
+  }
+  const options = INDEPTH_BEATS.map(b => `<option value="${b.id}">${b.icon} ${esc(b.name)}</option>`).join('');
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>📺 In-Depth Beat Picks</h1>
+        <p>Pick your top 3 beats — the areas of Homestead you'd most want to cover all year — ranked 1st, 2nd, and 3rd choice.</p>
+      </div>
+      <div class="kiosk-card">
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Your Name</label>
+          <input id="bs-name" type="text" placeholder="First and last name" autocomplete="off">
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label>1st Choice</label>
+          <select id="bs-choice1"><option value="">Select a beat…</option>${options}</select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label>2nd Choice</label>
+          <select id="bs-choice2"><option value="">Select a beat…</option>${options}</select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>3rd Choice</label>
+          <select id="bs-choice3"><option value="">Select a beat…</option>${options}</select>
+        </div>
+      </div>
+      <div class="kiosk-card">
+        <button class="btn-primary" id="bs-submit" style="width:100%">Submit My Picks</button>
+      </div>
+    </div>`;
+}
+
+async function submitBeatSurvey() {
+  const name = (val('bs-name') || '').trim();
+  const c1 = val('bs-choice1');
+  const c2 = val('bs-choice2');
+  const c3 = val('bs-choice3');
+  if (!name) { showToast('Enter your name first.'); document.getElementById('bs-name')?.focus(); return; }
+  if (!c1 || !c2 || !c3) { showToast('Pick all three choices.'); return; }
+  if (new Set([c1, c2, c3]).size < 3) { showToast('Choose three different beats.'); return; }
+
+  const db = getDB();
+  if (!db) { showToast('Offline — can\'t save your picks.'); return; }
+  try {
+    await db.collection('hm_beat_survey').doc(slugifyName(name)).set({
+      name, choice1: parseInt(c1), choice2: parseInt(c2), choice3: parseInt(c3), updatedAt: Date.now(),
+    });
+    trackUsage('writes');
+    S.beatSurveySubmitted = true;
+    render();
+  } catch (e) {
+    showToast('Something went wrong saving your picks.');
+  }
+}
+
 async function loadLessonOrder() {
   const db = getDB();
   if (!db) return;
@@ -10386,6 +10509,12 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'equipment') {
     S.view = 'equipment-kiosk';
+    render();
+    return;
+  }
+
+  if (new URLSearchParams(location.search).get('board') === 'beat-survey') {
+    S.view = 'beat-survey-board';
     render();
     return;
   }
