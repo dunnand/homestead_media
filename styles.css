@@ -864,6 +864,15 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .exp-practice-settings { font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px; }
 .exp-practice-tip { font-size: 0.85rem; color: var(--dim); line-height: 1.4; }
 
+.exp-mode-card { display: flex; gap: 8px; padding: 8px; }
+.exp-mode-btn {
+  flex: 1; padding: 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--surface2); color: var(--dim); font-weight: 700; font-size: 0.85rem; cursor: pointer;
+}
+.exp-mode-btn:hover { color: var(--text); }
+.exp-mode-btn.exp-mode-active { background: var(--live); border-color: var(--live); color: #fff; }
+.exp-mode-desc { font-size: 0.78rem; color: var(--dim); line-height: 1.4; margin: 8px 4px 0; }
+
 .exp-basics-body { margin-top: 12px; font-size: 0.85rem; line-height: 1.55; color: var(--text); }
 .exp-basics-body p { margin: 0 0 10px; }
 .exp-basics-body p:last-child { margin-bottom: 0; }

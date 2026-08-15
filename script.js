@@ -8168,6 +8168,10 @@ function attachListeners() {
   if (expBasicsToggle) expBasicsToggle.addEventListener('click', () => { S.expGame.showBasics = !S.expGame.showBasics; render(); });
   const expMeterToggle = document.getElementById('exp-meter-toggle');
   if (expMeterToggle) expMeterToggle.addEventListener('click', () => { S.expGame.meter = !S.expGame.meter; render(); });
+  const expModeStudy = document.getElementById('exp-mode-study');
+  if (expModeStudy) expModeStudy.addEventListener('click', () => { S.expGame.testMode = false; render(); });
+  const expModeTest = document.getElementById('exp-mode-test');
+  if (expModeTest) expModeTest.addEventListener('click', () => { S.expGame.testMode = true; render(); });
   // Live sync picks on change so the light meter and side-effect readouts update immediately
   [['exp-ap', 'ap'], ['exp-sh', 'sh'], ['exp-iso', 'iso']].forEach(([id, key]) => {
     const sel = document.getElementById(id);
@@ -9618,17 +9622,29 @@ function renderExposureGame() {
       showInfo: true,
       showBasics: false,
       meter: true,
+      testMode: false,
     };
   }
   const g = S.expGame;
   if (!('meter' in g)) { g.meter = true; g.showBasics = false; }
+  if (!('testMode' in g)) g.testMode = false;
   const scenario = EXPOSURE_SCENARIOS[g.order[g.pos]];
 
   const optHtml = (list, key) => `<option value="">Select…</option>` + list.map((o, i) =>
     `<option value="${i}" ${g.picks[key] === i ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
 
+  const modeSwitchHtml = `
+    <div class="kiosk-card exp-mode-card">
+      <button class="exp-mode-btn${!g.testMode ? ' exp-mode-active' : ''}" id="exp-mode-study" type="button">📖 Study Mode</button>
+      <button class="exp-mode-btn${g.testMode ? ' exp-mode-active' : ''}" id="exp-mode-test" type="button">📝 Test Mode</button>
+    </div>
+    <p class="exp-mode-desc">${g.testMode
+      ? 'Test mode: light meter, per-setting hints, and the reference panels are all hidden. Every correct answer counts toward your streak.'
+      : 'Study mode: light meter and live hints help you learn the trade-offs. Hide the meter for a mid-level challenge, or switch to Test Mode for the real thing.'}</p>`;
+
   // Live per-setting readout: how much light this pick adds/cuts + its creative side effect
   const fxLine = (list, key, fxFn) => {
+    if (g.testMode) return '';
     const i = g.picks[key];
     if (i === null || i === undefined || !list[i]) return `<div class="exp-fx exp-fx-empty">Pick one to see what it does</div>`;
     const o = list[i];
@@ -9636,7 +9652,7 @@ function renderExposureGame() {
     return `<div class="exp-fx"><span class="exp-fx-light">Light: ${light} stop${Math.abs(o.stops) === 1 ? '' : 's'}</span> ${esc(fxFn(o))}</div>`;
   };
 
-  const basicsHtml = `
+  const basicsHtml = g.testMode ? '' : `
     <div class="kiosk-card exp-info-card">
       <button class="exp-info-toggle" id="exp-basics-toggle">
         <span>🪣 New to cameras? Start here</span>
@@ -9659,7 +9675,9 @@ function renderExposureGame() {
   // Light meter: live reading of (total light − what the scene needs), like a real camera's M-mode meter
   const allPicked = g.picks.ap !== null && g.picks.sh !== null && g.picks.iso !== null;
   let meterHtml = '';
-  if (g.meter) {
+  if (g.testMode) {
+    meterHtml = '';
+  } else if (g.meter) {
     let ticksHtml = '', meterText = 'Select all three settings above to get a reading.';
     let diff = null;
     if (allPicked) {
@@ -9718,7 +9736,7 @@ function renderExposureGame() {
       <div class="exp-practice-tip">${esc(scenario.practiceTip)}</div>
     </div>` : '';
 
-  const infoHtml = `
+  const infoHtml = g.testMode ? '' : `
     <div class="kiosk-card exp-info-card">
       <button class="exp-info-toggle" id="exp-info-toggle">
         <span>📖 How Each Setting Works</span>
@@ -9749,6 +9767,7 @@ function renderExposureGame() {
         <h1>🎯 Exposure Triangle Challenge</h1>
         <p>Balance aperture, shutter speed, and ISO to correctly expose each scene — and hit the creative requirement when there is one.</p>
       </div>
+      ${modeSwitchHtml}
       ${basicsHtml}
       ${infoHtml}
       <div class="kiosk-card exp-streak-card">
@@ -9804,22 +9823,28 @@ function checkExposureAnswer() {
   const exposureOk = Math.abs(diff) <= scenario.tolerance;
   const reqOk = !scenario.requirement || scenario.requirement.check({ ap, sh, iso });
 
+  const meterActive = !g.testMode && g.meter;
+
   if (exposureOk && reqOk) {
     let msg = "Correct! That's a well-balanced exposure" + (scenario.requirement ? ' that also nails the creative requirement.' : '.');
-    if (!g.attempted && !g.meter) { g.streak++; g.best = Math.max(g.best, g.streak); }
-    else if (g.meter) msg += ' (Learning mode — hide the light meter to build your streak.)';
+    if (!g.attempted && !meterActive) { g.streak++; g.best = Math.max(g.best, g.streak); }
+    else if (meterActive) msg += ' (Learning mode — hide the light meter to build your streak.)';
     g.result = { status: 'correct', message: msg };
   } else if (!exposureOk) {
     const n = Math.abs(diff);
-    g.result = { status: 'exposure', message: diff > 0
-      ? `Overexposed by ${n} stop${n === 1 ? '' : 's'} — too much light. Cut ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a higher f-number, faster shutter, or lower ISO removes one stop of light.`
-      : `Underexposed by ${n} stop${n === 1 ? '' : 's'} — not enough light. Add ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a lower f-number, slower shutter, or higher ISO adds one stop of light.` };
+    g.result = { status: 'exposure', message: g.testMode
+      ? (diff > 0 ? 'Overexposed — too much light reaching the sensor.' : 'Underexposed — not enough light reaching the sensor.')
+      : (diff > 0
+        ? `Overexposed by ${n} stop${n === 1 ? '' : 's'} — too much light. Cut ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a higher f-number, faster shutter, or lower ISO removes one stop of light.`
+        : `Underexposed by ${n} stop${n === 1 ? '' : 's'} — not enough light. Add ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a lower f-number, slower shutter, or higher ISO adds one stop of light.`) };
     g.attempted = true;
-    if (!g.meter) g.streak = 0;
+    if (!meterActive) g.streak = 0;
   } else {
-    g.result = { status: 'requirement', message: `Exposure is balanced, but the shot doesn't meet the requirement: ${scenario.requirement.label}. Change which setting you use to hit that, then rebalance the other two to keep the exposure correct.` };
+    g.result = { status: 'requirement', message: g.testMode
+      ? `Exposure is balanced, but the shot doesn't meet the requirement: ${scenario.requirement.label}.`
+      : `Exposure is balanced, but the shot doesn't meet the requirement: ${scenario.requirement.label}. Change which setting you use to hit that, then rebalance the other two to keep the exposure correct.` };
     g.attempted = true;
-    if (!g.meter) g.streak = 0;
+    if (!meterActive) g.streak = 0;
   }
   render();
 }
