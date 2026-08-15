@@ -829,6 +829,26 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 }
 .kiosk-card #kiosk-name, .kiosk-card #kiosk-scan { font-size: 1.1rem; padding: 10px 12px; }
 
+.exp-streak-card {
+  display: flex; justify-content: center; gap: 28px;
+  font-size: 0.95rem; color: var(--dim); padding: 14px 24px;
+}
+.exp-streak-card strong { color: var(--text); font-size: 1.1rem; }
+.exp-scenario-card { display: flex; gap: 16px; align-items: flex-start; }
+.exp-scenario-icon { font-size: 2.4rem; line-height: 1; flex-shrink: 0; }
+.exp-scenario-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 4px; }
+.exp-scenario-desc { font-size: 0.9rem; color: var(--dim); line-height: 1.4; }
+.exp-requirement {
+  margin-top: 8px; font-size: 0.85rem; font-weight: 600; color: #f59e0b;
+  background: rgba(245, 158, 11, 0.1); border-radius: 6px; padding: 6px 10px; display: inline-block;
+}
+.exp-result {
+  max-width: 480px; margin: 0 auto 20px; padding: 14px 18px;
+  border-radius: var(--radius); font-size: 0.9rem; line-height: 1.4;
+}
+.exp-result-correct { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
+.exp-result-exposure, .exp-result-requirement { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
+
 .equip-overdue-banner {
   background: rgba(245, 158, 11, 0.12); color: #f59e0b;
   font-size: 0.85rem; font-weight: 600;

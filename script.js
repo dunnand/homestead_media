@@ -265,6 +265,7 @@ const S = {
   beatAssignments: {},
   beatSurvey: [],
   beatSurveySubmitted: false,
+  expGame: null,
   storyPlans: [],
   expandedStoryPlan: null,
   storyPlanFilter: 'active',
@@ -454,6 +455,7 @@ function render() {
     case 'bellringer-board': app.innerHTML = renderBellRingerBoard(); break;
     case 'equipment-kiosk':  app.innerHTML = renderEquipmentKiosk();  break;
     case 'beat-survey-board': app.innerHTML = renderBeatSurveyBoard(); break;
+    case 'exposure-game-board': app.innerHTML = renderExposureGame(); break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -4630,6 +4632,12 @@ function renderIntro() {
             <p>View intro lessons and course materials.</p>
             <button class="btn-primary" style="background:#f59e0b;color:#000" data-lesson-course="intro">Go to Lessons →</button>
           </section>
+          <section class="card action-card" style="--ac:#22c55e">
+            <div class="action-icon">🎯</div>
+            <h3>Exposure Triangle Challenge</h3>
+            <p>Practice balancing aperture, shutter speed, and ISO with instant feedback.</p>
+            <a class="btn-primary" style="background:#22c55e;color:#000;display:inline-block;text-decoration:none;text-align:center" href="?board=exposure-game">Play →</a>
+          </section>
           ${renderQuickLinksCard('intro')}
         </div>
       </div>
@@ -8138,6 +8146,11 @@ function attachListeners() {
   const bsResubmit = document.getElementById('bs-resubmit');
   if (bsResubmit) bsResubmit.addEventListener('click', () => { S.beatSurveySubmitted = false; render(); });
 
+  const expCheck = document.getElementById('exp-check');
+  if (expCheck) expCheck.addEventListener('click', checkExposureAnswer);
+  const expNext = document.getElementById('exp-next');
+  if (expNext) expNext.addEventListener('click', nextExposureScenario);
+
   document.querySelectorAll('.equip-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
 
@@ -9485,6 +9498,163 @@ async function submitBeatSurvey() {
   }
 }
 
+// ── EXPOSURE TRIANGLE GAME (?board=exposure-game) ──────────────
+const EXPOSURE_APERTURES = [
+  { label: 'f/1.4', stops: 5 },
+  { label: 'f/2',   stops: 4 },
+  { label: 'f/2.8', stops: 3 },
+  { label: 'f/4',   stops: 2 },
+  { label: 'f/5.6', stops: 1 },
+  { label: 'f/8',   stops: 0 },
+  { label: 'f/11',  stops: -1 },
+  { label: 'f/16',  stops: -2 },
+  { label: 'f/22',  stops: -3 },
+];
+const EXPOSURE_SHUTTERS = [
+  { label: '1/1000s', stops: -4 },
+  { label: '1/500s',  stops: -3 },
+  { label: '1/250s',  stops: -2 },
+  { label: '1/125s',  stops: -1 },
+  { label: '1/60s',   stops: 0 },
+  { label: '1/30s',   stops: 1 },
+  { label: '1/15s',   stops: 2 },
+  { label: '1/8s',    stops: 3 },
+  { label: '1/4s',    stops: 4 },
+  { label: '1/2s',    stops: 5 },
+  { label: '1"',      stops: 6 },
+];
+const EXPOSURE_ISOS = [
+  { label: 'ISO 100',  stops: -2 },
+  { label: 'ISO 200',  stops: -1 },
+  { label: 'ISO 400',  stops: 0 },
+  { label: 'ISO 800',  stops: 1 },
+  { label: 'ISO 1600', stops: 2 },
+  { label: 'ISO 3200', stops: 3 },
+  { label: 'ISO 6400', stops: 4 },
+];
+const EXPOSURE_SCENARIOS = [
+  { icon: '☁️', title: 'Overcast Afternoon', desc: "Casual photo outside on a cloudy day. No special requirement — just get the exposure right.", target: 0, tolerance: 1 },
+  { icon: '🏖️', title: 'Sunny Beach at Noon', desc: "Bright, harsh midday sun. You'll need settings that let in a lot less light than usual.", target: -6, tolerance: 1 },
+  { icon: '🏃', title: 'Sunny Track Meet — Freeze the Runner', desc: "Bright sun, but you need to freeze a sprinting runner sharp.", target: -6, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 } },
+  { icon: '🏀', title: 'Dim Gym — Freeze the Action', desc: "Low gym lighting, but the game is fast — you still need to freeze the play.", target: 5, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 } },
+  { icon: '💧', title: 'Waterfall — Silky Water', desc: "Shaded waterfall. You want the water blurred into a smooth, silky streak.", target: -2, tolerance: 1, requirement: { label: 'Shutter must be 1/8s or slower', check: p => p.sh.stops >= 3 } },
+  { icon: '🌄', title: 'Golden Hour Landscape', desc: "Warm evening light. You want everything — foreground to background — in sharp focus.", target: -2, tolerance: 1, requirement: { label: 'Aperture must be f/11 or smaller', check: p => p.ap.stops <= -1 } },
+  { icon: '🧑‍🎤', title: 'Studio Headshot', desc: "Controlled studio lighting. You want a soft, blurry background behind your subject.", target: 0, tolerance: 1, requirement: { label: 'Aperture must be f/2.8 or wider', check: p => p.ap.stops >= 3 } },
+  { icon: '🎤', title: 'Indoor Concert — No Flash', desc: "Very low light, flash isn't allowed. You'll need to push your settings hard to gather enough light.", target: 6, tolerance: 1 },
+];
+
+function shuffledOrder(n) {
+  const order = Array.from({ length: n }, (_, i) => i);
+  for (let i = order.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [order[i], order[j]] = [order[j], order[i]];
+  }
+  return order;
+}
+
+function renderExposureGame() {
+  if (!S.expGame) {
+    S.expGame = {
+      order: shuffledOrder(EXPOSURE_SCENARIOS.length),
+      pos: 0, streak: 0, best: 0, attempted: false,
+      picks: { ap: null, sh: null, iso: null },
+      result: null,
+    };
+  }
+  const g = S.expGame;
+  const scenario = EXPOSURE_SCENARIOS[g.order[g.pos]];
+
+  const optHtml = (list, key) => `<option value="">Select…</option>` + list.map((o, i) =>
+    `<option value="${i}" ${g.picks[key] === i ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+
+  const resultHtml = g.result ? `
+    <div class="exp-result exp-result-${g.result.status}">
+      ${g.result.status === 'correct' ? '✅' : '⚠️'} ${esc(g.result.message)}
+    </div>` : '';
+
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>🎯 Exposure Triangle Challenge</h1>
+        <p>Balance aperture, shutter speed, and ISO to correctly expose each scene — and hit the creative requirement when there is one.</p>
+      </div>
+      <div class="kiosk-card exp-streak-card">
+        <span>🔥 Streak: <strong>${g.streak}</strong></span>
+        <span>🏆 Best: <strong>${g.best}</strong></span>
+      </div>
+      <div class="kiosk-card exp-scenario-card">
+        <div class="exp-scenario-icon">${scenario.icon}</div>
+        <div>
+          <div class="exp-scenario-title">${esc(scenario.title)}</div>
+          <div class="exp-scenario-desc">${esc(scenario.desc)}</div>
+          ${scenario.requirement ? `<div class="exp-requirement">📌 ${esc(scenario.requirement.label)}</div>` : ''}
+        </div>
+      </div>
+      <div class="kiosk-card">
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Aperture</label>
+          <select id="exp-ap">${optHtml(EXPOSURE_APERTURES, 'ap')}</select>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label>Shutter Speed</label>
+          <select id="exp-sh">${optHtml(EXPOSURE_SHUTTERS, 'sh')}</select>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label>ISO</label>
+          <select id="exp-iso">${optHtml(EXPOSURE_ISOS, 'iso')}</select>
+        </div>
+      </div>
+      ${resultHtml}
+      <div class="kiosk-card" style="display:flex;gap:8px">
+        <button class="btn-primary" id="exp-check" style="flex:1">Check Exposure</button>
+        <button class="btn-secondary" id="exp-next" style="flex:1">Next Scenario →</button>
+      </div>
+    </div>`;
+}
+
+function checkExposureAnswer() {
+  const g = S.expGame;
+  if (!g) return;
+  const apIdx = val('exp-ap'), shIdx = val('exp-sh'), isoIdx = val('exp-iso');
+  if (apIdx === '' || shIdx === '' || isoIdx === '') { showToast('Pick all three settings first.'); return; }
+
+  const ap = EXPOSURE_APERTURES[+apIdx], sh = EXPOSURE_SHUTTERS[+shIdx], iso = EXPOSURE_ISOS[+isoIdx];
+  g.picks = { ap: +apIdx, sh: +shIdx, iso: +isoIdx };
+
+  const scenario = EXPOSURE_SCENARIOS[g.order[g.pos]];
+  const diff = (ap.stops + sh.stops + iso.stops) - scenario.target;
+  const exposureOk = Math.abs(diff) <= scenario.tolerance;
+  const reqOk = !scenario.requirement || scenario.requirement.check({ ap, sh, iso });
+
+  if (exposureOk && reqOk) {
+    g.result = { status: 'correct', message: "Correct! That's a well-balanced exposure" + (scenario.requirement ? ' that also nails the creative requirement.' : '.') };
+    if (!g.attempted) { g.streak++; g.best = Math.max(g.best, g.streak); }
+  } else if (!exposureOk) {
+    g.result = { status: 'exposure', message: diff > 0
+      ? 'Overexposed — too much light. Try a smaller aperture (higher f-number), a faster shutter speed, or a lower ISO.'
+      : 'Underexposed — not enough light. Try a wider aperture (lower f-number), a slower shutter speed, or a higher ISO.' };
+    g.attempted = true;
+    g.streak = 0;
+  } else {
+    g.result = { status: 'requirement', message: `Exposure is balanced, but the shot doesn't meet the requirement: ${scenario.requirement.label}. Change which setting you use to hit that, then rebalance the other two to keep the exposure correct.` };
+    g.attempted = true;
+    g.streak = 0;
+  }
+  render();
+}
+
+function nextExposureScenario() {
+  const g = S.expGame;
+  if (!g) return;
+  g.pos++;
+  if (g.pos >= g.order.length) { g.pos = 0; g.order = shuffledOrder(EXPOSURE_SCENARIOS.length); }
+  g.picks = { ap: null, sh: null, iso: null };
+  g.result = null;
+  g.attempted = false;
+  render();
+}
+
 async function loadLessonOrder() {
   const db = getDB();
   if (!db) return;
@@ -10516,6 +10686,12 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'beat-survey') {
     S.view = 'beat-survey-board';
+    render();
+    return;
+  }
+
+  if (new URLSearchParams(location.search).get('board') === 'exposure-game') {
+    S.view = 'exposure-game-board';
     render();
     return;
   }
