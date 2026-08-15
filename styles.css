@@ -849,6 +849,21 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .exp-result-correct { background: rgba(34, 197, 94, 0.1); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); }
 .exp-result-exposure, .exp-result-requirement { background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.3); }
 
+.exp-info-toggle {
+  display: flex; justify-content: space-between; align-items: center; width: 100%;
+  background: none; border: none; cursor: pointer; padding: 0;
+  font-size: 0.95rem; font-weight: 700; color: var(--text);
+}
+.exp-info-grid { display: flex; flex-direction: column; gap: 12px; margin-top: 14px; }
+.exp-info-name { font-weight: 700; font-size: 0.88rem; margin-bottom: 3px; }
+.exp-info-desc { font-size: 0.83rem; color: var(--dim); line-height: 1.4; }
+.exp-info-note { font-size: 0.8rem; color: var(--dim); line-height: 1.4; margin: 14px 0 0; padding-top: 12px; border-top: 1px solid var(--border); }
+
+.exp-practice-card { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.3); }
+.exp-practice-title { font-weight: 700; font-size: 0.95rem; margin-bottom: 8px; }
+.exp-practice-settings { font-size: 0.85rem; line-height: 1.4; margin-bottom: 8px; }
+.exp-practice-tip { font-size: 0.85rem; color: var(--dim); line-height: 1.4; }
+
 .equip-overdue-banner {
   background: rgba(245, 158, 11, 0.12); color: #f59e0b;
   font-size: 0.85rem; font-weight: 600;

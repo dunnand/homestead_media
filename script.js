@@ -8150,6 +8150,8 @@ function attachListeners() {
   if (expCheck) expCheck.addEventListener('click', checkExposureAnswer);
   const expNext = document.getElementById('exp-next');
   if (expNext) expNext.addEventListener('click', nextExposureScenario);
+  const expInfoToggle = document.getElementById('exp-info-toggle');
+  if (expInfoToggle) expInfoToggle.addEventListener('click', () => { S.expGame.showInfo = !S.expGame.showInfo; render(); });
 
   document.querySelectorAll('.equip-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
@@ -9533,14 +9535,22 @@ const EXPOSURE_ISOS = [
   { label: 'ISO 6400', stops: 4 },
 ];
 const EXPOSURE_SCENARIOS = [
-  { icon: '☁️', title: 'Overcast Afternoon', desc: "Casual photo outside on a cloudy day. No special requirement — just get the exposure right.", target: 0, tolerance: 1 },
-  { icon: '🏖️', title: 'Sunny Beach at Noon', desc: "Bright, harsh midday sun. You'll need settings that let in a lot less light than usual.", target: -6, tolerance: 1 },
-  { icon: '🏃', title: 'Sunny Track Meet — Freeze the Runner', desc: "Bright sun, but you need to freeze a sprinting runner sharp.", target: -6, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 } },
-  { icon: '🏀', title: 'Dim Gym — Freeze the Action', desc: "Low gym lighting, but the game is fast — you still need to freeze the play.", target: 5, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 } },
-  { icon: '💧', title: 'Waterfall — Silky Water', desc: "Shaded waterfall. You want the water blurred into a smooth, silky streak.", target: -2, tolerance: 1, requirement: { label: 'Shutter must be 1/8s or slower', check: p => p.sh.stops >= 3 } },
-  { icon: '🌄', title: 'Golden Hour Landscape', desc: "Warm evening light. You want everything — foreground to background — in sharp focus.", target: -2, tolerance: 1, requirement: { label: 'Aperture must be f/11 or smaller', check: p => p.ap.stops <= -1 } },
-  { icon: '🧑‍🎤', title: 'Studio Headshot', desc: "Controlled studio lighting. You want a soft, blurry background behind your subject.", target: 0, tolerance: 1, requirement: { label: 'Aperture must be f/2.8 or wider', check: p => p.ap.stops >= 3 } },
-  { icon: '🎤', title: 'Indoor Concert — No Flash', desc: "Very low light, flash isn't allowed. You'll need to push your settings hard to gather enough light.", target: 6, tolerance: 1 },
+  { icon: '☁️', title: 'Overcast Afternoon', desc: "Casual photo outside on a cloudy day. No special requirement — just get the exposure right.", target: 0, tolerance: 1,
+    practiceTip: "Check your LCD or histogram — does the image look neither too bright nor too dark?" },
+  { icon: '🏖️', title: 'Sunny Beach at Noon', desc: "Bright, harsh midday sun. You'll need settings that let in a lot less light than usual.", target: -6, tolerance: 1,
+    practiceTip: "Shoot in bright light — check your LCD or histogram. Is it properly exposed, or blown out white?" },
+  { icon: '🏃', title: 'Sunny Track Meet — Freeze the Runner', desc: "Bright sun, but you need to freeze a sprinting runner sharp.", target: -6, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 },
+    practiceTip: "Photograph someone moving fast (walking briskly counts) — is the motion frozen sharp, no blur?" },
+  { icon: '🏀', title: 'Dim Gym — Freeze the Action', desc: "Low gym lighting, but the game is fast — you still need to freeze the play.", target: 5, tolerance: 1, requirement: { label: 'Shutter must be 1/250s or faster', check: p => p.sh.stops <= -2 },
+    practiceTip: "Photograph fast motion indoors — is it frozen sharp even in the lower light?" },
+  { icon: '💧', title: 'Waterfall — Silky Water', desc: "Shaded waterfall. You want the water blurred into a smooth, silky streak.", target: -2, tolerance: 1, requirement: { label: 'Shutter must be 1/8s or slower', check: p => p.sh.stops >= 3 },
+    practiceTip: "Photograph a running faucet or someone waving their hand — does it show a smooth motion blur/streak?" },
+  { icon: '🌄', title: 'Golden Hour Landscape', desc: "Warm evening light. You want everything — foreground to background — in sharp focus.", target: -2, tolerance: 1, requirement: { label: 'Aperture must be f/11 or smaller', check: p => p.ap.stops <= -1 },
+    practiceTip: "Photograph a scene with something close and something far away — are both in sharp focus?" },
+  { icon: '🧑‍🎤', title: 'Studio Headshot', desc: "Controlled studio lighting. You want a soft, blurry background behind your subject.", target: 0, tolerance: 1, requirement: { label: 'Aperture must be f/2.8 or wider', check: p => p.ap.stops >= 3 },
+    practiceTip: "Photograph a classmate with something behind them — is the background nicely blurred while they stay sharp?" },
+  { icon: '🎤', title: 'Indoor Concert — No Flash', desc: "Very low light, flash isn't allowed. You'll need to push your settings hard to gather enough light.", target: 6, tolerance: 1,
+    practiceTip: "Shoot in a dim room without flash — is the image bright enough? Zoom in on your LCD — how much grain/noise do you see?" },
 ];
 
 function shuffledOrder(n) {
@@ -9559,6 +9569,7 @@ function renderExposureGame() {
       pos: 0, streak: 0, best: 0, attempted: false,
       picks: { ap: null, sh: null, iso: null },
       result: null,
+      showInfo: true,
     };
   }
   const g = S.expGame;
@@ -9572,6 +9583,37 @@ function renderExposureGame() {
       ${g.result.status === 'correct' ? '✅' : '⚠️'} ${esc(g.result.message)}
     </div>` : '';
 
+  const practiceHtml = (g.result && g.result.status === 'correct') ? `
+    <div class="kiosk-card exp-practice-card">
+      <div class="exp-practice-title">🎥 Now Shoot It For Real</div>
+      <div class="exp-practice-settings">Set a camera to <strong>Manual (M)</strong> mode and dial in exactly what you picked: <strong>${esc(EXPOSURE_APERTURES[g.picks.ap].label)}</strong> · <strong>${esc(EXPOSURE_SHUTTERS[g.picks.sh].label)}</strong> · <strong>${esc(EXPOSURE_ISOS[g.picks.iso].label)}</strong></div>
+      <div class="exp-practice-tip">${esc(scenario.practiceTip)}</div>
+    </div>` : '';
+
+  const infoHtml = `
+    <div class="kiosk-card exp-info-card">
+      <button class="exp-info-toggle" id="exp-info-toggle">
+        <span>📖 How Each Setting Works</span>
+        <span>${g.showInfo ? '▾' : '▸'}</span>
+      </button>
+      ${g.showInfo ? `
+      <div class="exp-info-grid">
+        <div class="exp-info-item">
+          <div class="exp-info-name">🔘 Aperture (f-stop)</div>
+          <div class="exp-info-desc">The size of the lens opening. A <strong>smaller f-number</strong> (f/1.4) is a wider opening — more light in, blurrier background. A <strong>larger f-number</strong> (f/16) is a narrower opening — less light, more of the scene in focus.</div>
+        </div>
+        <div class="exp-info-item">
+          <div class="exp-info-name">⏱️ Shutter Speed</div>
+          <div class="exp-info-desc">How long the sensor is exposed to light. A <strong>fast</strong> shutter (1/1000s) lets in less light and freezes motion. A <strong>slow</strong> shutter (1/4s) lets in more light and blurs motion.</div>
+        </div>
+        <div class="exp-info-item">
+          <div class="exp-info-name">🎛️ ISO</div>
+          <div class="exp-info-desc">The sensor's sensitivity to light. <strong>Low</strong> ISO (100) needs more light but gives a clean image. <strong>High</strong> ISO (3200+) works in dim light but adds visible grain/noise.</div>
+        </div>
+      </div>
+      <p class="exp-info-note">Each step on these three dials doubles or halves the amount of light reaching the sensor — that's called a <strong>stop</strong>. A correct exposure balances all three; changing one means you often have to adjust another to compensate.</p>` : ''}
+    </div>`;
+
   return `
     <div class="ib-board">
       <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
@@ -9579,6 +9621,7 @@ function renderExposureGame() {
         <h1>🎯 Exposure Triangle Challenge</h1>
         <p>Balance aperture, shutter speed, and ISO to correctly expose each scene — and hit the creative requirement when there is one.</p>
       </div>
+      ${infoHtml}
       <div class="kiosk-card exp-streak-card">
         <span>🔥 Streak: <strong>${g.streak}</strong></span>
         <span>🏆 Best: <strong>${g.best}</strong></span>
@@ -9606,6 +9649,7 @@ function renderExposureGame() {
         </div>
       </div>
       ${resultHtml}
+      ${practiceHtml}
       <div class="kiosk-card" style="display:flex;gap:8px">
         <button class="btn-primary" id="exp-check" style="flex:1">Check Exposure</button>
         <button class="btn-secondary" id="exp-next" style="flex:1">Next Scenario →</button>
