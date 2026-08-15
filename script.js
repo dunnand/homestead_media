@@ -8164,6 +8164,19 @@ function attachListeners() {
   if (expNext) expNext.addEventListener('click', nextExposureScenario);
   const expInfoToggle = document.getElementById('exp-info-toggle');
   if (expInfoToggle) expInfoToggle.addEventListener('click', () => { S.expGame.showInfo = !S.expGame.showInfo; render(); });
+  const expBasicsToggle = document.getElementById('exp-basics-toggle');
+  if (expBasicsToggle) expBasicsToggle.addEventListener('click', () => { S.expGame.showBasics = !S.expGame.showBasics; render(); });
+  const expMeterToggle = document.getElementById('exp-meter-toggle');
+  if (expMeterToggle) expMeterToggle.addEventListener('click', () => { S.expGame.meter = !S.expGame.meter; render(); });
+  // Live sync picks on change so the light meter and side-effect readouts update immediately
+  [['exp-ap', 'ap'], ['exp-sh', 'sh'], ['exp-iso', 'iso']].forEach(([id, key]) => {
+    const sel = document.getElementById(id);
+    if (sel) sel.addEventListener('change', () => {
+      if (!S.expGame) return;
+      S.expGame.picks[key] = sel.value === '' ? null : +sel.value;
+      render();
+    });
+  });
 
   document.querySelectorAll('.equip-delete-btn').forEach(btn =>
     btn.addEventListener('click', () => deleteEquipmentItem(btn.dataset.equipId)));
@@ -9574,6 +9587,27 @@ function shuffledOrder(n) {
   return order;
 }
 
+// Plain-English side effect of each possible pick, so beginners see the trade-off live
+function expApertureFx(o) {
+  if (o.stops >= 3) return '🌫️ Wide open — very blurry background';
+  if (o.stops >= 1) return '🙂 Fairly wide — some background blur';
+  if (o.stops >= -1) return '🏞️ Mid-range — most of the scene in focus';
+  return '🔭 Narrow — everything sharp front-to-back';
+}
+function expShutterFx(o) {
+  if (o.stops <= -3) return '⚡ Freezes even fast sports action';
+  if (o.stops <= -1) return '🏃 Freezes everyday motion';
+  if (o.stops === 0) return '✋ Fine handheld — fast motion may blur';
+  if (o.stops <= 2) return '〰️ Motion blurs — brace the camera';
+  return '🌀 Long exposure — silky blur, tripod required';
+}
+function expIsoFx(o) {
+  if (o.stops <= 0) return '✨ Clean, noise-free image';
+  if (o.stops <= 2) return '🙂 A little grain — totally usable';
+  if (o.stops === 3) return '📺 Noticeable grain';
+  return '🌨️ Very grainy and noisy';
+}
+
 function renderExposureGame() {
   if (!S.expGame) {
     S.expGame = {
@@ -9582,13 +9616,95 @@ function renderExposureGame() {
       picks: { ap: null, sh: null, iso: null },
       result: null,
       showInfo: true,
+      showBasics: false,
+      meter: true,
     };
   }
   const g = S.expGame;
+  if (!('meter' in g)) { g.meter = true; g.showBasics = false; }
   const scenario = EXPOSURE_SCENARIOS[g.order[g.pos]];
 
   const optHtml = (list, key) => `<option value="">Select…</option>` + list.map((o, i) =>
     `<option value="${i}" ${g.picks[key] === i ? 'selected' : ''}>${esc(o.label)}</option>`).join('');
+
+  // Live per-setting readout: how much light this pick adds/cuts + its creative side effect
+  const fxLine = (list, key, fxFn) => {
+    const i = g.picks[key];
+    if (i === null || i === undefined || !list[i]) return `<div class="exp-fx exp-fx-empty">Pick one to see what it does</div>`;
+    const o = list[i];
+    const light = o.stops > 0 ? `+${o.stops}` : `${o.stops}`;
+    return `<div class="exp-fx"><span class="exp-fx-light">Light: ${light} stop${Math.abs(o.stops) === 1 ? '' : 's'}</span> ${esc(fxFn(o))}</div>`;
+  };
+
+  const basicsHtml = `
+    <div class="kiosk-card exp-info-card">
+      <button class="exp-info-toggle" id="exp-basics-toggle">
+        <span>🪣 New to cameras? Start here</span>
+        <span>${g.showBasics ? '▾' : '▸'}</span>
+      </button>
+      ${g.showBasics ? `
+      <div class="exp-basics-body">
+        <p>Taking a photo is like <strong>filling a bucket with water</strong>. A perfectly full bucket = a perfectly exposed photo. Overflow = too bright (<strong>overexposed</strong>). Half empty = too dark (<strong>underexposed</strong>). You control the water with three dials:</p>
+        <ul class="exp-basics-list">
+          <li><strong>Aperture</strong> = how wide the faucet opens. Careful: the f-numbers are backwards — <strong>f/1.4 is wide open</strong>, f/22 is barely a trickle.</li>
+          <li><strong>Shutter speed</strong> = how long you leave the faucet running. 1/1000s is a quick blast; 1" is a full second of pouring.</li>
+          <li><strong>ISO</strong> = turning up the volume on what you collected. It brightens the photo without adding real light — but it also turns up the static (grain).</li>
+        </ul>
+        <p><strong>The catch — every dial has a side effect:</strong> a wide aperture blurs the background, a slow shutter blurs motion, a high ISO adds grain. That's the whole exposure triangle: you're always trading one side effect for another.</p>
+        <p><strong>Reading the scene:</strong> ☀️ Bright scene → light is blasting in, so pick settings that <em>cut</em> light. 🌙 Dark scene → light is trickling in, so pick settings that <em>gather more</em>.</p>
+        <p>Not sure? Just start picking — the <strong>light meter below</strong> moves as you change each setting, exactly like the real meter in a camera's Manual (M) mode. Watch what each change does to the needle.</p>
+      </div>` : ''}
+    </div>`;
+
+  // Light meter: live reading of (total light − what the scene needs), like a real camera's M-mode meter
+  const allPicked = g.picks.ap !== null && g.picks.sh !== null && g.picks.iso !== null;
+  let meterHtml = '';
+  if (g.meter) {
+    let ticksHtml = '', meterText = 'Select all three settings above to get a reading.';
+    let diff = null;
+    if (allPicked) {
+      diff = EXPOSURE_APERTURES[g.picks.ap].stops + EXPOSURE_SHUTTERS[g.picks.sh].stops + EXPOSURE_ISOS[g.picks.iso].stops - scenario.target;
+      const clamped = Math.max(-5, Math.min(5, diff));
+      const state = Math.abs(diff) <= scenario.tolerance ? 'ok' : Math.abs(diff) <= scenario.tolerance + 1 ? 'warn' : 'bad';
+      ticksHtml = '';
+      for (let t = -5; t <= 5; t++) {
+        ticksHtml += `<div class="exp-meter-tick${t === 0 ? ' exp-meter-zero' : ''}${clamped === t ? ` exp-meter-needle exp-meter-${state}` : ''}">${t === 0 ? '0' : (t > 0 ? '+' + t : t)}</div>`;
+      }
+      if (Math.abs(diff) <= scenario.tolerance) {
+        meterText = diff === 0 ? '✅ Dead center — perfect exposure!' : '✅ In the green — close enough to correct.';
+        if (scenario.requirement) meterText += ' Now double-check the creative requirement, then hit Check.';
+        else meterText += ' Hit Check!';
+      } else {
+        const n = Math.abs(diff);
+        meterText = diff > 0
+          ? `${n} stop${n === 1 ? '' : 's'} too bright — cut light: higher f-number, faster shutter, or lower ISO.`
+          : `${n} stop${n === 1 ? '' : 's'} too dark — add light: lower f-number, slower shutter, or higher ISO.`;
+      }
+    } else {
+      for (let t = -5; t <= 5; t++) {
+        ticksHtml += `<div class="exp-meter-tick${t === 0 ? ' exp-meter-zero' : ''}">${t === 0 ? '0' : (t > 0 ? '+' + t : t)}</div>`;
+      }
+    }
+    meterHtml = `
+    <div class="kiosk-card exp-meter-card">
+      <div class="exp-meter-head">
+        <span>📟 Light Meter <span class="exp-meter-mode">learning mode</span></span>
+        <button class="exp-meter-toggle" id="exp-meter-toggle">Hide meter →</button>
+      </div>
+      <div class="exp-meter-scale"><span>◀ too dark</span><span>too bright ▶</span></div>
+      <div class="exp-meter-bar">${ticksHtml}</div>
+      <div class="exp-meter-text">${meterText}</div>
+      <div class="exp-meter-note">The meter shows your total light vs. what this scene needs — just like a real camera in M mode. Hide it to play challenge mode and build your streak.</div>
+    </div>`;
+  } else {
+    meterHtml = `
+    <div class="kiosk-card exp-meter-card exp-meter-off">
+      <div class="exp-meter-head">
+        <span>🏆 Challenge mode — no meter, streak counts</span>
+        <button class="exp-meter-toggle" id="exp-meter-toggle">📟 Show light meter</button>
+      </div>
+    </div>`;
+  }
 
   const resultHtml = g.result ? `
     <div class="exp-result exp-result-${g.result.status}">
@@ -9633,6 +9749,7 @@ function renderExposureGame() {
         <h1>🎯 Exposure Triangle Challenge</h1>
         <p>Balance aperture, shutter speed, and ISO to correctly expose each scene — and hit the creative requirement when there is one.</p>
       </div>
+      ${basicsHtml}
       ${infoHtml}
       <div class="kiosk-card exp-streak-card">
         <span>🔥 Streak: <strong>${g.streak}</strong></span>
@@ -9650,16 +9767,20 @@ function renderExposureGame() {
         <div class="form-group" style="margin-bottom:14px">
           <label>Aperture</label>
           <select id="exp-ap">${optHtml(EXPOSURE_APERTURES, 'ap')}</select>
+          ${fxLine(EXPOSURE_APERTURES, 'ap', expApertureFx)}
         </div>
         <div class="form-group" style="margin-bottom:14px">
           <label>Shutter Speed</label>
           <select id="exp-sh">${optHtml(EXPOSURE_SHUTTERS, 'sh')}</select>
+          ${fxLine(EXPOSURE_SHUTTERS, 'sh', expShutterFx)}
         </div>
         <div class="form-group" style="margin-bottom:0">
           <label>ISO</label>
           <select id="exp-iso">${optHtml(EXPOSURE_ISOS, 'iso')}</select>
+          ${fxLine(EXPOSURE_ISOS, 'iso', expIsoFx)}
         </div>
       </div>
+      ${meterHtml}
       ${resultHtml}
       ${practiceHtml}
       <div class="kiosk-card" style="display:flex;gap:8px">
@@ -9684,18 +9805,21 @@ function checkExposureAnswer() {
   const reqOk = !scenario.requirement || scenario.requirement.check({ ap, sh, iso });
 
   if (exposureOk && reqOk) {
-    g.result = { status: 'correct', message: "Correct! That's a well-balanced exposure" + (scenario.requirement ? ' that also nails the creative requirement.' : '.') };
-    if (!g.attempted) { g.streak++; g.best = Math.max(g.best, g.streak); }
+    let msg = "Correct! That's a well-balanced exposure" + (scenario.requirement ? ' that also nails the creative requirement.' : '.');
+    if (!g.attempted && !g.meter) { g.streak++; g.best = Math.max(g.best, g.streak); }
+    else if (g.meter) msg += ' (Learning mode — hide the light meter to build your streak.)';
+    g.result = { status: 'correct', message: msg };
   } else if (!exposureOk) {
+    const n = Math.abs(diff);
     g.result = { status: 'exposure', message: diff > 0
-      ? 'Overexposed — too much light. Try a smaller aperture (higher f-number), a faster shutter speed, or a lower ISO.'
-      : 'Underexposed — not enough light. Try a wider aperture (lower f-number), a slower shutter speed, or a higher ISO.' };
+      ? `Overexposed by ${n} stop${n === 1 ? '' : 's'} — too much light. Cut ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a higher f-number, faster shutter, or lower ISO removes one stop of light.`
+      : `Underexposed by ${n} stop${n === 1 ? '' : 's'} — not enough light. Add ${n === 1 ? 'a stop' : `~${n} stops`}: each step to a lower f-number, slower shutter, or higher ISO adds one stop of light.` };
     g.attempted = true;
-    g.streak = 0;
+    if (!g.meter) g.streak = 0;
   } else {
     g.result = { status: 'requirement', message: `Exposure is balanced, but the shot doesn't meet the requirement: ${scenario.requirement.label}. Change which setting you use to hit that, then rebalance the other two to keep the exposure correct.` };
     g.attempted = true;
-    g.streak = 0;
+    if (!g.meter) g.streak = 0;
   }
   render();
 }
