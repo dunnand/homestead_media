@@ -9483,8 +9483,8 @@ async function handleEquipmentScan(rawBarcode) {
 }
 
 // Standalone roster/depth-chart page (?board=roster) — students browse the
-// varsity/JV roster, freshman roster, and two-deep depth chart, and can
-// star key players to help the broadcast crew learn names/numbers/positions.
+// varsity/JV roster and two-deep depth chart, and can star key players to
+// help the broadcast crew learn names/numbers/positions.
 // Stars are shared crew-wide via hm_roster_stars (any student can toggle).
 const ROSTER_POS_LABELS = {
   QB: 'Quarterback', RB: 'Running Back', WR: 'Wide Receiver', TE: 'Tight End',
@@ -9512,7 +9512,6 @@ function renderRosterBoard() {
       </div>
       <div class="roster-tabs">
         <button type="button" class="roster-tab-btn${tab === 'varsity' ? ' roster-tab-active' : ''}" data-roster-tab="varsity">Varsity / JV</button>
-        <button type="button" class="roster-tab-btn${tab === 'freshman' ? ' roster-tab-active' : ''}" data-roster-tab="freshman">Freshmen</button>
         <button type="button" class="roster-tab-btn${tab === 'depth' ? ' roster-tab-active' : ''}" data-roster-tab="depth">Depth Chart</button>
       </div>
       ${tab !== 'depth' ? `
@@ -9528,11 +9527,9 @@ function renderRosterBoard() {
 
 function renderRosterListWrap() {
   if (S.rosterTab === 'depth') return renderDepthChartTable();
-  const isFresh = S.rosterTab === 'freshman';
-  const list = isFresh ? FOOTBALL_FRESHMAN_ROSTER : FOOTBALL_ROSTER;
   const q = S.rosterSearch.trim().toLowerCase();
-  const rows = list
-    .map((p, i) => ({ p, id: isFresh ? `f${i}` : `v${p.num}` }))
+  const rows = FOOTBALL_ROSTER
+    .map(p => ({ p, id: `v${p.num}` }))
     .filter(({ p }) => !q || p.name.toLowerCase().includes(q) || String(p.num).includes(q))
     .filter(({ id }) => !S.rosterStarredOnly || S.rosterStars.has(id));
   if (!rows.length) return `<div class="roster-empty">No players match.</div>`;
