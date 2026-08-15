@@ -8079,6 +8079,18 @@ function attachListeners() {
     });
   });
 
+  document.querySelectorAll('.ls-req-chip').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const row = btn.closest('.ls-role-row');
+      const input = row?.querySelector('.role-input');
+      if (!input) return;
+      input.value = btn.dataset.name;
+      input.focus();
+      row.querySelectorAll('.ls-req-chip').forEach(c => c.classList.remove('ls-req-active'));
+      btn.classList.add('ls-req-active');
+    });
+  });
+
   document.querySelectorAll('.ls-open-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       S.broadcastId = btn.dataset.broadcastId;
@@ -11195,11 +11207,25 @@ function renderDashboard() {
             </div>
             <div class="ls-chips">${chips}</div>
             <div class="role-grid ls-role-grid">
-              ${LIVE_ROLES.map(role => `
-                <div class="role-row">
+              ${LIVE_ROLES.map(role => {
+                const currentVal = roles[role] || '';
+                const interested = avails.filter(a => (a.interestedRoles || []).includes(role));
+                return `
+                <div class="role-row ls-role-row">
                   <div class="role-name">${role}</div>
-                  <input class="role-input" type="text" data-role="${role}" value="${esc(roles[role] || '')}" placeholder="Student name" list="ls-names-${esc(b.id)}">
-                </div>`).join('')}
+                  <div class="ls-role-input-wrap">
+                    <input class="role-input" type="text" data-role="${esc(role)}" value="${esc(currentVal)}" placeholder="Student name" list="ls-names-${esc(b.id)}">
+                    ${interested.length ? `
+                    <div class="ls-role-requesters">
+                      ${interested.map(a => {
+                        const takenAs = Object.entries(roles).find(([r, n]) => n === a.studentName && r !== role)?.[0];
+                        const active = currentVal === a.studentName;
+                        return `<button type="button" class="ls-req-chip${active ? ' ls-req-active' : ''}${takenAs ? ' ls-req-taken' : ''}" data-role="${esc(role)}" data-name="${esc(a.studentName)}" title="${takenAs ? `Requested this — already assigned as ${esc(takenAs)}` : 'Click to assign here'}">${esc(a.studentName)}</button>`;
+                      }).join('')}
+                    </div>` : ''}
+                  </div>
+                </div>`;
+              }).join('')}
             </div>
             <datalist id="ls-names-${esc(b.id)}">
               ${avails.map(a => `<option value="${esc(a.studentName)}">`).join('')}
