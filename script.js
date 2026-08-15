@@ -4632,12 +4632,6 @@ function renderIntro() {
             <p>View intro lessons and course materials.</p>
             <button class="btn-primary" style="background:#f59e0b;color:#000" data-lesson-course="intro">Go to Lessons →</button>
           </section>
-          <section class="card action-card" style="--ac:#22c55e">
-            <div class="action-icon">🎯</div>
-            <h3>Exposure Triangle Challenge</h3>
-            <p>Practice balancing aperture, shutter speed, and ISO with instant feedback.</p>
-            <a class="btn-primary" style="background:#22c55e;color:#000;display:inline-block;text-decoration:none;text-align:center" href="?board=exposure-game">Play →</a>
-          </section>
           ${renderQuickLinksCard('intro')}
         </div>
       </div>
@@ -6111,6 +6105,12 @@ function renderYearbook() {
             <h3>Walsworth Yearbooks</h3>
             <p>Log in to build pages, submit layouts, and manage your section.</p>
             <a class="btn-primary" href="https://login.walsworthyearbooks.com/login" target="_blank" rel="noopener">Open Walsworth ↗</a>
+          </section>
+          <section class="card action-card" style="--ac:#22c55e">
+            <div class="action-icon">🎯</div>
+            <h3>Exposure Triangle Challenge</h3>
+            <p>Practice balancing aperture, shutter speed, and ISO with instant feedback.</p>
+            <a class="btn-primary" style="background:#22c55e;color:#000;display:inline-block;text-decoration:none;text-align:center" href="?board=exposure-game">Play →</a>
           </section>
           ${renderQuickLinksCard('yearbook')}
 
