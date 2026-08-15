@@ -266,6 +266,10 @@ const S = {
   beatSurvey: [],
   beatSurveySubmitted: false,
   expGame: null,
+  rosterStars: new Set(),
+  rosterTab: 'varsity',
+  rosterStarredOnly: false,
+  rosterSearch: '',
   storyPlans: [],
   expandedStoryPlan: null,
   storyPlanFilter: 'active',
@@ -456,6 +460,7 @@ function render() {
     case 'equipment-kiosk':  app.innerHTML = renderEquipmentKiosk();  break;
     case 'beat-survey-board': app.innerHTML = renderBeatSurveyBoard(); break;
     case 'exposure-game-board': app.innerHTML = renderExposureGame(); break;
+    case 'roster-board':     app.innerHTML = renderRosterBoard();     break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -4092,6 +4097,12 @@ function renderLive() {
             <p>Tell your teacher which positions you're interested in for upcoming broadcasts.</p>
             <button class="btn-primary" data-nav="availability">Sign Up →</button>
           </section>` : ''}
+          <section class="card action-card live-action">
+            <div class="action-icon">🏈</div>
+            <h3>Football Roster</h3>
+            <p>Names, numbers, and positions for the crew — star key players to help everyone learn who's who.</p>
+            <a class="btn-primary" style="display:inline-block;text-decoration:none;text-align:center" href="?board=roster">Open Roster →</a>
+          </section>
           <section class="card">
             <h2>Crew Roles</h2>
             <div class="roles-list">
@@ -8172,6 +8183,21 @@ function attachListeners() {
   if (expModeStudy) expModeStudy.addEventListener('click', () => { S.expGame.testMode = false; render(); });
   const expModeTest = document.getElementById('exp-mode-test');
   if (expModeTest) expModeTest.addEventListener('click', () => { S.expGame.testMode = true; render(); });
+
+  document.querySelectorAll('[data-roster-tab]').forEach(btn => {
+    btn.addEventListener('click', () => { S.rosterTab = btn.dataset.rosterTab; render(); });
+  });
+  const rosterStarredToggle = document.querySelector('[data-roster-starred-toggle]');
+  if (rosterStarredToggle) rosterStarredToggle.addEventListener('click', () => {
+    S.rosterStarredOnly = !S.rosterStarredOnly; render();
+  });
+  const rosterSearch = document.getElementById('roster-search');
+  if (rosterSearch) rosterSearch.addEventListener('input', () => {
+    S.rosterSearch = rosterSearch.value;
+    const wrap = document.getElementById('roster-list-wrap');
+    if (wrap) { wrap.innerHTML = renderRosterListWrap(); bindRosterStarButtons(wrap); }
+  });
+  bindRosterStarButtons(document);
   // Live sync picks on change so the light meter and side-effect readouts update immediately
   [['exp-ap', 'ap'], ['exp-sh', 'sh'], ['exp-iso', 'iso']].forEach(([id, key]) => {
     const sel = document.getElementById(id);
@@ -9456,6 +9482,117 @@ async function handleEquipmentScan(rawBarcode) {
   if (scanInput) { scanInput.value = ''; scanInput.focus(); }
 }
 
+// Standalone roster/depth-chart page (?board=roster) — students browse the
+// varsity/JV roster, freshman roster, and two-deep depth chart, and can
+// star key players to help the broadcast crew learn names/numbers/positions.
+// Stars are shared crew-wide via hm_roster_stars (any student can toggle).
+const ROSTER_POS_LABELS = {
+  QB: 'Quarterback', RB: 'Running Back', WR: 'Wide Receiver', TE: 'Tight End',
+  OL: 'Offensive Line', DL: 'Defensive Line', LB: 'Linebacker', DB: 'Defensive Back',
+};
+const DEPTH_POS_LABELS = {
+  offense: { QB: 'Quarterback', RB: 'Running Back', OT: 'Tackle', OG: 'Guard', C: 'Center', WR: 'Wide Receiver', TE: 'Tight End' },
+  defense: { DE: 'Defensive End', N: 'Nose Tackle', OLB: 'Outside Linebacker', ILB: 'Inside Linebacker', S: 'Safety', C: 'Cornerback' },
+};
+
+function bindRosterStarButtons(root) {
+  root.querySelectorAll('[data-star-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => toggleRosterStar(btn.dataset.starToggle));
+  });
+}
+
+function renderRosterBoard() {
+  const tab = S.rosterTab;
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>🏈 2026 Football Roster</h1>
+        <p>The crew's cheat sheet for names, numbers, and positions. Tap ☆ to star a player — stars are shared with the whole crew.</p>
+      </div>
+      <div class="roster-tabs">
+        <button type="button" class="roster-tab-btn${tab === 'varsity' ? ' roster-tab-active' : ''}" data-roster-tab="varsity">Varsity / JV</button>
+        <button type="button" class="roster-tab-btn${tab === 'freshman' ? ' roster-tab-active' : ''}" data-roster-tab="freshman">Freshmen</button>
+        <button type="button" class="roster-tab-btn${tab === 'depth' ? ' roster-tab-active' : ''}" data-roster-tab="depth">Depth Chart</button>
+      </div>
+      ${tab !== 'depth' ? `
+      <div class="roster-controls">
+        <input id="roster-search" type="text" placeholder="Search name or #" value="${esc(S.rosterSearch)}" autocomplete="off">
+        <button type="button" class="roster-star-filter-btn${S.rosterStarredOnly ? ' roster-star-filter-active' : ''}" data-roster-starred-toggle>⭐ Starred only</button>
+      </div>` : ''}
+      <div class="roster-card">
+        <div id="roster-list-wrap">${renderRosterListWrap()}</div>
+      </div>
+    </div>`;
+}
+
+function renderRosterListWrap() {
+  if (S.rosterTab === 'depth') return renderDepthChartTable();
+  const isFresh = S.rosterTab === 'freshman';
+  const list = isFresh ? FOOTBALL_FRESHMAN_ROSTER : FOOTBALL_ROSTER;
+  const q = S.rosterSearch.trim().toLowerCase();
+  const rows = list
+    .map((p, i) => ({ p, id: isFresh ? `f${i}` : `v${p.num}` }))
+    .filter(({ p }) => !q || p.name.toLowerCase().includes(q) || String(p.num).includes(q))
+    .filter(({ id }) => !S.rosterStarredOnly || S.rosterStars.has(id));
+  if (!rows.length) return `<div class="roster-empty">No players match.</div>`;
+  return `
+    <table class="roster-table">
+      <thead><tr><th></th><th>#</th><th>Name</th><th>Pos</th><th>Gr</th><th>Ht / Wt</th></tr></thead>
+      <tbody>
+        ${rows.map(({ p, id }) => `
+        <tr class="${S.rosterStars.has(id) ? 'roster-row-starred' : ''}">
+          <td><button type="button" class="roster-star-btn${S.rosterStars.has(id) ? ' roster-star-on' : ''}" data-star-toggle="${id}" title="Star this player">${S.rosterStars.has(id) ? '★' : '☆'}</button></td>
+          <td class="roster-num">#${p.num}</td>
+          <td class="roster-name">${esc(p.name)}</td>
+          <td><span class="roster-pos-chip" title="${esc(ROSTER_POS_LABELS[p.pos] || p.pos)}">${esc(p.pos)}</span></td>
+          <td>${p.grade}</td>
+          <td class="roster-hw">${esc(p.height)} · ${p.weight}lb</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+}
+
+function renderDepthChartTable() {
+  const row = (entry, side) => {
+    const starterId = `v${entry.starter.num}`;
+    const backupId = `v${entry.backup.num}`;
+    const label = (DEPTH_POS_LABELS[side] && DEPTH_POS_LABELS[side][entry.pos]) || entry.pos;
+    const posText = (side === 'defense' && entry.pos === 'C') ? 'CB' : entry.pos;
+    return `
+    <tr>
+      <td><span class="roster-pos-chip" title="${esc(label)}">${esc(posText)}</span></td>
+      <td class="depth-starter"><button type="button" class="roster-star-btn${S.rosterStars.has(starterId) ? ' roster-star-on' : ''}" data-star-toggle="${starterId}">${S.rosterStars.has(starterId) ? '★' : '☆'}</button> #${entry.starter.num} ${esc(entry.starter.name)}</td>
+      <td class="depth-backup"><button type="button" class="roster-star-btn${S.rosterStars.has(backupId) ? ' roster-star-on' : ''}" data-star-toggle="${backupId}">${S.rosterStars.has(backupId) ? '★' : '☆'}</button> #${entry.backup.num} ${esc(entry.backup.name)}</td>
+    </tr>`;
+  };
+  const stRow = entry => `
+    <tr>
+      <td><span class="roster-pos-chip">${esc(entry.pos)}</span></td>
+      <td colspan="2" class="depth-st-players">
+        ${entry.players.map(pl => {
+          const id = `v${pl.num}`;
+          return `<span class="depth-st-player"><button type="button" class="roster-star-btn${S.rosterStars.has(id) ? ' roster-star-on' : ''}" data-star-toggle="${id}">${S.rosterStars.has(id) ? '★' : '☆'}</button> #${pl.num} ${esc(pl.name)}</span>`;
+        }).join(' ')}
+      </td>
+    </tr>`;
+  return `
+    <h3 class="roster-depth-heading">Offense</h3>
+    <table class="roster-table roster-depth-table">
+      <thead><tr><th>Pos</th><th>Starter</th><th>Backup</th></tr></thead>
+      <tbody>${FOOTBALL_DEPTH_CHART.offense.map(e => row(e, 'offense')).join('')}</tbody>
+    </table>
+    <h3 class="roster-depth-heading">Defense</h3>
+    <table class="roster-table roster-depth-table">
+      <thead><tr><th>Pos</th><th>Starter</th><th>Backup</th></tr></thead>
+      <tbody>${FOOTBALL_DEPTH_CHART.defense.map(e => row(e, 'defense')).join('')}</tbody>
+    </table>
+    <h3 class="roster-depth-heading">Special Teams</h3>
+    <table class="roster-table roster-depth-table">
+      <tbody>${FOOTBALL_DEPTH_CHART.specialTeams.map(stRow).join('')}</tbody>
+    </table>`;
+}
+
 // Standalone survey page (?board=beat-survey) for students to rank their
 // top 3 In-Depth beat picks. Submissions save to hm_beat_survey (one doc
 // per student, keyed by name, so resubmitting updates rather than duplicates)
@@ -10119,6 +10256,30 @@ async function loadHiddenLessons() {
     trackUsage('reads', snap.size || 1);
     return snap.docs.map(d => d.id);
   }, ids => { S.hiddenLessons = new Set(ids); });
+}
+
+async function loadRosterStars() {
+  const db = getDB();
+  if (!db) return;
+  await cachedLoad('rosterStars', async () => {
+    const snap = await db.collection('hm_roster_stars').get();
+    trackUsage('reads', snap.size || 1);
+    return snap.docs.map(d => d.id);
+  }, ids => { S.rosterStars = new Set(ids); });
+}
+
+async function toggleRosterStar(id) {
+  const db = getDB();
+  if (!db) { showToast('Offline — can\'t save stars right now.'); return; }
+  trackUsage('writes');
+  if (S.rosterStars.has(id)) {
+    await db.collection('hm_roster_stars').doc(id).delete();
+    S.rosterStars.delete(id);
+  } else {
+    await db.collection('hm_roster_stars').doc(id).set({ starred: true });
+    S.rosterStars.add(id);
+  }
+  render();
 }
 
 // Teacher text edits for built-in lessons — overrides shadow data.js LESSONS
@@ -10857,7 +11018,7 @@ function initBellRingerAudio() {
 
 // ── Init ──────────────────────────────────────────────────────
 async function init() {
-  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadUnitEdits(), loadHiddenUnits(), loadCustomUnits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions()]);
+  await Promise.all([loadFromFirebase(), loadCustomYbEvents(), loadYearbookCoverage(), loadCalendarYbEvents(), loadCanvaLessons(), loadLessonOrder(), loadLessonIcons(), loadHiddenLessons(), loadLessonEdits(), loadUnitEdits(), loadHiddenUnits(), loadCustomUnits(), loadIntroClassInfo(), loadQuickLinks(), loadBeatOverrides(), loadBellRingerQuestions(), loadRosterStars()]);
   loadEquipment();
   loadEquipmentState();
   await Promise.all([loadFormSignups(), loadYbFormSignups()]);  // need broadcasts/events loaded first
@@ -10897,6 +11058,12 @@ async function init() {
 
   if (new URLSearchParams(location.search).get('board') === 'exposure-game') {
     S.view = 'exposure-game-board';
+    render();
+    return;
+  }
+
+  if (new URLSearchParams(location.search).get('board') === 'roster') {
+    S.view = 'roster-board';
     render();
     return;
   }
