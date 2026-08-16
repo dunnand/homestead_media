@@ -68,11 +68,12 @@ function getDB() {
 }
 
 // ── Google Form sign-up backend ──────────────────────────────
-// Broadcast sign-ups now go through a Google Form; responses land in a
-// Google Sheet which is published to the web as CSV and read by the site.
-// No emails are collected anywhere.
+// Broadcast sign-ups are on-site by default (renderNativeSignupPage) — students
+// check off every broadcast they want in one visit, saved straight to Firestore
+// (hm_availability). Flip this to true to switch back to the Google Form
+// version instead (one broadcast per form submission — kept for reference).
 //
-// SETUP (one-time, ~5 minutes):
+// SETUP (one-time, ~5 minutes) if you re-enable the Google Form path:
 // 1. Create a Google Form with exactly these questions:
 //      • "Your Name"            — Short answer, required
 //      • "Broadcast"            — Short answer, required (the site prefills this — tell
@@ -85,7 +86,7 @@ function getDB() {
 //    that sheet: File → Share → Publish to web → select the responses tab + CSV → Publish.
 // 4. Paste the three values below.
 //
-const USE_GOOGLE_FORM_SIGNUP = true;
+const USE_GOOGLE_FORM_SIGNUP = false;
 const SIGNUP_FORM = {
   formUrl: 'https://docs.google.com/forms/d/1_OeCPHDdmSJRsNBtQIMyn0JcjjiTkgm5qUwYE1V3k8g/viewform',
   entryBroadcast: 'entry.1934284818', // the "Broadcast" question
@@ -4094,7 +4095,7 @@ function renderLive() {
           <section class="card action-card live-action">
             <div class="action-icon">📋</div>
             <h3>Broadcast Sign-Up</h3>
-            <p>Tell your teacher which positions you're interested in for upcoming broadcasts.</p>
+            <p>Check off every upcoming broadcast you want to work — pick as many as you'd like.</p>
             <button class="btn-primary" data-nav="availability">Sign Up →</button>
           </section>` : ''}
           <section class="card action-card live-action">
@@ -6532,7 +6533,90 @@ async function unsignYearbook(docId) {
 
 // ── BROADCAST SIGN-UP (Student) ───────────────────────────────
 function renderAvailabilityPage() {
-  return renderFormSignupPage();
+  return USE_GOOGLE_FORM_SIGNUP ? renderFormSignupPage() : renderNativeSignupPage();
+}
+
+function slugName(name) {
+  return name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+// On-site sign-up — students check off every broadcast they want in one visit;
+// each check is its own doc in hm_availability so they can pick as many as they like.
+function renderNativeSignupPage() {
+  const now = new Date();
+  const upcoming = (S.broadcasts || [])
+    .filter(b => new Date(b.date + 'T00:00:00') >= now)
+    .filter(b => b.type !== 'dance')
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const myName = localStorage.getItem('hm_student_name') || '';
+
+  const broadcastCards = upcoming.map(b => {
+    const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
+    const signups = (S.availabilities || []).filter(a => a.broadcastId === b.id);
+    const mine = !!myName && signups.some(a => a.studentName.toLowerCase() === myName.toLowerCase());
+    return `
+      <div class="avail-bc-card card">
+        <div class="avail-bc-meta">
+          <span class="avail-bc-type-badge" style="background:${et.color}">${et.label}</span>
+          <span class="avail-bc-date">${fmtDate(b.date, false)}</span>
+          ${signups.length > 0 ? `<span class="avail-bc-signups">${signups.length} signed up</span>` : ''}
+        </div>
+        <div class="avail-bc-title">${esc(b.title)}</div>
+        ${b.notes ? `<div class="avail-bc-notes">${esc(b.notes)}</div>` : ''}
+        ${b.gameTime ? `
+        <div class="avail-bc-times">
+          <span class="avail-door33-chip">🚪 Door 33 ${computeDoor33(b.gameTime, b.type)}</span>
+          <span class="avail-arrival-chip">${ARRIVAL_LABEL[b.type] ?? ARRIVAL_DEFAULT_LABEL} ${computeArrival(b.gameTime, b.type)}</span>
+          <span class="avail-gametime-chip">Game ${esc(b.gameTime)}</span>
+        </div>` : ''}
+        ${signups.length ? `
+        <div class="avail-form-names">${signups.map(a => `<span class="avail-interest-chip">${esc(a.studentName)}</span>`).join('')}</div>` : ''}
+        <button type="button" class="avail-toggle-btn${mine ? ' avail-toggle-on' : ''}" data-avail-toggle="${b.id}">
+          ${mine ? "✓ You're Signed Up" : 'Sign Me Up'}
+        </button>
+      </div>`;
+  }).join('') || `<p class="dim" style="padding:24px 0">No upcoming broadcasts scheduled.</p>`;
+
+  return `
+    ${navBar('live')}
+    <div class="class-page">
+      <button class="back-btn" data-nav="live">← Back to Homestead Live</button>
+      <div class="avail-page-header">
+        <h1>Broadcast Sign-Up</h1>
+        <p>Check off every broadcast you want to work — pick as many as you'd like in one visit.</p>
+      </div>
+      <div class="form-group avail-name-field">
+        <label>Your Name</label>
+        <input id="avail-name" type="text" placeholder="First and last name" value="${esc(myName)}" autocomplete="off">
+      </div>
+      <div class="avail-broadcasts">${broadcastCards}</div>
+    </div>`;
+}
+
+async function toggleBroadcastSignup(broadcastId) {
+  const nameEl = document.getElementById('avail-name');
+  const name = shortenName((nameEl && nameEl.value.trim()) || '');
+  if (!name) {
+    showToast('Enter your name first.');
+    if (nameEl) nameEl.focus();
+    return;
+  }
+  localStorage.setItem('hm_student_name', name);
+  const db = getDB();
+  if (!db) { showToast("Offline — can't save your sign-up right now."); return; }
+  const id = `${broadcastId}__${slugName(name)}`;
+  const already = (S.availabilities || []).some(a => a.id === id);
+  trackUsage('writes');
+  try {
+    if (already) {
+      await db.collection('hm_availability').doc(id).delete();
+      S.availabilities = (S.availabilities || []).filter(a => a.id !== id);
+    } else {
+      await db.collection('hm_availability').doc(id).set({ broadcastId, studentName: name });
+      S.availabilities = [...(S.availabilities || []).filter(a => a.id !== id), { id, broadcastId, studentName: name }];
+    }
+  } catch (e) { showToast('Something went wrong saving that.'); return; }
+  render();
 }
 
 // Google Form version — sign-ups happen on the Form, this page lists
@@ -8198,6 +8282,14 @@ function attachListeners() {
     if (wrap) { wrap.innerHTML = renderRosterListWrap(); bindRosterStarButtons(wrap); }
   });
   bindRosterStarButtons(document);
+
+  document.querySelectorAll('[data-avail-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => toggleBroadcastSignup(btn.dataset.availToggle));
+  });
+  const availNameEl = document.getElementById('avail-name');
+  if (availNameEl) availNameEl.addEventListener('change', () => {
+    localStorage.setItem('hm_student_name', shortenName(availNameEl.value.trim()));
+  });
   // Live sync picks on change so the light meter and side-effect readouts update immediately
   [['exp-ap', 'ap'], ['exp-sh', 'sh'], ['exp-iso', 'iso']].forEach(([id, key]) => {
     const sel = document.getElementById(id);

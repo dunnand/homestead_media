@@ -2867,6 +2867,16 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-radius: 6px; padding: 3px 8px; white-space: nowrap; flex-shrink: 0;
 }
 
+/* On-site sign-up */
+.avail-name-field { max-width: 360px; margin: 0 auto 24px; }
+.avail-toggle-btn {
+  display: block; width: 100%; margin-top: 12px; padding: 10px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--surface2); color: var(--text);
+  font-weight: 700; font-size: 0.88rem; cursor: pointer; text-align: center;
+}
+.avail-toggle-btn:hover { border-color: var(--live); }
+.avail-toggle-btn.avail-toggle-on { background: var(--live); border-color: var(--live); color: #fff; }
+
 /* Lesson visibility toggle (teacher checkmarks) */
 .lesson-toggle {
   width: 28px; height: 28px; flex-shrink: 0;
