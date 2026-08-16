@@ -6553,7 +6553,8 @@ function renderNativeSignupPage() {
   const broadcastCards = upcoming.map(b => {
     const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
     const signups = (S.availabilities || []).filter(a => a.broadcastId === b.id);
-    const mine = !!myName && signups.some(a => a.studentName.toLowerCase() === myName.toLowerCase());
+    const myEntry = myName ? signups.find(a => a.studentName.toLowerCase() === myName.toLowerCase()) : null;
+    const mine = !!myEntry;
     return `
       <div class="avail-bc-card card">
         <div class="avail-bc-meta">
@@ -6571,6 +6572,16 @@ function renderNativeSignupPage() {
         </div>` : ''}
         ${signups.length ? `
         <div class="avail-form-names">${signups.map(a => `<span class="avail-interest-chip">${esc(a.studentName)}</span>`).join('')}</div>` : ''}
+        ${mine
+          ? ((myEntry.interestedRoles || []).length
+              ? `<div class="avail-my-roles">${myEntry.interestedRoles.map(r => `<span class="avail-my-role-chip">${esc(r)}</span>`).join('')}</div>`
+              : '')
+          : `<p class="avail-roles-hint">Interested positions (optional)</p>
+             <div class="avail-roles-grid avail-roles-grid-tight">${LIVE_ROLES.map(r => `
+             <label class="avail-role-label">
+               <input type="checkbox" data-role-pick value="${esc(r)}">
+               <span>${esc(r)}</span>
+             </label>`).join('')}</div>`}
         <button type="button" class="avail-toggle-btn${mine ? ' avail-toggle-on' : ''}" data-avail-toggle="${b.id}">
           ${mine ? "✓ You're Signed Up" : 'Sign Me Up'}
         </button>
@@ -6593,7 +6604,7 @@ function renderNativeSignupPage() {
     </div>`;
 }
 
-async function toggleBroadcastSignup(broadcastId) {
+async function toggleBroadcastSignup(broadcastId, btnEl) {
   const nameEl = document.getElementById('avail-name');
   const name = shortenName((nameEl && nameEl.value.trim()) || '');
   if (!name) {
@@ -6612,8 +6623,13 @@ async function toggleBroadcastSignup(broadcastId) {
       await db.collection('hm_availability').doc(id).delete();
       S.availabilities = (S.availabilities || []).filter(a => a.id !== id);
     } else {
-      await db.collection('hm_availability').doc(id).set({ broadcastId, studentName: name });
-      S.availabilities = [...(S.availabilities || []).filter(a => a.id !== id), { id, broadcastId, studentName: name }];
+      const card = btnEl ? btnEl.closest('.avail-bc-card') : null;
+      const interestedRoles = card
+        ? [...card.querySelectorAll('[data-role-pick]:checked')].map(c => c.value)
+        : [];
+      const doc = { broadcastId, studentName: name, ...(interestedRoles.length ? { interestedRoles } : {}) };
+      await db.collection('hm_availability').doc(id).set(doc);
+      S.availabilities = [...(S.availabilities || []).filter(a => a.id !== id), { id, ...doc }];
     }
   } catch (e) { showToast('Something went wrong saving that.'); return; }
   render();
@@ -8284,7 +8300,7 @@ function attachListeners() {
   bindRosterStarButtons(document);
 
   document.querySelectorAll('[data-avail-toggle]').forEach(btn => {
-    btn.addEventListener('click', () => toggleBroadcastSignup(btn.dataset.availToggle));
+    btn.addEventListener('click', () => toggleBroadcastSignup(btn.dataset.availToggle, btn));
   });
   const availNameEl = document.getElementById('avail-name');
   if (availNameEl) availNameEl.addEventListener('change', () => {
