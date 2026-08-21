@@ -3954,7 +3954,7 @@ function renderLiveCalendar() {
 function renderLive() {
   const now = new Date();
   const upcoming = (S.broadcasts || [])
-    .filter(b => new Date(b.date + 'T00:00:00') >= now)
+    .filter(b => new Date(b.date + 'T23:59:00') >= now)
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const next = upcoming[0] || null;
@@ -6545,7 +6545,7 @@ function slugName(name) {
 function renderNativeSignupPage() {
   const now = new Date();
   const upcoming = (S.broadcasts || [])
-    .filter(b => new Date(b.date + 'T00:00:00') >= now)
+    .filter(b => new Date(b.date + 'T23:59:00') >= now)
     .filter(b => b.type !== 'dance')
     .sort((a, b) => a.date.localeCompare(b.date));
   const myName = localStorage.getItem('hm_student_name') || '';
@@ -6640,7 +6640,7 @@ async function toggleBroadcastSignup(broadcastId, btnEl) {
 function renderFormSignupPage() {
   const now = new Date();
   const upcoming = (S.broadcasts || [])
-    .filter(b => new Date(b.date + 'T00:00:00') >= now)
+    .filter(b => new Date(b.date + 'T23:59:00') >= now)
     .filter(b => b.type !== 'dance')  // dances aren't crewed broadcasts
     .sort((a, b) => a.date.localeCompare(b.date));
   const formReady = !!SIGNUP_FORM.formUrl;
