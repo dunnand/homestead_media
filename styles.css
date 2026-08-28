@@ -932,6 +932,18 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
 .roster-star-btn:hover { color: #f59e0b; }
 .roster-star-btn.roster-star-on { color: #f59e0b; }
 .roster-depth-heading { margin: 22px 0 8px; font-size: 1rem; }
+
+.crew-history-scroll { overflow-x: auto; }
+.crew-history-table { font-size: 1.05rem; min-width: 900px; }
+.crew-history-table th { font-size: 0.82rem; white-space: nowrap; padding: 10px 12px; text-align: center; }
+.crew-history-table th.ch-name-col { text-align: left; }
+.crew-history-table td { padding: 10px 12px; text-align: center; font-variant-numeric: tabular-nums; }
+.crew-history-table td.ch-name-col { text-align: left; font-weight: 700; font-size: 1.1rem; white-space: nowrap; }
+.crew-history-table td.ch-count-cell { font-weight: 700; color: var(--text); }
+.crew-history-table td.ch-count-zero { color: var(--dim); font-weight: 400; }
+.crew-history-table td.ch-total-num { font-weight: 800; color: var(--live); }
+.crew-history-table th.ch-total-col { color: var(--live); }
+.crew-history-table tbody tr:hover { background: var(--surface2); }
 .roster-depth-heading:first-child { margin-top: 0; }
 .roster-depth-table td.depth-starter, .roster-depth-table td.depth-backup { white-space: nowrap; }
 .depth-st-players { display: flex; gap: 14px; flex-wrap: wrap; }

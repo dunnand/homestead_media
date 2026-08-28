@@ -462,6 +462,7 @@ function render() {
     case 'beat-survey-board': app.innerHTML = renderBeatSurveyBoard(); break;
     case 'exposure-game-board': app.innerHTML = renderExposureGame(); break;
     case 'roster-board':     app.innerHTML = renderRosterBoard();     break;
+    case 'crew-history-board': app.innerHTML = renderCrewHistoryBoard(); break;
     default:              app.innerHTML = renderHome();
   }
   attachListeners();
@@ -4030,6 +4031,8 @@ function renderLive() {
       <div class="page-grid">
         <div class="main-col">
           ${countdownBlock}
+          ${S.teacherMode ? `
+          <a href="?board=crew-history" target="_blank" class="btn-secondary" style="display:inline-block;margin:-8px 0 12px;font-size:0.8rem;padding:5px 12px;text-decoration:none">🖥️ Open Crew History Board</a>` : ''}
           ${(() => {
             const allLessons = getCourseLessonList('live')
               .filter(l => S.teacherMode || !S.hiddenLessons.has(l.id))
@@ -4257,7 +4260,9 @@ function renderBroadcast() {
           <section class="card">
             <div class="card-header">
               <h2>Crew Assignments</h2>
-              ${S.teacherMode ? `<button class="btn-primary" id="save-roles">Save Roles</button>` : ''}
+              ${S.teacherMode ? `
+              <a href="?board=crew-history" target="_blank" class="btn-secondary" style="font-size:0.78rem;padding:4px 12px;text-decoration:none">🖥️ Crew History Board</a>
+              <button class="btn-primary" id="save-roles">Save Roles</button>` : ''}
             </div>
             <div class="role-grid">
               ${LIVE_ROLES.map(role => `
@@ -9698,6 +9703,80 @@ function renderDepthChartTable() {
     </table>`;
 }
 
+// Standalone screen (?board=crew-history) — meant to be left open on a
+// monitor at the crew set-up location so the teacher can see, while
+// assigning roles for the next broadcast, how many times each student has
+// already worked each position. Live via onSnapshot on hm_broadcasts so it
+// updates the moment roles are saved anywhere else in the app.
+function computeCrewHistoryCounts() {
+  const counts = {};
+  (S.crewHistoryBroadcasts || S.broadcasts || []).forEach(b => {
+    const roles = b.roles || {};
+    LIVE_ROLES.forEach(role => {
+      const name = (roles[role] || '').trim();
+      if (!name) return;
+      if (!counts[name]) counts[name] = { total: 0 };
+      counts[name][role] = (counts[name][role] || 0) + 1;
+      counts[name].total += 1;
+    });
+  });
+  return counts;
+}
+
+function renderCrewHistoryBoard() {
+  return `
+    <div class="ib-board">
+      <a href="?" class="ib-board-exit" title="Exit">⤺ Exit</a>
+      <div class="ib-board-header">
+        <h1>🎬 Crew Assignment History</h1>
+        <p>How many times each student has worked each position so far.</p>
+      </div>
+      <div id="crew-history-wrap">${renderCrewHistoryTable()}</div>
+    </div>`;
+}
+
+function renderCrewHistoryTable() {
+  const counts = computeCrewHistoryCounts();
+  const names = Object.keys(counts).sort((a, b) => counts[b].total - counts[a].total || a.localeCompare(b));
+  if (!names.length) return `<div class="roster-empty">No crew assignments recorded yet.</div>`;
+  return `
+    <div class="crew-history-scroll">
+      <table class="roster-table crew-history-table">
+        <thead>
+          <tr>
+            <th class="ch-name-col">Student</th>
+            ${LIVE_ROLES.map(r => `<th>${esc(r)}</th>`).join('')}
+            <th class="ch-total-col">Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${names.map(name => `
+          <tr>
+            <td class="ch-name-col">${esc(name)}</td>
+            ${LIVE_ROLES.map(r => {
+              const n = counts[name][r] || 0;
+              return `<td class="ch-count-cell${n ? '' : ' ch-count-zero'}">${n || '—'}</td>`;
+            }).join('')}
+            <td class="ch-total-col ch-total-num">${counts[name].total}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+
+function loadCrewHistoryBoard() {
+  const db = getDB();
+  if (!db) return;
+  if (S.crewHistoryUnsub) { S.crewHistoryUnsub(); S.crewHistoryUnsub = null; }
+  S.crewHistoryUnsub = db.collection('hm_broadcasts').onSnapshot(snap => {
+    const broadcasts = [];
+    snap.forEach(doc => broadcasts.push({ id: doc.id, ...doc.data() }));
+    S.crewHistoryBroadcasts = broadcasts;
+    const wrap = document.getElementById('crew-history-wrap');
+    if (wrap) wrap.innerHTML = renderCrewHistoryTable();
+  });
+}
+
 // Standalone survey page (?board=beat-survey) for students to rank their
 // top 3 In-Depth beat picks. Submissions save to hm_beat_survey (one doc
 // per student, keyed by name, so resubmitting updates rather than duplicates)
@@ -11170,6 +11249,13 @@ async function init() {
   if (new URLSearchParams(location.search).get('board') === 'roster') {
     S.view = 'roster-board';
     render();
+    return;
+  }
+
+  if (new URLSearchParams(location.search).get('board') === 'crew-history') {
+    S.view = 'crew-history-board';
+    render();
+    loadCrewHistoryBoard();
     return;
   }
 
