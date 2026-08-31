@@ -1644,6 +1644,18 @@ details[open] .shot-cat-summary::before { transform: rotate(90deg); }
   border-top: 1px solid var(--border); text-align: left;
 }
 
+.my-signups-list { display: flex; flex-direction: column; gap: 2px; margin-top: 4px; }
+.my-signup-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 4px; border-radius: 8px;
+  cursor: pointer; transition: background 0.15s;
+}
+.my-signup-row:hover { background: var(--surface2); }
+.my-signup-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.my-signup-info { flex: 1; min-width: 0; }
+.my-signup-title { font-weight: 600; font-size: 0.85rem; }
+.my-signup-date  { font-size: 0.75rem; color: var(--dim); }
+
 .roles-list { display: flex; flex-wrap: wrap; gap: 8px; }
 .role-chip {
   background: var(--surface2); border: 1px solid var(--border);
