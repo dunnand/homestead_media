@@ -4136,29 +4136,30 @@ function renderLive() {
     </div>`;
 }
 
-// My Sign-Ups — surfaces every upcoming broadcast the current student has
-// already signed up for, right on the Homestead Live landing page, so they
-// don't have to scan the whole Broadcast Sign-Up list to find them.
+// My Assignments — surfaces every upcoming broadcast the current student has
+// actually been assigned a crew position on, right on the Homestead Live
+// landing page, so they don't have to scan the whole schedule to find them.
 function renderMySignupsCard(upcoming) {
   const myName = localStorage.getItem('hm_student_name') || '';
   if (!myName) return '';
   const mine = upcoming.filter(b =>
-    (S.availabilities || []).some(a => a.broadcastId === b.id && a.studentName.toLowerCase() === myName.toLowerCase()));
+    Object.values(b.roles || {}).some(n => n && n.toLowerCase() === myName.toLowerCase()));
   if (!mine.length) return '';
 
   return `
     <section class="card action-card live-action" style="border-left:3px solid var(--live)">
       <div class="action-icon">✅</div>
-      <h3>You're Signed Up For</h3>
+      <h3>You're Assigned To</h3>
       <div class="my-signups-list">
         ${mine.map(b => {
           const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
+          const myRole = Object.entries(b.roles || {}).find(([, n]) => n && n.toLowerCase() === myName.toLowerCase())?.[0];
           return `
           <div class="my-signup-row" data-broadcast="${b.id}">
             <span class="my-signup-dot" style="background:${et.color}"></span>
             <div class="my-signup-info">
               <div class="my-signup-title">${esc(b.title)}</div>
-              <div class="my-signup-date">${fmtDate(b.date)}</div>
+              <div class="my-signup-date">${fmtDate(b.date)}${myRole ? ' · ' + esc(myRole) : ''}</div>
             </div>
           </div>`;
         }).join('')}
