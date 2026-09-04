@@ -7,6 +7,17 @@ const LIVE_ROLES = [
   'Jumbotron'
 ];
 
+// Positions excluded per broadcast type — e.g. basketball only runs 2 cameras.
+const LIVE_ROLES_EXCLUDED_BY_TYPE = {
+  basketball_boys:  ['Camera 3'],
+  basketball_girls: ['Camera 3'],
+};
+
+function rolesForType(type) {
+  const excluded = LIVE_ROLES_EXCLUDED_BY_TYPE[type] || [];
+  return LIVE_ROLES.filter(r => !excluded.includes(r));
+}
+
 const EVENT_TYPES = {
   // Sports
   football:        { label: 'Football',          color: '#f59e0b' },

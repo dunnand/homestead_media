@@ -3960,7 +3960,7 @@ function renderLive() {
 
   const next = upcoming[0] || null;
 
-  const crewGrid = (roles) => LIVE_ROLES.map(role => `
+  const crewGrid = (roles, type) => rolesForType(type).map(role => `
     <div class="broadcast-crew-role">
       <span class="bcr-label">${role}</span>
       <span class="bcr-name${roles[role] ? '' : ' empty'}">${esc(roles[role] || 'TBD')}</span>
@@ -3988,7 +3988,7 @@ function renderLive() {
           View Broadcast Prep →
         </button>
         <div class="next-crew-grid">
-          ${crewGrid(next.roles || {})}
+          ${crewGrid(next.roles || {}, next.type)}
         </div>
       </section>`;
   })() : `
@@ -4011,7 +4011,7 @@ function renderLive() {
           <div class="broadcast-tag" style="color:${et.color}">${et.label}</div>
         </div>
         <div class="broadcast-crew">
-          ${crewGrid(b.roles || {})}
+          ${crewGrid(b.roles || {}, b.type)}
         </div>
       </div>`;
   }).join('') || '<p class="dim">None scheduled yet.</p>';
@@ -4192,7 +4192,7 @@ function renderAvailabilityCard(b) {
               : `<div class="avail-no-pref">No position preference</div>`}
             <select class="avail-assign-sel" data-name="${esc(a.studentName)}">
               <option value="">Assign to role…</option>
-              ${LIVE_ROLES.map(r => `<option value="${r}"${assignedRole === r ? ' selected' : ''}>${r}</option>`).join('')}
+              ${rolesForType(b.type).map(r => `<option value="${r}"${assignedRole === r ? ' selected' : ''}>${r}</option>`).join('')}
             </select>
           </div>`;
       }).join('')
@@ -4297,7 +4297,7 @@ function renderBroadcast() {
               <button class="btn-primary" id="save-roles">Save Roles</button>` : ''}
             </div>
             <div class="role-grid">
-              ${LIVE_ROLES.map(role => `
+              ${rolesForType(b.type).map(role => `
                 <div class="role-row">
                   <div class="role-name">${role}</div>
                   ${S.teacherMode
@@ -4436,7 +4436,7 @@ function showEditBroadcastModal(id) {
     <div class="form-group">
       <label>Crew</label>
       <div class="edit-crew-grid">
-        ${LIVE_ROLES.map(role => `
+        ${rolesForType(b.type).map(role => `
           <div class="edit-crew-row">
             <span class="edit-crew-label">${role}</span>
             <input class="role-input" type="text" data-role="${role}" value="${esc(roles[role] || '')}" placeholder="Student name">
@@ -6614,7 +6614,7 @@ function renderNativeSignupPage() {
               ? `<div class="avail-my-roles">${myEntry.interestedRoles.map(r => `<span class="avail-my-role-chip">${esc(r)}</span>`).join('')}</div>`
               : '')
           : `<p class="avail-roles-hint">Interested positions (optional)</p>
-             <div class="avail-roles-grid avail-roles-grid-tight">${LIVE_ROLES.map(r => `
+             <div class="avail-roles-grid avail-roles-grid-tight">${rolesForType(b.type).map(r => `
              <label class="avail-role-label">
                <input type="checkbox" data-role-pick value="${esc(r)}">
                <span>${esc(r)}</span>
@@ -11719,14 +11719,15 @@ function renderDashboard() {
   const upcomingBroadcasts = (S.broadcasts || [])
     .filter(b => b.date >= lsToday)
     .sort((a, b) => a.date.localeCompare(b.date));
-  const openCrewCount = upcomingBroadcasts.filter(b => LIVE_ROLES.some(r => !(b.roles || {})[r])).length;
+  const openCrewCount = upcomingBroadcasts.filter(b => rolesForType(b.type).some(r => !(b.roles || {})[r])).length;
 
   const liveSignupsSection = upcomingBroadcasts.length
     ? upcomingBroadcasts.map(b => {
         const et = EVENT_TYPES[b.type] || EVENT_TYPES.other;
         const avails = (S.availabilities || []).filter(a => a.broadcastId === b.id);
         const roles = b.roles || {};
-        const filledCount = LIVE_ROLES.filter(r => roles[r]).length;
+        const bRoles = rolesForType(b.type);
+        const filledCount = bRoles.filter(r => roles[r]).length;
         const chips = avails.length
           ? avails.map(a => `<span class="ls-chip" title="${esc((a.interestedRoles || []).join(', ') || 'No position preference')}">${esc(a.studentName)}</span>`).join('')
           : `<span class="dim" style="font-size:0.8rem">No sign-ups yet.</span>`;
@@ -11739,14 +11740,14 @@ function renderDashboard() {
                 <span class="dim" style="font-size:0.8rem">— ${fmtDate(b.date)}</span>
               </div>
               <div class="ls-card-actions">
-                <span class="ls-fill-count">${filledCount}/${LIVE_ROLES.length} filled</span>
+                <span class="ls-fill-count">${filledCount}/${bRoles.length} filled</span>
                 <button class="btn-primary db-btn ls-save-btn" data-broadcast-id="${esc(b.id)}" style="font-size:0.75rem">Save Roles</button>
                 <button class="btn-secondary db-btn ls-open-btn" data-broadcast-id="${esc(b.id)}" style="font-size:0.75rem">Open →</button>
               </div>
             </div>
             <div class="ls-chips">${chips}</div>
             <div class="role-grid ls-role-grid">
-              ${LIVE_ROLES.map(role => {
+              ${bRoles.map(role => {
                 const currentVal = roles[role] || '';
                 const interested = avails.filter(a => (a.interestedRoles || []).includes(role));
                 return `
